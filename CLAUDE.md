@@ -522,11 +522,13 @@ bot/states/
 └── __init__.py       → Exports de estados
 ```
 
-### Handlers (T12)
+### Handlers (T12-T13)
 ```
 bot/handlers/admin/
 ├── main.py           → cmd_admin, callback_admin_main, callback_admin_config
-└── __init__.py       → Export de admin_router
+├── vip.py            → VIP submenú, setup canal, generación tokens
+├── free.py           → Free submenú, setup canal, wait time config
+└── __init__.py       → Exports de routers
 
 bot/utils/
 ├── keyboards.py      → Factory functions para inline keyboards
@@ -611,8 +613,74 @@ async def handle_setup_vip(message: Message, state: FSMContext):
   - [x] Middlewares en orden correcto
   - [x] Tests validación completos
 
-- [ ] T13: Handlers VIP y Free (Submenús)
-- [ ] T14-T17: Más handlers y features
+- [x] T13: Handlers VIP y Free (Setup + Token Generation)
+  - [x] Submenú VIP con estado de configuración
+  - [x] FSM setup canal VIP (forward → extrae ID → configura)
+  - [x] Generación de tokens VIP (24h)
+  - [x] Submenú Free con estado de configuración
+  - [x] FSM setup canal Free (forward → extrae ID → configura)
+  - [x] FSM configuración tiempo de espera (validación >= 1 minuto)
+  - [x] Keyboards dinámicos
+  - [x] Error handling y validaciones
+  - [x] Tests validación completos
 
-**Status:** ✅ FASE 1.3 BASE COMPLETADA (3/3 tareas base)
-**Próximo:** T13 - Handlers VIP y Free (Submenús)
+#### T13: Handlers VIP y Free (Setup + Token Generation) ✅ COMPLETADO
+**Archivo:** `bot/handlers/admin/vip.py` (232 líneas) + `bot/handlers/admin/free.py` (297 líneas)
+**Patrón:** FSM + Callbacks + Message Handlers
+**Responsabilidades:**
+- Submenús VIP y Free adaptables al estado de configuración
+- Flujos FSM para setup de canales (forward → extrae ID → configura)
+- Generación de tokens VIP
+- Configuración de tiempo de espera Free
+
+**Implementación VIP:**
+- `callback_vip_menu`: Muestra submenú VIP
+- `callback_vip_setup`: Inicia FSM waiting_for_vip_channel
+- `process_vip_channel_forward`: Procesa forward, extrae ID, configura
+- `callback_generate_vip_token`: Genera token válido 24h
+- `vip_menu_keyboard()`: Keyboard dinámico
+
+**Implementación Free:**
+- `callback_free_menu`: Muestra submenú Free
+- `callback_free_setup`: Inicia FSM waiting_for_free_channel
+- `process_free_channel_forward`: Procesa forward, extrae ID, configura
+- `callback_set_wait_time`: Inicia FSM waiting_for_minutes
+- `process_wait_time_input`: Procesa minutos, valida (>= 1), actualiza
+- `free_menu_keyboard()`: Keyboard dinámico
+
+**Flujos FSM:**
+```
+Setup Canal VIP/Free:
+  User: Click "Configurar"
+  Bot: Entra estado waiting_for_vip/free_channel
+  User: Reenvía forward del canal
+  Bot: Extrae forward_from_chat.id → Configura → state.clear()
+
+Setup Wait Time (Free):
+  User: Click "Configurar Tiempo"
+  Bot: Entra estado waiting_for_minutes
+  User: Envía número (ej: 5)
+  Bot: Valida >= 1 → Configura → state.clear()
+```
+
+**Validaciones:**
+- ✅ Forward validation (rechaza texto, requiere canal/supergrupo)
+- ✅ Channel type check (channel o supergroup)
+- ✅ Token generation (solo si canal VIP configurado)
+- ✅ Wait time >= 1 minuto
+- ✅ Error recovery (mantener FSM state en errores recuperables)
+
+**Tests Validación:** ✅ Todos pasaron
+- ✅ Keyboards VIP y Free (ambos estados)
+- ✅ Handlers importables
+- ✅ admin_router compartido
+- ✅ Callback data correctos
+- ✅ FSM States disponibles
+
+---
+
+- [ ] T14: Handlers User (/start, Canje Token, Solicitud Free)
+- [ ] T15-T17: Más handlers y features
+
+**Status:** 🔄 FASE 1.3 AVANZADA (4/3 tareas base + setup completo)
+**Próximo:** T14 - Handlers User (/start, Canje Token, Solicitud Free)
