@@ -215,18 +215,154 @@ async def command_handler(message: Message, session: AsyncSession) -> None:
 
 **Responsabilidad:** Interceptar y procesar updates antes de handlers
 
-**Middlewares Planeados:**
-- `AdminAuthMiddleware` - Validar que usuario es admin
-- `DatabaseMiddleware` - Inyectar AsyncSession en contexto
+**Middlewares Implementados:**
 
-**Patrón (Fase 1.4):**
+#### AdminAuthMiddleware (T10)
+
+**Responsabilidad:** Validar que el usuario tenga permisos de administrador antes de ejecutar handlers protegidos
+
+**Características:**
+- **Validación automática:** Verifica si el user_id está en la lista de `Config.ADMIN_USER_IDS`
+- **Manejo de eventos:** Soporta tanto `Message` como `CallbackQuery` de Telegram
+- **Mensajes de error:** Envía mensajes apropiados cuando el acceso es denegado
+- **Logging:** Registra intentos de acceso no autorizados con nivel de advertencia
+- **Interrupción de flujo:** Si el usuario no es admin, no ejecuta el handler original
+
+**Flujo de operación:**
+1. Middleware intercepta el evento (Message o CallbackQuery)
+2. Extrae el user_id del evento
+3. Verifica si el user_id está en la lista de administradores
+4. Si es admin: ejecuta el handler original
+5. Si no es admin: envía mensaje de error y retorna None (no ejecuta handler)
+
+**Ejemplo de aplicación:**
+```python
+# En un router de administración
+admin_router = Router()
+admin_router.message.middleware(AdminAuthMiddleware())
+admin_router.callback_query.middleware(AdminAuthMiddleware())
+
+# Handler protegido por middleware
+@admin_router.message(Command("admin_panel"))
+async def admin_panel_handler(message: Message, session: AsyncSession):
+    # Este handler solo se ejecuta si el usuario es admin
+    await message.answer("Panel de administración")
+```
+
+**Tipos de respuesta según evento:**
+- Para `Message`: Envía respuesta con `event.answer()` en formato HTML
+- Para `CallbackQuery`: Envía respuesta con `event.answer(show_alert=True)` como alerta
+
+#### DatabaseMiddleware (T10)
+
+**Responsabilidad:** Inyectar automáticamente una sesión de base de datos en cada handler que lo requiera
+
+**Características:**
+- **Inyección automática:** Coloca una instancia de `AsyncSession` en el diccionario `data`
+- **Context manager:** Utiliza `async with get_session()` para manejo automático de recursos
+- **Commit automático:** Realiza commit si no hay excepciones
+- **Rollback automático:** Realiza rollback si ocurre una excepción
+- **Cierre automático:** Cierra la sesión al salir del contexto
+- **Logging de errores:** Registra errores ocurridos durante la ejecución del handler
+
+**Flujo de operación:**
+1. Middleware crea una nueva sesión de base de datos
+2. Inyecta la sesión en `data["session"]`
+3. Ejecuta el handler original con la sesión disponible
+4. Si no hay excepciones: realiza commit automático
+5. Si hay excepción: realiza rollback y propaga la excepción
+6. Cierra la sesión al finalizar
+
+**Ejemplo de aplicación:**
+```python
+# Aplicar al dispatcher para que todos los handlers tengan acceso a la sesión
+dispatcher.update.middleware(DatabaseMiddleware())
+
+# Handler que recibe la sesión automáticamente
+async def user_data_handler(message: Message, session: AsyncSession):
+    # La sesión está disponible automáticamente gracias al middleware
+    result = await session.execute(select(User).where(User.id == message.from_user.id))
+    user = result.scalar_one_or_none()
+
+    if user:
+        await message.answer(f"Datos del usuario: {user.name}")
+    else:
+        await message.answer("Usuario no encontrado")
+```
+
+**Patrón de implementación:**
 ```python
 class DatabaseMiddleware(BaseMiddleware):
-    async def __call__(self, handler, event, data):
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any]
+    ) -> Any:
         async with get_session() as session:
             data["session"] = session
-            return await handler(event, data)
+
+            try:
+                return await handler(event, data)
+            except Exception as e:
+                logger.error(f"❌ Error en handler con sesión DB: {e}", exc_info=True)
+                raise
 ```
+
+#### Aplicación combinada de ambos middlewares
+
+Cuando ambos middlewares se aplican juntos, se forma una cadena de procesamiento:
+
+```
+1. Evento entrante (Message/CallbackQuery)
+   ↓
+2. AdminAuthMiddleware: Valida permisos de admin
+   ↓ (si es admin, continúa; si no, interrumpe)
+3. DatabaseMiddleware: Inyecta sesión de base de datos
+   ↓
+4. Handler: Recibe evento + sesión, ejecuta lógica
+```
+
+**Ejemplo completo de uso combinado:**
+```python
+from aiogram import Router
+from aiogram.types import Message
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from bot.middlewares.admin_auth import AdminAuthMiddleware
+from bot.middlewares.database import DatabaseMiddleware
+
+# Router para comandos de administrador
+admin_router = Router()
+
+# Aplicar ambos middlewares
+admin_router.message.middleware(AdminAuthMiddleware())      # Valida permisos
+admin_router.callback_query.middleware(AdminAuthMiddleware())  # Valida permisos
+# La sesión se inyectará automáticamente gracias al DatabaseMiddleware
+# aplicado al dispatcher.update.middleware(DatabaseMiddleware())
+
+@admin_router.message(Command("admin_stats"))
+async def admin_stats_handler(message: Message, session: AsyncSession):
+    # Este handler solo se ejecuta si:
+    # 1. El usuario es admin (validado por AdminAuthMiddleware)
+    # 2. Tiene acceso a la sesión de BD (inyectada por DatabaseMiddleware)
+
+    # Usar la sesión para obtener estadísticas
+    stats = await get_statistics_from_db(session)
+
+    await message.answer(
+        f"📊 Estadísticas del bot:\n{stats}",
+        parse_mode="HTML"
+    )
+```
+
+**Beneficios de la arquitectura de middlewares:**
+- **Separación de preocupaciones:** Lógica de autenticación y base de datos separada de la lógica de negocio
+- **Reutilización:** Los mismos middlewares se pueden aplicar a múltples routers/handlers
+- **Facilidad de mantenimiento:** Cambios en la autenticación o manejo de BD se hacen en un solo lugar
+- **Consistencia:** Todos los handlers protegidos y con acceso a BD siguen el mismo patrón
+- **Seguridad:** Prevención automática de accesos no autorizados
+- **Gestión de recursos:** Manejo automático de sesiones de base de datos
 
 ### 6. States (FSM)
 
@@ -899,36 +1035,37 @@ main.py
 4. **Logging Level** - INFO en producción, DEBUG solo en desarrollo
 5. **Task Scheduling** - APScheduler con intervalos razonables (no < 5 min)
 
-### Índices de Búsqueda
-
-Se implementaron índices compuestos para queries comunes:
-- Buscar tokens válidos: `(used, created_at)`
-- Buscar suscriptores por estado: `(status, expiry_date)`
-- Buscar requests pendientes: `(processed, request_date)`
-
 ## Seguridad
 
 ### 1. Autenticación
 
 - Validación de ADMIN_USER_IDS en config.py
 - AdminAuthMiddleware valida permisos antes de handlers
+- Control de acceso basado en roles (admin/no admin)
+- Mensajes de error personalizados para accesos denegados
+- Logging de intentos de acceso no autorizados
 
 ### 2. Base de Datos
 
 - Foreign keys habilitadas
 - SQLite con WAL mode para integridad
 - Índices en columnas sensibles (user_id, status)
+- Context managers para manejo automático de transacciones
+- Commit automático en operaciones exitosas
+- Rollback automático en caso de errores
 
 ### 3. Tokens
 
 - 16 caracteres alfanuméricos (192 bits de entropía)
 - Duración limitada (expiran después de X horas)
 - Marca de "usado" previene reutilización
+- Validación doble: no expirado + no usado
 
 ### 4. Secretos
 
 - BOT_TOKEN en .env (NO commitear)
 - Logging con preview de token (primeros 10 caracteres)
+- Protección contra filtrado accidental de credenciales
 
 ## Escalabilidad Futura
 
@@ -939,6 +1076,107 @@ Se implementaron índices compuestos para queries comunes:
 3. **Webhook Updates** - Reemplazar polling
 4. **PostgreSQL** - Reemplazar SQLite para múltiples conexiones
 5. **Container + Kubernetes** - Deploy en producción
+
+## Ejemplos de Implementación
+
+### Ejemplos de uso de Middlewares
+
+#### Aplicación de AdminAuthMiddleware
+
+```python
+# En handlers/admin/main.py
+from aiogram import Router
+from aiogram.types import Message
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from bot.middlewares.admin_auth import AdminAuthMiddleware
+
+admin_router = Router()
+admin_router.message.middleware(AdminAuthMiddleware())
+
+@admin_router.message(Command("admin_panel"))
+async def admin_panel_handler(message: Message, session: AsyncSession):
+    """Handler protegido por middleware de autenticación."""
+    await message.answer("_PANEL DE ADMINISTRADOR_\n\n"
+                        "Selecciona una opción:",
+                        parse_mode="HTML")
+```
+
+#### Aplicación de DatabaseMiddleware
+
+```python
+# En main.py
+from bot.middlewares.database import DatabaseMiddleware
+
+# Aplicar a nivel global para que todos los handlers tengan acceso a la BD
+dp.update.middleware(DatabaseMiddleware())
+
+# En cualquier handler
+async def user_info_handler(message: Message, session: AsyncSession):
+    """Handler que recibe la sesión automáticamente."""
+    # La sesión está disponible gracias al middleware
+    user_id = message.from_user.id
+
+    # Ejemplo de consulta a la base de datos
+    result = await session.execute(
+        select(VIPSubscriber)
+        .where(VIPSubscriber.user_id == user_id)
+        .where(VIPSubscriber.status == "active")
+    )
+    subscriber = result.scalar_one_or_none()
+
+    if subscriber:
+        days_left = subscriber.days_remaining()
+        await message.answer(f"Suscripción VIP activa. Días restantes: {days_left}")
+    else:
+        await message.answer("No tienes suscripción VIP activa.")
+```
+
+#### Uso combinado de ambos middlewares
+
+```python
+# Router específico para comandos de administrador
+admin_router = Router()
+
+# Aplicar middleware de autenticación a nivel de router
+admin_router.message.middleware(AdminAuthMiddleware())
+admin_router.callback_query.middleware(AdminAuthMiddleware())
+
+# La inyección de sesión se hace a nivel global con DatabaseMiddleware
+# aplicado en el dispatcher
+
+@admin_router.message(Command("generate_token"))
+async def generate_token_handler(message: Message, session: AsyncSession):
+    """
+    Handler que requiere:
+    1. Permisos de administrador (verificado por AdminAuthMiddleware)
+    2. Acceso a la base de datos (inyectado por DatabaseMiddleware)
+    """
+    # Solo se llega aquí si el usuario es admin
+    # La sesión está disponible automáticamente
+
+    container = ServiceContainer(session, bot_instance)
+
+    try:
+        # Generar token usando el servicio de suscripciones
+        token = await container.subscription.generate_vip_token(
+            generated_by=message.from_user.id,
+            duration_hours=24
+        )
+
+        await message.answer(
+            f"✅ Token VIP generado:\n\n"
+            f"<code>{token.token}</code>\n\n"
+            f"Válido por 24 horas.\n"
+            f"Generado por: {message.from_user.full_name}",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        logger.error(f"Error generando token: {e}")
+        await message.answer("❌ Error al generar token. Intenta nuevamente.")
+
+# Aplicar middleware global de base de datos en el dispatcher
+dp.update.middleware(DatabaseMiddleware())
 
 ---
 

@@ -12,6 +12,7 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - T7: Subscription Service - Gestión completa de suscripciones VIP (tokens, validación, canjes) y cola de acceso Free
 - T8: Channel Service - Gestión completa de canales VIP y Free con verificación de permisos y envío de publicaciones
 - T9: Config Service - Gestión de configuración global del bot, tiempos de espera, reacciones y tarifas
+- T10: Middlewares - Implementación de AdminAuthMiddleware y DatabaseMiddleware para autenticación de administradores e inyección automática de sesiones de base de datos
 
 ## [1.0.0] - 2025-12-11
 

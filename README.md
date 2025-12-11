@@ -119,33 +119,58 @@ Gestión de configuración global del bot con funcionalidades clave:
 - **Validación de configuración:** Verificar que la configuración esté completa
 - **Tarifas de suscripción:** Configurar y gestionar precios de suscripciones
 
-**Ejemplo de uso del Service Container:**
+### Middlewares (T10)
+Implementación de middlewares para autenticación de administradores e inyección automática de sesiones de base de datos:
+
+- **AdminAuthMiddleware:** Valida que el usuario tenga permisos de administrador antes de ejecutar handlers protegidos
+- **DatabaseMiddleware:** Inyecta automáticamente una sesión de SQLAlchemy a cada handler que lo requiera
+- **Aplicación a handlers:** Se aplican a routers y handlers que requieren permisos administrativos o acceso a BD
+- **Manejo de errores:** Si el usuario no es admin, responde con mensaje de error y no ejecuta el handler
+- **Inyección automática:** Proporciona una sesión de SQLAlchemy a cada handler automáticamente
+
+**Ejemplo de uso de los middlewares:**
 ```python
-container = ServiceContainer(session, bot)
+from aiogram import Router
+from bot.middlewares.admin_auth import AdminAuthMiddleware
+from bot.middlewares.database import DatabaseMiddleware
 
-# Primera vez: carga el servicio (lazy loading)
-token = await container.subscription.generate_token(...)
+# Aplicar middlewares a un router de administración
+admin_router = Router()
+admin_router.message.middleware(AdminAuthMiddleware())  # Protege todos los handlers de mensajes
+admin_router.callback_query.middleware(AdminAuthMiddleware())  # Protege callbacks
 
-# Segunda vez: reutiliza instancia ya cargada
-result = await container.subscription.validate_token(...)
+# Aplicar middleware de base de datos al dispatcher para inyectar sesiones
+dispatcher.update.middleware(DatabaseMiddleware())
 
-# Uso del servicio de canales
-success, message = await container.channel.setup_vip_channel("-1001234567890")
-is_valid, perm_message = await container.channel.verify_bot_permissions("-1001234567890")
-sent_success, sent_message, sent_msg = await container.channel.send_to_channel(
-    channel_id="-1001234567890",
-    text="Publicación VIP",
-    photo="photo_file_id"
-)
+# Handler que recibe la sesión automáticamente gracias al middleware
+@admin_router.message(Command("admin_command"))
+async def admin_handler(message: Message, session: AsyncSession):
+    # La sesión está disponible automáticamente gracias al DatabaseMiddleware
+    # Si el usuario no es admin, este handler no se ejecuta gracias al AdminAuthMiddleware
+    await message.answer("Comando de administrador ejecutado correctamente")
+```
 
-# Uso del servicio de configuración
-config = await container.config.get_config()
-wait_time = await container.config.get_wait_time()
-await container.config.set_wait_time(10)  # 10 minutos de espera
-await container.config.set_vip_reactions(["👍", "❤️", "🔥"])
-await container.config.set_subscription_fees({"monthly": 10, "yearly": 100})
-is_configured = await container.config.is_fully_configured()
-summary = await container.config.get_config_summary()
+**Ejemplo de validación de permisos de administrador:**
+```python
+# El middleware AdminAuthMiddleware se encarga de validar automáticamente
+# Si el usuario no es admin, envía un mensaje de error y no ejecuta el handler
+# Configuración en config.py:
+# ADMIN_USER_IDS = [123456789, 987654321]  # Lista de IDs de administradores
+```
+
+**Ejemplo de inyección automática de sesiones de base de datos:**
+```python
+# El middleware DatabaseMiddleware inyecta la sesión automáticamente
+# No es necesario abrir/cerrar conexiones manualmente
+async def handler_con_bd(message: Message, session: AsyncSession):
+    # Usar la sesión inyectada para operaciones de base de datos
+    result = await session.execute(select(User).where(User.id == message.from_user.id))
+    user = result.scalar_one_or_none()
+
+    if user:
+        await message.answer(f"Usuario encontrado: {user.name}")
+    else:
+        await message.answer("Usuario no encontrado")
 ```
 
 ## 🔧 Desarrollo
@@ -155,6 +180,7 @@ Este proyecto está en desarrollo iterativo. Consulta las tareas completadas:
 - [x] T7: Subscription Service - Gestión completa de suscripciones VIP (tokens, validación, canjes) y cola de acceso Free
 - [x] T8: Channel Service - Gestión completa de canales VIP y Free con verificación de permisos y envío de publicaciones
 - [x] T9: Config Service - Gestión de configuración global del bot, tiempos de espera, reacciones y tarifas
+- [x] T10: Middlewares - Implementación de AdminAuthMiddleware y DatabaseMiddleware para autenticación de administradores e inyección automática de sesiones de base de datos
 - [ ] ONDA 1: MVP Funcional (T1-T17)
 - [ ] ONDA 2: Features Avanzadas (T18-T33)
 - [ ] ONDA 3: Optimización (T34-T44)

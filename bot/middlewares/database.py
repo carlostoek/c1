@@ -14,6 +14,15 @@ from bot.database import get_session
 logger = logging.getLogger(__name__)
 
 
+def get_db_session():
+    """Obtiene una sesión de base de datos para su uso en handlers.
+
+    Returns:
+        Context manager para una sesión de base de datos
+    """
+    return get_session()
+
+
 class DatabaseMiddleware(BaseMiddleware):
     """
     Middleware que inyecta sesión de base de datos.

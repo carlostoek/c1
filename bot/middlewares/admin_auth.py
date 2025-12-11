@@ -15,6 +15,18 @@ from config import Config
 logger = logging.getLogger(__name__)
 
 
+def is_admin(user_id: int) -> bool:
+    """Verifica si un usuario es administrador.
+
+    Args:
+        user_id: ID de usuario de Telegram a verificar
+
+    Returns:
+        True si el usuario es administrador, False en caso contrario
+    """
+    return Config.is_admin(user_id)
+
+
 class AdminAuthMiddleware(BaseMiddleware):
     """
     Middleware que valida permisos de administrador.
