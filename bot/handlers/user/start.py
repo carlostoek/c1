@@ -64,7 +64,15 @@ async def cmd_start(message: Message, session: AsyncSession):
         # Calcular días restantes
         if subscriber and hasattr(subscriber, 'expiry_date') and subscriber.expiry_date:
             from datetime import datetime, timezone
-            days_remaining = max(0, (subscriber.expiry_date - datetime.now(timezone.utc)).days)
+
+            # Asegurar que expiry_date tiene timezone
+            expiry = subscriber.expiry_date
+            if expiry.tzinfo is None:
+                # Si es naive, asumimos UTC
+                expiry = expiry.replace(tzinfo=timezone.utc)
+
+            now = datetime.now(timezone.utc)
+            days_remaining = max(0, (expiry - now).days)
         else:
             days_remaining = 0
 
