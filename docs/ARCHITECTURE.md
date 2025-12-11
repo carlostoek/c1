@@ -1879,22 +1879,206 @@ print(summary)
 await container.config.reset_to_defaults()
 ```
 
-### 8. Background Tasks
+### 8. Background Tasks (T15)
 
-**Responsabilidad:** Tareas programadas asincrónicas
+**Responsabilidad:** Tareas programadas asincrónicas que realizan operaciones periódicas para mantener el sistema funcionando correctamente
 
-**Tareas Planeadas:**
-- `cleanup_expired_subscriptions()` - Marcar VIPs como expirados
-- `process_free_queue()` - Procesar cola de Free requests
-- `cleanup_expired_tokens()` - Eliminar tokens expirados
+**Tareas Implementadas:**
+- `expire_and_kick_vip_subscribers()` - Marcar VIPs expirados y expulsarlos del canal
+- `process_free_queue()` - Procesar cola de solicitudes Free que cumplieron tiempo de espera
+- `cleanup_old_data()` - Eliminar solicitudes Free procesadas hace más de 30 días
 
-**Patrón:**
+**Componentes:**
+```
+background/
+├── __init__.py
+├── tasks.py          # Tareas programadas y scheduler
+```
+
+**Arquitectura:**
 ```python
-@scheduler.scheduled_job('interval', minutes=60)
-async def cleanup_task():
-    async with get_session() as session:
-        # Procesar
-        pass
+import logging
+from typing import Optional
+from aiogram import Bot
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
+
+# Scheduler global
+_scheduler: Optional[AsyncIOScheduler] = None
+
+async def expire_and_kick_vip_subscribers(bot: Bot):
+    """
+    Tarea: Expulsar suscriptores VIP expirados del canal.
+    """
+    logger.info("🔄 Ejecutando tarea: Expulsión VIP expirados")
+
+    try:
+        async with get_session() as session:
+            container = ServiceContainer(session, bot)
+
+            # Verificar que canal VIP está configurado
+            vip_channel_id = await container.channel.get_vip_channel_id()
+
+            if not vip_channel_id:
+                logger.warning("⚠️ Canal VIP no configurado, saltando expulsión")
+                return
+
+            # Marcar como expirados
+            expired_count = await container.subscription.expire_vip_subscribers()
+
+            if expired_count > 0:
+                logger.info(f"⏱️ {expired_count} suscriptor(es) VIP expirados")
+
+                # Expulsar del canal
+                kicked_count = await container.subscription.kick_expired_vip_from_channel(
+                    vip_channel_id
+                )
+
+                logger.info(f"✅ {kicked_count} usuario(s) expulsados del canal VIP")
+            else:
+                logger.debug("✓ No hay VIPs expirados")
+
+    except Exception as e:
+        logger.error(f"❌ Error en tarea de expulsión VIP: {e}", exc_info=True)
+
+def start_background_tasks(bot: Bot):
+    """
+    Inicia el scheduler con todas las tareas programadas.
+    """
+    global _scheduler
+
+    if _scheduler is not None:
+        logger.warning("⚠️ Scheduler ya está corriendo")
+        return
+
+    logger.info("🚀 Iniciando background tasks...")
+
+    _scheduler = AsyncIOScheduler(timezone="UTC")
+
+    # Tarea 1: Expulsión VIP expirados
+    # Frecuencia: Cada 60 minutos (Config.CLEANUP_INTERVAL_MINUTES)
+    _scheduler.add_job(
+        expire_and_kick_vip_subscribers,
+        trigger=IntervalTrigger(minutes=Config.CLEANUP_INTERVAL_MINUTES),
+        args=[bot],
+        id="expire_vip",
+        name="Expulsar VIPs expirados",
+        replace_existing=True,
+        max_instances=1
+    )
+
+    # Tarea 2: Procesamiento cola Free
+    # Frecuencia: Cada 5 minutos (Config.PROCESS_FREE_QUEUE_MINUTES)
+    _scheduler.add_job(
+        process_free_queue,
+        trigger=IntervalTrigger(minutes=Config.PROCESS_FREE_QUEUE_MINUTES),
+        args=[bot],
+        id="process_free_queue",
+        name="Procesar cola Free",
+        replace_existing=True,
+        max_instances=1
+    )
+
+    # Tarea 3: Limpieza de datos antiguos
+    # Frecuencia: Diaria a las 3 AM UTC
+    _scheduler.add_job(
+        cleanup_old_data,
+        trigger=CronTrigger(hour=3, minute=0, timezone="UTC"),
+        args=[bot],
+        id="cleanup_old_data",
+        name="Limpieza de datos antiguos",
+        replace_existing=True,
+        max_instances=1
+    )
+
+    # Iniciar scheduler
+    _scheduler.start()
+    logger.info("✅ Background tasks iniciados correctamente")
+
+def stop_background_tasks():
+    """
+    Detiene el scheduler y todas las tareas programadas.
+    """
+    global _scheduler
+
+    if _scheduler is None:
+        logger.warning("⚠️ Scheduler no está corriendo")
+        return
+
+    logger.info("🛑 Deteniendo background tasks...")
+
+    _scheduler.shutdown(wait=True)
+    _scheduler = None
+
+    logger.info("✅ Background tasks detenidos correctamente")
+```
+
+**Flujos Implementados:**
+
+**VIP Expiration Flow:**
+```
+1. [Cada 60 minutos] Tarea expire_and_kick_vip_subscribers() se ejecuta
+   ├→ Verifica si canal VIP está configurado
+   ├→ Busca suscriptores VIP con expiry_date < datetime.now()
+   ├→ Marca como expirados (status = "expired")
+   ├→ Expulsa del canal VIP usando Telegram API
+   └→ Log de resultados
+```
+
+**Free Queue Processing Flow:**
+```
+1. [Cada 5 minutos] Tarea process_free_queue() se ejecuta
+   ├→ Verifica si canal Free está configurado
+   ├→ Busca solicitudes Free con (request_date + wait_time) < datetime.now()
+   ├→ Para cada solicitud:
+   │  ├→ Marca como procesada
+   │  ├→ Crea invite link único (member_limit=1, expire_hours=24)
+   │  ├→ Envía link al usuario por mensaje privado
+   │  └→ Log de éxito/error
+   └→ Log de resultados
+```
+
+**Data Cleanup Flow:**
+```
+1. [Diariamente a las 3 AM UTC] Tarea cleanup_old_data() se ejecuta
+   ├→ Busca solicitudes Free con request_date > 30 días
+   ├→ Elimina registros antiguos
+   └→ Log de cantidad eliminada
+```
+
+**Configuración de Variables de Entorno:**
+- `CLEANUP_INTERVAL_MINUTES` - Intervalo para expulsión de VIPs expirados (default: 60)
+- `PROCESS_FREE_QUEUE_MINUTES` - Intervalo para procesamiento de cola Free (default: 5)
+
+**Ejemplo de uso en main.py:**
+```python
+from bot.background import start_background_tasks, stop_background_tasks
+
+async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
+    # ... otras inicializaciones ...
+
+    # Iniciar background tasks
+    start_background_tasks(bot)
+
+async def on_shutdown(bot: Bot, dispatcher: Dispatcher) -> None:
+    # Detener background tasks
+    stop_background_tasks()
+
+    # ... otras tareas de cierre ...
+```
+
+**Manejo de Errores:**
+- Cada tarea está envuelta en try-catch para evitar interrupciones
+- Logging detallado de errores con traceback
+- Continuidad de otras tareas si una falla
+- Validación de configuración antes de ejecutar tareas
+
+**Monitoreo:**
+- Función `get_scheduler_status()` para obtener estado del scheduler
+- Logging detallado de ejecución de tareas
+- Conteo de elementos procesados por cada tarea
+- Información de próxima ejecución de tareas
 ```
 
 ### 9. Utilities

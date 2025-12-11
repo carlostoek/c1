@@ -366,8 +366,46 @@ Puedes cerrar este chat, te notificaré cuando esté listo! 🔔
 
 ### Error de token inválido
 - **Problema:** El token no se puede canjear
-- **Causas posibles:** 
+- **Causas posibles:**
   - El token ya fue usado
   - El token ha expirado
   - El token no existe
   - El canal VIP no está configurado
+
+## Tareas Programadas (Background Tasks)
+
+El bot ejecuta automáticamente tareas programadas que realizan operaciones periódicas para mantener el sistema funcionando correctamente:
+
+### Tarea: Expulsión de VIPs expirados
+- **Frecuencia:** Cada 60 minutos (configurable con `CLEANUP_INTERVAL_MINUTES`)
+- **Funcionalidad:** Marca como expirados y expulsa del canal a los suscriptores VIP cuya fecha pasó
+- **Proceso:**
+  1. Busca suscriptores VIP con fecha de expiración anterior a la actual
+  2. Marca como expirados en la base de datos
+  3. Expulsa del canal VIP usando la API de Telegram
+  4. Registra en logs el número de usuarios expulsados
+
+### Tarea: Procesamiento de cola Free
+- **Frecuencia:** Cada 5 minutos (configurable con `PROCESS_FREE_QUEUE_MINUTES`)
+- **Funcionalidad:** Busca solicitudes que cumplieron el tiempo de espera y envía invite links a los usuarios
+- **Proceso:**
+  1. Busca solicitudes Free que cumplen el tiempo de espera configurado
+  2. Para cada solicitud:
+     - Marca como procesada
+     - Crea un invite link único (válido 24 horas, un solo uso)
+     - Envía el link al usuario por mensaje privado
+  3. Registra en logs el número de solicitudes procesadas
+
+### Tarea: Limpieza de datos antiguos
+- **Frecuencia:** Diariamente a las 3 AM UTC
+- **Funcionalidad:** Elimina solicitudes Free procesadas hace más de 30 días
+- **Proceso:**
+  1. Busca solicitudes Free procesadas hace más de 30 días
+  2. Elimina los registros antiguos de la base de datos
+  3. Registra en logs el número de registros eliminados
+
+**Configuración de intervalos:**
+- `CLEANUP_INTERVAL_MINUTES`: Intervalo para expulsión de VIPs expirados (default: 60)
+- `PROCESS_FREE_QUEUE_MINUTES`: Intervalo para procesamiento de cola Free (default: 5)
+
+Estas tareas se ejecutan automáticamente sin intervención del usuario y ayudan a mantener el sistema limpio y funcional.

@@ -344,6 +344,46 @@ Handler del comando /start que detecta el rol del usuario y proporciona flujos p
 - **FSM para validación de tokens:** Estados para manejo de entrada de tokens
 - **Validación de configuración:** Verificación de canales configurados antes de procesar
 
+### Background Tasks (T15)
+Tareas programadas automáticas que realizan operaciones periódicas para mantener el sistema funcionando correctamente:
+
+- **Expulsión de VIPs expirados:** Tarea que marca como expirados y expulsa del canal a los suscriptores VIP cuya fecha pasó
+- **Procesamiento de cola Free:** Tarea que busca solicitudes que cumplieron el tiempo de espera y envía invite links a los usuarios
+- **Limpieza de datos antiguos:** Tarea que elimina solicitudes Free procesadas hace más de 30 días
+- **Scheduler con tareas programadas:** Configuración del scheduler APScheduler con intervalos configurables
+- **Configuración de intervalos:** Configuración de frecuencias de ejecución mediante variables de entorno
+- **Manejo de errores:** Control de errores en todas las tareas con logging apropiado
+
+**Ejemplo de uso de las background tasks:**
+```python
+from aiogram import Bot
+from bot.background.tasks import start_background_tasks, stop_background_tasks
+
+# Iniciar tareas programadas al inicio del bot
+async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
+    # ... otras inicializaciones ...
+
+    # Iniciar background tasks
+    start_background_tasks(bot)
+
+# Detener tareas programadas al apagar el bot
+async def on_shutdown(bot: Bot, dispatcher: Dispatcher) -> None:
+    # Detener background tasks
+    stop_background_tasks()
+
+    # ... otras tareas de cierre ...
+
+# Configuración de intervalos en config.py:
+# CLEANUP_INTERVAL_MINUTES = int(os.getenv("CLEANUP_INTERVAL_MINUTES", "60"))  # Expulsión VIPs
+# PROCESS_FREE_QUEUE_MINUTES = int(os.getenv("PROCESS_FREE_QUEUE_MINUTES", "5"))  # Procesamiento Free
+```
+
+**Tareas programadas configuradas:**
+- `expire_and_kick_vip_subscribers`: Cada 60 minutos (configurable) - Expulsa VIPs expirados del canal
+- `process_free_queue`: Cada 5 minutos (configurable) - Procesa solicitudes Free que cumplieron tiempo de espera
+- `cleanup_old_data`: Diariamente a las 3 AM UTC - Limpia datos antiguos de solicitudes Free
+```
+
 **Ejemplo de uso del handler User:**
 ```python
 from aiogram import Router, F
@@ -1228,6 +1268,7 @@ Este proyecto está en desarrollo iterativo. Consulta las tareas completadas:
 - [x] T12: Handler /admin (Menú Principal) - Handler del comando /admin que muestra el menú principal de administración con navegación, verificación de estado de configuración y teclado inline
 - [x] T13: Handlers VIP y Free - Submenú VIP (gestión del canal VIP con generación de tokens de invitación), Configuración del canal VIP (configuración del canal VIP por reenvío de mensajes), Generación de tokens de invitación (creación de tokens VIP con duración configurable), Submenú Free (gestión del canal Free con configuración de tiempo de espera), Configuración del canal Free (configuración del canal Free por reenvío de mensajes), Configuración de tiempo de espera (configuración de tiempo de espera para acceso Free)
 - [x] T14: Handlers User (/start, flujos) - Handler /start con detección de rol (admin/VIP/usuario), Flujo VIP (canje de tokens VIP con validación y generación de invite links), Flujo Free (solicitud de acceso Free con tiempo de espera y notificaciones automáticas), Middleware de base de datos (inyección de sesiones sin autenticación de admin), FSM para validación de tokens (estados para manejo de entrada de tokens), Validación de configuración (verificación de canales configurados antes de procesar)
+- [x] T15: Background Tasks - Tareas programadas que expulsan VIPs expirados del canal, procesan la cola Free para enviar invite links a usuarios que completaron tiempo de espera, limpian datos antiguos y usan APScheduler con configuración de intervalos mediante variables de entorno
 - [ ] ONDA 1: MVP Funcional (T1-T17)
 - [ ] ONDA 2: Features Avanzadas (T18-T33)
 - [ ] ONDA 3: Optimización (T34-T44)

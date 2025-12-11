@@ -940,6 +940,213 @@ if not await container.channel.is_free_channel_configured():
     return
 ```
 
+## Integración con APScheduler
+
+El bot utiliza APScheduler para ejecutar tareas programadas que realizan operaciones periódicas para mantener el sistema funcionando correctamente.
+
+### Configuración del Scheduler
+
+**Inicialización:**
+```python
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
+
+_scheduler: Optional[AsyncIOScheduler] = None
+```
+
+**Iniciar tareas programadas:**
+```python
+def start_background_tasks(bot: Bot):
+    """
+    Inicia el scheduler con todas las tareas programadas.
+    """
+    global _scheduler
+
+    if _scheduler is not None:
+        logger.warning("⚠️ Scheduler ya está corriendo")
+        return
+
+    logger.info("🚀 Iniciando background tasks...")
+
+    _scheduler = AsyncIOScheduler(timezone="UTC")
+
+    # Tarea 1: Expulsión VIP expirados
+    _scheduler.add_job(
+        expire_and_kick_vip_subscribers,
+        trigger=IntervalTrigger(minutes=Config.CLEANUP_INTERVAL_MINUTES),
+        args=[bot],
+        id="expire_vip",
+        name="Expulsar VIPs expirados",
+        replace_existing=True,
+        max_instances=1
+    )
+
+    # Tarea 2: Procesamiento cola Free
+    _scheduler.add_job(
+        process_free_queue,
+        trigger=IntervalTrigger(minutes=Config.PROCESS_FREE_QUEUE_MINUTES),
+        args=[bot],
+        id="process_free_queue",
+        name="Procesar cola Free",
+        replace_existing=True,
+        max_instances=1
+    )
+
+    # Tarea 3: Limpieza de datos antiguos
+    _scheduler.add_job(
+        cleanup_old_data,
+        trigger=CronTrigger(hour=3, minute=0, timezone="UTC"),
+        args=[bot],
+        id="cleanup_old_data",
+        name="Limpieza de datos antiguos",
+        replace_existing=True,
+        max_instances=1
+    )
+
+    # Iniciar scheduler
+    _scheduler.start()
+    logger.info("✅ Background tasks iniciados correctamente")
+```
+
+**Detener tareas programadas:**
+```python
+def stop_background_tasks():
+    """
+    Detiene el scheduler y todas las tareas programadas.
+    """
+    global _scheduler
+
+    if _scheduler is None:
+        logger.warning("⚠️ Scheduler no está corriendo")
+        return
+
+    logger.info("🛑 Deteniendo background tasks...")
+
+    _scheduler.shutdown(wait=True)
+    _scheduler = None
+
+    logger.info("✅ Background tasks detenidos correctamente")
+```
+
+### Tareas Programadas
+
+#### Tarea: Expulsión de VIPs expirados
+
+**Descripción:** Marca como expirados y expulsa del canal a los suscriptores VIP cuya fecha pasó.
+
+**Frecuencia:** Cada 60 minutos (configurable con `CLEANUP_INTERVAL_MINUTES`)
+
+**Flujo de ejecución:**
+1. Se ejecuta la función `expire_and_kick_vip_subscribers(bot)`
+2. Verifica si canal VIP está configurado
+3. Busca suscriptores VIP con fecha de expiración anterior a la actual
+4. Marca como expirados en la base de datos
+5. Expulsa del canal VIP usando la API de Telegram
+6. Registra en logs el número de usuarios expulsados
+
+**API Calls:**
+- `container.subscription.expire_vip_subscribers()` - Marca suscriptores como expirados
+- `container.subscription.kick_expired_vip_from_channel()` - Expulsa usuarios del canal
+- `container.channel.get_vip_channel_id()` - Obtiene ID del canal VIP
+
+#### Tarea: Procesamiento de cola Free
+
+**Descripción:** Busca solicitudes que cumplieron el tiempo de espera y envía invite links a los usuarios.
+
+**Frecuencia:** Cada 5 minutos (configurable con `PROCESS_FREE_QUEUE_MINUTES`)
+
+**Flujo de ejecución:**
+1. Se ejecuta la función `process_free_queue(bot)`
+2. Verifica si canal Free está configurado
+3. Busca solicitudes Free que cumplen el tiempo de espera configurado
+4. Para cada solicitud:
+   - Marca como procesada
+   - Crea invite link único (válido 24 horas, un solo uso)
+   - Envía link al usuario por mensaje privado
+5. Registra en logs el número de solicitudes procesadas
+
+**API Calls:**
+- `container.subscription.process_free_queue()` - Procesa solicitudes pendientes
+- `container.subscription.create_invite_link()` - Crea link de invitación único
+- `container.channel.get_free_channel_id()` - Obtiene ID del canal Free
+- `bot.send_message()` - Envía mensaje privado al usuario
+
+#### Tarea: Limpieza de datos antiguos
+
+**Descripción:** Elimina solicitudes Free procesadas hace más de 30 días.
+
+**Frecuencia:** Diariamente a las 3 AM UTC
+
+**Flujo de ejecución:**
+1. Se ejecuta la función `cleanup_old_data(bot)`
+2. Busca solicitudes Free procesadas hace más de 30 días
+3. Elimina los registros antiguos de la base de datos
+4. Registra en logs el número de registros eliminados
+
+**API Calls:**
+- `container.subscription.cleanup_old_free_requests()` - Elimina solicitudes antiguas
+
+### Variables de Entorno para Configuración
+
+- `CLEANUP_INTERVAL_MINUTES`: Intervalo para expulsión de VIPs expirados (default: 60)
+- `PROCESS_FREE_QUEUE_MINUTES`: Intervalo para procesamiento de cola Free (default: 5)
+
+### Manejo de Errores en Tareas
+
+Cada tarea está envuelta en try-catch para evitar interrupciones:
+
+```python
+async def expire_and_kick_vip_subscribers(bot: Bot):
+    logger.info("🔄 Ejecutando tarea: Expulsión VIP expirados")
+
+    try:
+        # Procesamiento de la tarea
+        async with get_session() as session:
+            container = ServiceContainer(session, bot)
+            # ... lógica de la tarea
+    except Exception as e:
+        logger.error(f"❌ Error en tarea de expulsión VIP: {e}", exc_info=True)
+```
+
+### Monitoreo del Scheduler
+
+**Obtener estado del scheduler:**
+```python
+def get_scheduler_status() -> dict:
+    """
+    Obtiene el estado actual del scheduler.
+
+    Returns:
+        Dict con información del scheduler:
+        {
+            "running": bool,
+            "jobs_count": int,
+            "jobs": List[dict]
+        }
+    """
+    if _scheduler is None:
+        return {
+            "running": False,
+            "jobs_count": 0,
+            "jobs": []
+        }
+
+    jobs_info = []
+    for job in _scheduler.get_jobs():
+        jobs_info.append({
+            "id": job.id,
+            "name": job.name,
+            "next_run": job.next_run_time.isoformat() if job.next_run_time else None
+        })
+
+    return {
+        "running": True,
+        "jobs_count": len(jobs_info),
+        "jobs": jobs_info
+    }
+```
+
 ## Flujo Completo de Configuración
 
 ### Configuración de Canal por Reenvío

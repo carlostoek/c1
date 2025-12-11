@@ -16,6 +16,7 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - T11: FSM States - Implementación de estados FSM para administradores y usuarios para flujos de configuración y canje de tokens
 - T12: Admin Handler - Handler del comando /admin que muestra el menú principal de administración con navegación, verificación de estado de configuración y teclado inline
 - T13: Handlers VIP y Free - Submenú VIP (gestión del canal VIP con generación de tokens de invitación), Configuración del canal VIP (configuración del canal VIP por reenvío de mensajes), Generación de tokens de invitación (creación de tokens VIP con duración configurable), Submenú Free (gestión del canal Free con configuración de tiempo de espera), Configuración del canal Free (configuración del canal Free por reenvío de mensajes), Configuración de tiempo de espera (configuración de tiempo de espera para acceso Free)
+- T15: Background Tasks - Tareas programadas que expulsan VIPs expirados del canal, procesan la cola Free para enviar invite links a usuarios que completaron tiempo de espera, limpian datos antiguos y usan APScheduler con configuración de intervalos mediante variables de entorno
 
 ## [1.0.0] - 2025-12-11
 
