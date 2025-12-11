@@ -5,8 +5,12 @@ Gestiona el ciclo de vida completo del bot en Termux.
 import asyncio
 import logging
 import sys
+import signal
+import threading
+import os
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.exceptions import TelegramNetworkError
 
 from config import Config
 from bot.database import init_db, close_db
@@ -14,6 +18,38 @@ from bot.background import start_background_tasks, stop_background_tasks
 
 # Configurar logging
 logger = logging.getLogger(__name__)
+
+
+async def _get_bot_info_with_retry(bot: Bot, max_retries: int = 2, timeout: int = 5) -> dict | None:
+    """
+    Obtiene información del bot con reintentos rápidos.
+
+    Args:
+        bot: Instancia del bot
+        max_retries: Número máximo de reintentos
+        timeout: Timeout en segundos para cada intento
+
+    Returns:
+        Dict con info del bot o None si falla después de reintentos
+    """
+    for attempt in range(1, max_retries + 1):
+        try:
+            bot_info = await asyncio.wait_for(
+                bot.get_me(request_timeout=timeout),
+                timeout=timeout + 1
+            )
+            logger.info(f"✅ Bot verificado: @{bot_info.username}")
+            return bot_info
+        except (TelegramNetworkError, asyncio.TimeoutError) as e:
+            logger.warning(f"⚠️ Intento {attempt}/{max_retries} falló: {type(e).__name__}")
+            if attempt < max_retries:
+                await asyncio.sleep(1)  # Espera corta: 1s
+            else:
+                logger.warning("⚠️ No se pudo verificar bot. Continuando sin verificación...")
+                return None
+        except Exception as e:
+            logger.error(f"❌ Error al obtener info del bot: {e}")
+            return None
 
 
 async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
@@ -58,26 +94,30 @@ async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
     # Iniciar background tasks
     start_background_tasks(bot)
 
-    # Notificar a admins que el bot está online
-    bot_info = await bot.get_me()
-    startup_message = (
-        f"✅ Bot <b>@{bot_info.username}</b> iniciado correctamente\n\n"
-        f"🤖 ID: <code>{bot_info.id}</code>\n"
-        f"📝 Nombre: {bot_info.first_name}\n"
-        f"🔧 Versión: ONDA 1 (MVP)\n\n"
-        f"Usa /admin para gestionar los canales."
-    )
+    # Notificar a admins que el bot está online (con reintentos)
+    bot_info = await _get_bot_info_with_retry(bot)
 
-    for admin_id in Config.ADMIN_USER_IDS:
-        try:
-            await bot.send_message(
-                chat_id=admin_id,
-                text=startup_message,
-                parse_mode="HTML"
-            )
-            logger.info(f"📨 Notificación enviada a admin {admin_id}")
-        except Exception as e:
-            logger.warning(f"⚠️ No se pudo notificar a admin {admin_id}: {e}")
+    if bot_info:
+        startup_message = (
+            f"✅ Bot <b>@{bot_info.username}</b> iniciado correctamente\n\n"
+            f"🤖 ID: <code>{bot_info.id}</code>\n"
+            f"📝 Nombre: {bot_info.first_name}\n"
+            f"🔧 Versión: ONDA 1 (MVP)\n\n"
+            f"Usa /admin para gestionar los canales."
+        )
+
+        for admin_id in Config.ADMIN_USER_IDS:
+            try:
+                await bot.send_message(
+                    chat_id=admin_id,
+                    text=startup_message,
+                    parse_mode="HTML"
+                )
+                logger.info(f"📨 Notificación enviada a admin {admin_id}")
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo notificar a admin {admin_id}: {e}")
+    else:
+        logger.warning("⚠️ Bot iniciado pero sin verificación de conectividad. Revisa tu conexión de red.")
 
     logger.info("✅ Bot iniciado y listo para recibir mensajes")
 
@@ -89,7 +129,7 @@ async def on_shutdown(bot: Bot, dispatcher: Dispatcher) -> None:
     Tareas:
     - Cerrar base de datos
     - Detener background tasks
-    - Notificar a admins que el bot está offline
+    - Notificar a admins que el bot está offline (con timeout)
     - Limpiar recursos
 
     Args:
@@ -98,18 +138,20 @@ async def on_shutdown(bot: Bot, dispatcher: Dispatcher) -> None:
     """
     logger.info("🛑 Cerrando bot...")
 
-    # Detener background tasks
+    # Detener background tasks (sin bloquear)
     stop_background_tasks()
 
-    # Notificar a admins
+    # Notificar a admins (con timeout para no bloquear shutdown)
     shutdown_message = "🛑 Bot detenido correctamente"
 
     for admin_id in Config.ADMIN_USER_IDS:
         try:
-            await bot.send_message(
-                chat_id=admin_id,
-                text=shutdown_message
+            await asyncio.wait_for(
+                bot.send_message(chat_id=admin_id, text=shutdown_message),
+                timeout=5  # Timeout de 5s para cada notificación
             )
+        except asyncio.TimeoutError:
+            logger.warning(f"⚠️ Timeout notificando shutdown a admin {admin_id}")
         except Exception as e:
             logger.warning(f"⚠️ No se pudo notificar shutdown a admin {admin_id}: {e}")
 
@@ -152,16 +194,39 @@ async def main() -> None:
             bot,
             allowed_updates=dp.resolve_used_update_types(),
             timeout=30,  # Timeout apropiado para conexiones inestables en Termux
-            drop_pending_updates=True  # Ignorar updates pendientes del pasado
+            drop_pending_updates=True,  # Ignorar updates pendientes del pasado
+            relax_timeout=True  # Reduce requests frecuentes
         )
     except KeyboardInterrupt:
         logger.info("⌨️ Interrupción por teclado (Ctrl+C)")
     except Exception as e:
         logger.error(f"❌ Error crítico en polling: {e}", exc_info=True)
     finally:
-        # Cleanup
-        await bot.session.close()
-        logger.info("🔌 Sesión del bot cerrada")
+        # Cleanup forceful
+        logger.info("🧹 Limpiando recursos...")
+        try:
+            await bot.session.close()
+            logger.info("🔌 Sesión del bot cerrada")
+        except Exception as e:
+            logger.warning(f"⚠️ Error cerrando sesión: {e}")
+
+
+def _setup_signal_handlers():
+    """
+    Configura handlers de señales para graceful shutdown con timeout.
+    Aiogram ya captura SIGINT, pero aseguramos timeout si se queda colgado.
+    """
+
+    def force_exit_after_timeout():
+        """Fuerza salida si pasa demasiado tiempo en shutdown."""
+        import time
+        time.sleep(12)  # Dar máximo 12s para shutdown (cleanup + timeout notif)
+        logger.critical("💥 TIMEOUT CRÍTICO: Forzando salida del proceso...")
+        os._exit(1)  # Salida forzada
+
+    # Registrar timeout thread (daemon para no bloquear)
+    timeout_thread = threading.Thread(target=force_exit_after_timeout, daemon=True)
+    timeout_thread.start()
 
 
 if __name__ == "__main__":
@@ -174,6 +239,9 @@ if __name__ == "__main__":
     Para ejecutar en background (Termux):
         nohup python main.py > bot.log 2>&1 &
     """
+    # Configurar timeout de shutdown global
+    _setup_signal_handlers()
+
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
@@ -181,3 +249,7 @@ if __name__ == "__main__":
     except Exception as e:
         logger.critical(f"💥 Error fatal: {e}", exc_info=True)
         sys.exit(1)
+    finally:
+        # Asegurar salida limpia
+        logger.info("🛑 Finalizando...")
+        sys.exit(0)

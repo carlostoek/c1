@@ -267,6 +267,7 @@ def stop_background_tasks():
     Detiene el scheduler y todas las tareas programadas.
 
     Debe llamarse en el shutdown del bot para cleanup limpio.
+    Con wait=False para permitir shutdown rápido incluso si hay jobs.
     """
     global _scheduler
 
@@ -276,10 +277,14 @@ def stop_background_tasks():
 
     logger.info("🛑 Deteniendo background tasks...")
 
-    _scheduler.shutdown(wait=True)
-    _scheduler = None
-
-    logger.info("✅ Background tasks detenidos correctamente")
+    try:
+        # wait=False para shutdown rápido sin bloquear
+        _scheduler.shutdown(wait=False)
+        _scheduler = None
+        logger.info("✅ Background tasks detenidos")
+    except Exception as e:
+        logger.warning(f"⚠️ Error deteniendo scheduler: {e}")
+        _scheduler = None
 
 
 def get_scheduler_status() -> dict:
