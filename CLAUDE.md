@@ -335,8 +335,51 @@ bot/middlewares/
 
 ---
 
-- **T11:** Admin Main Menu Handler
-- **T12:** Admin VIP Management Handler
+#### T11: Estados FSM para Admin y User ✅ COMPLETADO
+**Archivo:** `bot/states/` (107 líneas + tests)
+**Patrón:** StatesGroup + State + Docstrings explicando flujo
+**Responsabilidades:**
+- Definir estados FSM para flujos multi-paso
+- Agrupar lógicamente estados relacionados
+- Documentar el flujo completo en docstrings
+
+**Implementación:**
+```
+bot/states/
+├── admin.py         → ChannelSetupStates, WaitTimeSetupStates, BroadcastStates
+├── user.py         → TokenRedemptionStates, FreeAccessStates
+└── __init__.py     → Exports
+```
+
+**Estados Admin:**
+- ChannelSetupStates: 2 estados
+  * waiting_for_vip_channel: Admin reenvía mensaje del canal VIP
+  * waiting_for_free_channel: Admin reenvía mensaje del canal Free
+
+- WaitTimeSetupStates: 1 estado
+  * waiting_for_minutes: Admin envía número de minutos
+
+- BroadcastStates: 2 estados
+  * waiting_for_content: Admin envía contenido (texto, foto, video)
+  * waiting_for_confirmation: Admin confirma envío (opcional)
+
+**Estados User:**
+- TokenRedemptionStates: 1 estado
+  * waiting_for_token: Usuario envía token a canjear
+
+- FreeAccessStates: 1 estado
+  * waiting_for_approval: Usuario con solicitud pendiente
+
+**Tests Validación:** ✅ Todos pasaron
+- ✅ Admin states (ChannelSetupStates, WaitTimeSetupStates, BroadcastStates)
+- ✅ User states (TokenRedemptionStates, FreeAccessStates)
+- ✅ Exports en __init__.py
+- ✅ State strings correctos
+- Total: 5 StatesGroup, 7 States
+
+---
+
+- **T12:** Admin Main Menu Handler
 - *T13-T17: Más handlers y features*
 
 ---
@@ -377,6 +420,7 @@ Handlers para usuarios, testing completo, y deployment.
    - Mensaje describiendo cambios
    - Listas de métodos implementados
    - Características clave
+   - Sin referencias a herramientas externas como Claude code
 
 6. **Documentación (Optional)**
    - Actualizar README.md si aplica
@@ -411,6 +455,14 @@ bot/middlewares/
 ├── admin_auth.py     → AdminAuthMiddleware (validación de admin)
 ├── database.py       → DatabaseMiddleware (inyección de sesión)
 └── __init__.py       → Exports de middlewares
+```
+
+### States (T11)
+```
+bot/states/
+├── admin.py          → ChannelSetupStates, WaitTimeSetupStates, BroadcastStates
+├── user.py           → TokenRedemptionStates, FreeAccessStates
+└── __init__.py       → Exports de estados
 ```
 
 ---
@@ -469,9 +521,18 @@ async def handle_setup_vip(message: Message, state: FSMContext):
   - [x] DatabaseMiddleware inyecta sesión en data["session"]
   - [x] DatabaseMiddleware usa context manager correctamente
   - [x] 3 tests funcionales validación
-- [ ] T11: Admin Main Menu Handler
-- [ ] T12: Admin VIP Management Handler
+
+- [x] T11: Estados FSM para Admin y User
+  - [x] ChannelSetupStates (2 estados)
+  - [x] WaitTimeSetupStates (1 estado)
+  - [x] BroadcastStates (2 estados)
+  - [x] TokenRedemptionStates (1 estado)
+  - [x] FreeAccessStates (1 estado)
+  - [x] Exports en __init__.py
+  - [x] Tests validación completos
+
+- [ ] T12: Admin Main Menu Handler
 - [ ] T13-T17: Más handlers y features
 
-**Status:** 🔄 FASE 1.3 EN PROGRESO
-**Próximo:** T11 - Admin Main Menu Handler
+**Status:** 🔄 FASE 1.3 EN PROGRESO (2/3 tareas base completadas)
+**Próximo:** T12 - Admin Main Menu Handler
