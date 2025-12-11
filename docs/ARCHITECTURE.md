@@ -254,26 +254,374 @@ class DatabaseMiddleware(BaseMiddleware):
 
 **Responsabilidad:** Lógica de negocio reutilizable
 
-**Servicios Planeados:**
+**Servicios Disponibles:**
 
 ```
 services/
-├── subscription.py     # VIP/Free/Token logic
-├── channel.py          # Gestión canales Telegram
+├── container.py        # Contenedor de servicios (DI + Lazy Loading)
+├── subscription.py     # Gestión de suscripciones VIP/Free
+├── channel.py          # Gestión de canales Telegram
 ├── config.py           # Config service
-└── container.py        # Dependency injection
+└── stats.py            # Estadísticas
 ```
 
-**Ejemplo de servicio:**
-```python
-class SubscriptionService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
+#### Service Container (T6)
 
-    async def redeem_token(self, user_id: int, token: str) -> VIPSubscriber:
-        """Canjear token VIP"""
-        # Lógica de negocio
-        pass
+Implementación del patrón Dependency Injection + Lazy Loading para reducir consumo de memoria en Termux:
+
+**Arquitectura:**
+```python
+class ServiceContainer:
+    def __init__(self, session: AsyncSession, bot: Bot):
+        self._session = session
+        self._bot = bot
+
+        # Servicios (cargados lazy)
+        self._subscription_service = None
+        self._channel_service = None
+        self._config_service = None
+        self._stats_service = None
+
+    @property
+    def subscription(self):
+        """Carga lazy el servicio de suscripciones"""
+        if self._subscription_service is None:
+            from bot.services.subscription import SubscriptionService
+            self._subscription_service = SubscriptionService(self._session, self._bot)
+        return self._subscription_service
+
+    # Similar para otros servicios...
+
+    def get_loaded_services(self) -> list[str]:
+        """Retorna lista de servicios ya cargados en memoria"""
+        # Útil para debugging y monitoreo de uso de memoria
+```
+
+**Características:**
+- **Lazy Loading:** servicios se instancian solo cuando se acceden por primera vez
+- **Optimización de Memoria:** reduce el consumo inicial de memoria en Termux
+- **4 servicios disponibles:** subscription, channel, config, stats
+- **Monitoreo:** método `get_loaded_services()` para tracking de uso de memoria
+- **Precarga opcional:** `preload_critical_services()` para servicios críticos
+
+**Uso:**
+```python
+container = ServiceContainer(session, bot)
+
+# Primera vez: carga el servicio (lazy loading)
+token = await container.subscription.generate_token(...)
+
+# Segunda vez: reutiliza instancia ya cargada
+result = await container.subscription.validate_token(...)
+```
+
+#### Subscription Service (T7)
+
+Gestión completa de suscripciones VIP y Free con 14 métodos asíncronos:
+
+**Responsabilidades:**
+- Generación de tokens de invitación VIP
+- Validación y canje de tokens
+- Gestión de suscriptores VIP (crear, extender, expirar)
+- Gestión de solicitudes Free (crear, procesar)
+- Limpieza automática de datos antiguos
+
+**Flujos Implementados:**
+
+**VIP Flow:**
+```
+1. Admin genera token → generate_vip_token()
+2. Usuario canjea token → redeem_vip_token()
+3. Usuario recibe invite link → create_invite_link()
+4. Suscripción expira automáticamente → expire_vip_subscribers() (background)
+```
+
+**Free Flow:**
+```
+1. Usuario solicita acceso → create_free_request()
+2. Espera N minutos
+3. Sistema procesa cola → process_free_queue() (background)
+4. Usuario recibe invite link
+```
+
+**Características principales:**
+- **Tokens VIP:** 16 caracteres alfanuméricos, únicos, expiran después de N horas
+- **Cola Free:** sistema de espera configurable con `wait_time`
+- **Invite links únicos:** enlaces de un solo uso (`member_limit=1`)
+- **Gestión de usuarios:** creación, extensión y expiración automática de suscripciones
+- **Limpieza automática:** elimina datos antiguos para mantener rendimiento
+
+**Ejemplo de uso:**
+```python
+# Generar token VIP
+token = await container.subscription.generate_vip_token(
+    generated_by=admin_user_id,
+    duration_hours=24
+)
+
+# Validar token
+is_valid, message, token_obj = await container.subscription.validate_token("token_string")
+
+# Canjear token VIP
+success, message, subscriber = await container.subscription.redeem_vip_token(
+    token_str="token_string",
+    user_id=user_id
+)
+
+# Crear solicitud Free
+request = await container.subscription.create_free_request(user_id)
+
+# Procesar cola Free
+processed_requests = await container.subscription.process_free_queue(
+    wait_time_minutes=Config.WAIT_TIME_MINUTES
+)
+
+# Crear invite link único
+invite_link = await container.subscription.create_invite_link(
+    channel_id="-1001234567890",
+    user_id=user_id,
+    expire_hours=1
+)
+```
+
+#### Channel Service (T8)
+
+Gestión completa de canales VIP y Free con verificación de permisos y envío de publicaciones:
+
+**Responsabilidades:**
+- Configuración de canales VIP y Free con validación de existencia
+- Verificación de permisos del bot (can_invite_users, can_post_messages)
+- Envío de contenido a canales (texto, fotos, videos)
+- Reenvío y copia de mensajes entre chats y canales
+- Validación de configuración de canales
+
+**Flujos Implementados:**
+
+**Setup Channel Flow:**
+```
+1. Admin configura canal → setup_vip_channel() o setup_free_channel()
+2. Bot verifica que el canal existe
+3. Bot verifica que es admin del canal
+4. Bot verifica permisos necesarios (can_invite_users, can_post_messages)
+5. Canal guardado en BotConfig
+```
+
+**Send to Channel Flow:**
+```
+1. Admin/envío automático → send_to_channel()
+2. Bot determina tipo de contenido (texto, foto, video)
+3. Bot envía mensaje al canal
+4. Retorno de resultado exitoso/error
+```
+
+**Permissions Verification Flow:**
+```
+1. Bot obtiene información del miembro → get_chat_member()
+2. Verifica que sea admin o creador
+3. Verifica permisos específicos (can_invite_users, can_post_messages)
+4. Retorna mensaje detallado de permisos faltantes
+```
+
+**Características principales:**
+- **Configuración segura:** verificación de existencia y permisos antes de guardar
+- **Permisos completos:** verifica can_invite_users y can_post_messages
+- **Soporte multimedia:** envío de texto, fotos y videos
+- **Operaciones avanzadas:** reenvío y copia de mensajes
+- **Validación robusta:** verificaciones de formato e ID de canal
+
+**Ejemplos de uso:**
+```python
+# Configuración de canal VIP
+success, message = await container.channel.setup_vip_channel("-1001234567890")
+if success:
+    print(f"Canal VIP configurado: {message}")
+else:
+    print(f"Error en configuración: {message}")
+
+# Configuración de canal Free
+success, message = await container.channel.setup_free_channel("-1009876543210")
+if success:
+    print(f"Canal Free configurado: {message}")
+else:
+    print(f"Error en configuración: {message}")
+
+# Verificación de permisos del bot
+is_valid, perm_message = await container.channel.verify_bot_permissions("-1001234567890")
+if is_valid:
+    print("Bot tiene todos los permisos necesarios")
+else:
+    print(f"Permisos insuficientes: {perm_message}")
+
+# Envío de mensaje de texto al canal
+sent_success, sent_message, sent_msg = await container.channel.send_to_channel(
+    channel_id="-1001234567890",
+    text="¡Nueva publicación en el canal VIP!",
+    parse_mode="HTML"
+)
+if sent_success:
+    print(f"Mensaje enviado: {sent_message}")
+else:
+    print(f"Error al enviar: {sent_message}")
+
+# Envío de foto con texto al canal
+sent_success, sent_message, sent_msg = await container.channel.send_to_channel(
+    channel_id="-1001234567890",
+    text="Foto destacada del día",
+    photo="AgACAgQAAxkBAA...",
+    parse_mode="HTML"
+)
+
+# Envío de video con descripción
+sent_success, sent_message, sent_msg = await container.channel.send_to_channel(
+    channel_id="-1001234567890",
+    text="Video promocional",
+    video="BAACAgQAAxkBAA...",
+    parse_mode="HTML"
+)
+
+# Reenvío de mensaje a canal
+forward_success, forward_message = await container.channel.forward_to_channel(
+    channel_id="-1001234567890",
+    from_chat_id=-1009876543210,
+    message_id=123
+)
+
+# Copia de mensaje a canal (sin firma de origen)
+copy_success, copy_message = await container.channel.copy_to_channel(
+    channel_id="-1001234567890",
+    from_chat_id=-1009876543210,
+    message_id=123
+)
+
+# Verificación de configuración de canales
+is_vip_configured = await container.channel.is_vip_channel_configured()
+is_free_configured = await container.channel.is_free_channel_configured()
+print(f"Canales configurados - VIP: {is_vip_configured}, Free: {is_free_configured}")
+
+# Obtención de IDs de canales
+vip_channel_id = await container.channel.get_vip_channel_id()
+free_channel_id = await container.channel.get_free_channel_id()
+
+if vip_channel_id:
+    print(f"Canal VIP ID: {vip_channel_id}")
+if free_channel_id:
+    print(f"Canal Free ID: {free_channel_id}")
+
+# Obtención de información del canal
+channel_info = await container.channel.get_channel_info("-1001234567890")
+if channel_info:
+    print(f"Nombre del canal: {channel_info.title}")
+    print(f"Tipo de canal: {channel_info.type}")
+
+member_count = await container.channel.get_channel_member_count("-1001234567890")
+if member_count:
+    print(f"Número de miembros: {member_count}")
+```
+
+#### Config Service (T9)
+
+Gestión de configuración global del bot con funcionalidades clave para administrar la configuración centralizada:
+
+**Responsabilidades:**
+- Obtener/actualizar configuración de BotConfig (singleton)
+- Gestionar tiempo de espera Free
+- Gestionar reacciones de canales
+- Validar que la configuración está completa
+- Configurar tarifas de suscripción
+- Proporcionar resumen de configuración
+
+**Características principales:**
+- **Singleton Pattern:** BotConfig es un registro único (id=1) que almacena toda la configuración global
+- **Tiempo de espera configurable:** Gestión flexible del tiempo de espera para acceso al canal Free
+- **Reacciones personalizables:** Configuración de emojis para reacciones en canales VIP y Free
+- **Validación integral:** Verificación completa de la configuración para asegurar funcionamiento óptimo
+- **Tarifas de suscripción:** Soporte para múltiples tipos de tarifas (mensual, anual, etc.)
+- **Resumen de configuración:** Información detallada del estado de la configuración para administradores
+
+**Flujos Implementados:**
+
+**Get Configuration Flow:**
+```
+1. Servicio solicita configuración → get_config()
+2. Consulta a BD por registro con id=1
+3. Retorna objeto BotConfig
+4. Validación de existencia (debe existir siempre)
+```
+
+**Set Wait Time Flow:**
+```
+1. Admin define tiempo de espera → set_wait_time(minutes)
+2. Validación: minutos >= 1
+3. Actualiza campo wait_time_minutes en BotConfig
+4. Guarda cambios en BD
+5. Log de cambio realizado
+```
+
+**Set Channel Reactions Flow:**
+```
+1. Admin define reacciones → set_vip_reactions() o set_free_reactions()
+2. Validación: lista no vacía, máximo 10 elementos
+3. Actualiza campo correspondiente (vip_reactions o free_reactions)
+4. Guarda cambios en BD
+5. Log de reacciones actualizadas
+```
+
+**Validation Flow:**
+```
+1. Verificación de configuración completa → is_fully_configured()
+2. Valida:
+   - Canal VIP configurado (vip_channel_id != null)
+   - Canal Free configurado (free_channel_id != null)
+   - Tiempo de espera >= 1 minuto
+3. Retorna booleano indicando estado
+```
+
+**Ejemplos de uso:**
+```python
+# Obtención de configuración global
+config = await container.config.get_config()
+print(f"Canal VIP: {config.vip_channel_id}")
+print(f"Canal Free: {config.free_channel_id}")
+print(f"Tiempo de espera: {config.wait_time_minutes} minutos")
+
+# Configuración de tiempos de espera
+current_wait_time = await container.config.get_wait_time()
+print(f"Tiempo actual de espera: {current_wait_time} minutos")
+await container.config.set_wait_time(15)  # 15 minutos de espera
+
+# Gestión de reacciones de canales
+current_vip_reactions = await container.config.get_vip_reactions()
+print(f"Reacciones VIP actuales: {current_vip_reactions}")
+
+# Actualizar reacciones VIP
+await container.config.set_vip_reactions(["👍", "❤️", "🔥", "🎉"])
+await container.config.set_free_reactions(["✅", "✔️", "☑️"])
+
+# Configuración de tarifas de suscripción
+current_fees = await container.config.get_subscription_fees()
+print(f"Tarifas actuales: {current_fees}")
+
+# Actualizar tarifas de suscripción
+await container.config.set_subscription_fees({
+    "monthly": 10.0,
+    "yearly": 100.0,
+    "lifetime": 500.0
+})
+
+# Validación de configuración completa
+is_configured = await container.config.is_fully_configured()
+if is_configured:
+    print("Bot completamente configurado")
+else:
+    status = await container.config.get_config_status()
+    print(f"Faltan elementos: {', '.join(status['missing'])}")
+
+# Obtención de resumen de configuración
+summary = await container.config.get_config_summary()
+print(summary)
+
+# Resetear a valores por defecto (advertencia: borra configuración de canales)
+await container.config.reset_to_defaults()
 ```
 
 ### 8. Background Tasks
