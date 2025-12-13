@@ -1167,3 +1167,273 @@ def get_scheduler_status() -> dict:
 3. Bot genera token único con duración configurable
 4. Bot guarda token en BD
 5. Bot envía token al admin
+
+## Sistema de Paginación (T24, T25, T26)
+
+### Integración con la API de Telegram
+
+El sistema de paginación se integra con la API de Telegram a través de los siguientes endpoints:
+
+- `editMessageText` - Para actualizar el contenido de los mensajes paginados cuando el usuario navega entre páginas
+- `answerCallbackQuery` - Para responder a las queries de callback que representan las acciones de paginación (anterior/siguiente)
+- `createInlineKeyboardMarkup` - Para generar teclados inline con botones de navegación paginada
+
+### Componentes del Sistema de Paginación
+
+#### Clase Paginator
+
+**Responsabilidad:** Sistema de paginación reutilizable para listas largas de elementos.
+
+**Características:**
+- Clase genérica que soporta cualquier tipo de datos (T)
+- Cálculo automático de páginas, elementos por página y rangos
+- Validación de números de página
+- Métodos para obtener primera y última página
+
+**API Integration:**
+```python
+# Uso en handlers para paginar resultados de consultas
+page = paginate_query_results(
+    results=list(subscribers),
+    page_number=page_number,
+    page_size=10
+)
+```
+
+#### Función create_pagination_keyboard
+
+**Responsabilidad:** Creación de teclado inline con botones de navegación paginada.
+
+**Características:**
+- Botones "Anterior" y "Siguiente" según disponibilidad
+- Visualización del número de página actual
+- Callback patterns configurables
+- Botón de retorno personalizable
+
+**API Integration:**
+```python
+keyboard = create_pagination_keyboard(
+    page=page,
+    callback_pattern=f"vip:subscribers:page:{{page}}:{filter_status}",
+    additional_buttons=additional_buttons,
+    back_callback="admin:vip"
+)
+
+await callback.message.edit_text(
+    text=text,
+    reply_markup=keyboard,
+    parse_mode="HTML"
+)
+```
+
+#### Función format_page_header
+
+**Responsabilidad:** Formateo de headers para páginas paginadas.
+
+**Características:**
+- Visualización de total de elementos
+- Mostrar rango de elementos visibles
+- Formato HTML para mensajes de Telegram
+
+**API Integration:**
+```python
+header = format_page_header(page, f"Suscriptores VIP - {filter_name}")
+await callback.message.edit_text(text=f"{header}\n\n{items_text}", ...)
+```
+
+#### Función format_items_list
+
+**Responsabilidad:** Formateo de listas de elementos con formatters personalizados.
+
+**Características:**
+- Formateadores personalizables para diferentes tipos de elementos
+- Numeración automática
+- Separadores personalizables
+
+**API Integration:**
+```python
+items_text = format_items_list(page.items, _format_vip_subscriber)
+await callback.message.edit_text(text=f"{header}\n\n{items_text}", ...)
+```
+
+### Paginación de Suscriptores VIP (T25)
+
+#### Callback Query: `vip:list_subscribers`
+
+**Descripción:** Muestra listado paginado de suscriptores VIP.
+
+**Flujo de ejecución:**
+1. Admin selecciona "👥 Listar Suscriptores VIP"
+2. Bot recibe callback `vip:list_subscribers`
+3. Bot muestra la primera página de suscriptores activos
+4. Bot envía mensaje con información paginada y teclado de navegación
+
+**API Calls:**
+- `callback.message.edit_text()` - Edita mensaje con lista paginada
+- `callback.answer()` - Responde al callback de carga
+- `create_pagination_keyboard()` - Crea teclado con botones de paginación
+
+**Implementación:**
+```python
+@admin_router.callback_query(F.data == "vip:list_subscribers")
+async def callback_list_vip_subscribers(
+    callback: CallbackQuery,
+    session: AsyncSession
+):
+    await callback.answer("📋 Cargando suscriptores...", show_alert=False)
+
+    await _show_vip_subscribers_page(
+        callback=callback,
+        session=session,
+        page_number=1,
+        filter_status="active"
+    )
+```
+
+#### Callback Query: `vip:subscribers:page:{page}:{filter}`
+
+**Descripción:** Navega a una página específica de suscriptores VIP con filtro aplicado.
+
+**Flujo de ejecución:**
+1. Admin selecciona botón de página (anterior/siguiente)
+2. Bot recibe callback `vip:subscribers:page:N:FILTER`
+3. Bot extrae número de página y filtro del callback data
+4. Bot muestra la página solicitada con el filtro aplicado
+
+**API Calls:**
+- `callback.message.edit_text()` - Edita mensaje con nueva página
+- `extract_page_from_callback()` - Extrae número de página del callback
+
+**Implementación:**
+```python
+@admin_router.callback_query(F.data.startswith("vip:subscribers:page:"))
+async def callback_vip_subscribers_page(
+    callback: CallbackQuery,
+    session: AsyncSession
+):
+    # Parsear callback data
+    parts = callback.data.split(":")
+    page_number = int(parts[3])
+    filter_status = parts[4] if len(parts) > 4 else "active"
+
+    await _show_vip_subscribers_page(
+        callback=callback,
+        session=session,
+        page_number=page_number,
+        filter_status=filter_status
+    )
+```
+
+#### Callback Query: `vip:filter:{status}`
+
+**Descripción:** Cambia filtro de visualización de suscriptores VIP.
+
+**Flujo de ejecución:**
+1. Admin selecciona botón de filtro (activos, expirados, etc.)
+2. Bot recibe callback `vip:filter:STATUS`
+3. Bot aplica nuevo filtro y muestra primera página
+4. Bot actualiza mensaje con nueva visualización
+
+**API Calls:**
+- `callback.answer()` - Responde con confirmación de filtro
+- `callback.message.edit_text()` - Edita mensaje con nueva visualización
+
+### Visualización de Cola Free (T26)
+
+#### Callback Query: `free:view_queue`
+
+**Descripción:** Muestra cola de solicitudes Free paginada.
+
+**Flujo de ejecución:**
+1. Admin selecciona "📋 Ver Cola Free"
+2. Bot recibe callback `free:view_queue`
+3. Bot muestra la primera página de solicitudes pendientes
+4. Bot envía mensaje con información paginada y teclado de navegación
+
+**API Calls:**
+- `callback.message.edit_text()` - Edita mensaje con cola paginada
+- `callback.answer()` - Responde al callback de carga
+
+#### Callback Query: `free:queue:page:{page}:{filter}`
+
+**Descripción:** Navega a una página específica de la cola Free con filtro aplicado.
+
+**Flujo de ejecución:**
+1. Admin selecciona botón de página (anterior/siguiente)
+2. Bot recibe callback `free:queue:page:N:FILTER`
+3. Bot extrae número de página y filtro del callback data
+4. Bot muestra la página solicitada con el filtro aplicado
+
+**API Calls:**
+- `callback.message.edit_text()` - Edita mensaje con nueva página
+- `extract_page_from_callback()` - Extrae número de página del callback
+
+#### Callback Query: `free:filter:{status}`
+
+**Descripción:** Cambia filtro de visualización de cola Free.
+
+**Flujo de ejecución:**
+1. Admin selecciona botón de filtro (pendientes, listas, etc.)
+2. Bot recibe callback `free:filter:STATUS`
+3. Bot aplica nuevo filtro y muestra primera página
+4. Bot actualiza mensaje con nueva visualización
+
+**API Integration Examples:**
+```python
+# Actualización de mensaje paginado
+await callback.message.edit_text(
+    text=text,
+    reply_markup=keyboard,
+    parse_mode="HTML"
+)
+
+# Respuesta a query de callback de paginación
+await callback.answer("Cargando página...")
+
+# Creación de teclado con botones de paginación
+keyboard = create_pagination_keyboard(
+    page=page,
+    callback_pattern=f"vip:subscribers:page:{{page}}:{filter_status}",
+    additional_buttons=additional_buttons,
+    back_callback="admin:vip"
+)
+```
+
+### Filtros Disponibles
+
+#### Filtros para Suscriptores VIP:
+- `active` - Solo suscriptores activos
+- `expired` - Solo suscriptores expirados
+- `expiring_soon` - Suscriptores que expirarán en los próximos 7 días
+- `all` - Todos los suscriptores
+
+#### Filtros para Cola Free:
+- `pending` - Solo solicitudes pendientes
+- `ready` - Solicitudes listas para procesar (cumplen tiempo de espera)
+- `processed` - Solicitudes ya procesadas
+- `all` - Todas las solicitudes
+
+### Formateadores de Elementos
+
+#### `_format_vip_subscriber`
+
+**Responsabilidad:** Formatea un suscriptor VIP para visualización en listas paginadas.
+
+**Características:**
+- Muestra ID de usuario
+- Muestra fecha de expiración y días restantes
+- Emojis indicadores según estado (activo, próximo a expirar, expirado)
+
+#### `_format_free_request`
+
+**Responsabilidad:** Formatea una solicitud Free para visualización en listas paginadas.
+
+**Características:**
+- Muestra ID de usuario
+- Muestra fecha de solicitud
+- Muestra tiempo restante o estado de procesamiento
+- Emojis indicadores según estado (pendiente, listo, procesado)
+
+### Navegación y Estado
+
+El sistema de paginación mantiene el estado de filtro entre páginas, permitiendo al usuario navegar sin perder el contexto de visualización. Los teclados de paginación incluyen botones de filtro para cambiar dinámicamente la vista sin salir del modo paginado.

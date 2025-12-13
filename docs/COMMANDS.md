@@ -17,6 +17,8 @@ Documentación completa de los comandos disponibles en el bot de administración
    - Gestión Canal VIP
    - Gestión Canal Free
    - Configuración
+   - Estadísticas
+   - Gestión Avanzada
 
 **Ejemplo:**
 ```
@@ -27,7 +29,217 @@ Documentación completa de los comandos disponibles en el bot de administración
 Selecciona una opción:
 - 📺 Gestión Canal VIP
 - 📺 Gestión Canal Free
+- 📊 Estadísticas
 - ⚙️ Configuración
+- 👥 Gestión Avanzada
+```
+
+## Gestión Avanzada
+
+### `Gestión Avanzada` - Opciones de administración avanzada
+
+**Descripción:** Accede al menú de gestión avanzada que incluye herramientas de administración como listado paginado de suscriptores VIP y visualización de cola Free.
+
+**Permisos:** Solo administradores
+
+**Funcionalidades:**
+- Listado paginado de suscriptores VIP
+- Visualización paginada de cola Free
+- Filtros por estado de suscriptores y solicitudes
+- Vistas detalladas de usuarios
+- Expulsión manual de suscriptores
+
+**Flujo de uso:**
+1. Seleccionar "👥 Gestión Avanzada" en el menú principal
+2. El bot muestra las opciones de gestión avanzada
+3. El administrador puede elegir entre:
+   - Listar suscriptores VIP
+   - Ver cola Free
+
+### `Listar Suscriptores VIP` - Visualización paginada de suscriptores VIP
+
+**Descripción:** Muestra un listado paginado de suscriptores VIP con posibilidad de filtrar por estado y ver detalles individuales.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. Seleccionar "👥 Listar Suscriptores VIP" en el menú de gestión avanzada
+2. El bot muestra la primera página de suscriptores activos
+3. El administrador puede navegar entre páginas con botones de paginación
+4. El administrador puede filtrar por estado (activos, expirados, próximos a expirar, todos)
+5. El administrador puede ver detalles de un suscriptor individual
+6. El administrador puede expulsar manualmente a un suscriptor del canal VIP
+
+**Características:**
+- Visualización paginada (10 elementos por página)
+- Filtros por estado: activos, expirados, próximos a expirar, todos
+- Navegación entre páginas con botones "Anterior"/"Siguiente"
+- Visualización de información detallada del suscriptor
+- Posibilidad de expulsión manual del canal VIP
+
+**Ejemplo de interacción:**
+```
+👥 Usuario listando suscriptores VIP
+📋 Suscriptores VIP - Activos
+
+<b>Total:</b> 47 elementos
+<b>Página:</b> 1/5 (mostrando 1-10)
+
+🟢 1. User <code>123456789</code>
+   └─ Expira: 2025-12-25 (15 días)
+🟡 2. User <code>987654321</code>
+   └─ Expira: 2025-12-18 (8 días)
+...
+
+[◀️ Anterior] [Página 1/5] [Siguiente ▶️]
+[✅ Activos] [❌ Expirados] [⏱️ Por Expirar] [📋 Todos]
+[🔙 Volver]
+```
+
+### `Ver Cola Free` - Visualización paginada de solicitudes Free
+
+**Descripción:** Muestra una cola paginada de solicitudes de acceso Free con posibilidad de filtrar por estado y ver detalles del tiempo de espera.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. Seleccionar "📋 Ver Cola Free" en el menú de gestión avanzada
+2. El bot muestra la primera página de solicitudes pendientes
+3. El administrador puede navegar entre páginas con botones de paginación
+4. El administrador puede filtrar por estado (pendientes, listas para procesar, procesadas, todas)
+5. El administrador puede ver información detallada de cada solicitud
+6. El bot muestra el tiempo de espera configurado en la visualización
+
+**Características:**
+- Visualización paginada (10 elementos por página)
+- Filtros por estado: pendientes, listas para procesar, procesadas, todas
+- Navegación entre páginas con botones "Anterior"/"Siguiente"
+- Visualización del tiempo de espera configurado
+- Cálculo automático del estado de cada solicitud
+
+**Ejemplo de interacción:**
+```
+📋 Cola Free - Pendientes
+
+<b>Total:</b> 23 elementos
+<b>Página:</b> 1/3 (mostrando 1-10)
+
+⏳ 1. User <code>111222333</code>
+   ├─ Solicitó: 2025-12-13 08:30
+   └─ Falta 4 min
+⏳ 2. User <code>444555666</code>
+   ├─ Solicitó: 2025-12-13 08:25
+   └─ Falta 9 min
+
+⏱️ <i>Tiempo de espera configurado: 10 min</i>
+
+[◀️ Anterior] [Página 1/3] [Siguiente ▶️]
+[⏳ Pendientes] [✅ Listas] [🔄 Procesadas] [📋 Todas]
+[🔙 Volver]
+```
+
+### `Filtros de Suscriptores VIP` - Filtrado por estado de suscriptores
+
+**Descripción:** Permite filtrar la visualización de suscriptores VIP por diferentes estados (activos, expirados, próximos a expirar, todos).
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. Estar en la visualización de suscriptores VIP
+2. Seleccionar uno de los botones de filtro:
+   - "✅ Activos" - Mostrar solo suscriptores activos
+   - "❌ Expirados" - Mostrar solo suscriptores expirados
+   - "⏱️ Por Expirar" - Mostrar suscriptores que expirarán en los próximos 7 días
+   - "📋 Todos" - Mostrar todos los suscriptores
+
+**Características:**
+- Filtros dinámicos que actualizan inmediatamente la visualización
+- Conteo automático de elementos por estado
+- Navegación entre páginas manteniendo el filtro aplicado
+
+### `Filtros de Cola Free` - Filtrado por estado de solicitudes
+
+**Descripción:** Permite filtrar la visualización de solicitudes Free por diferentes estados (pendientes, listas para procesar, procesadas, todas).
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. Estar en la visualización de cola Free
+2. Seleccionar uno de los botones de filtro:
+   - "⏳ Pendientes" - Mostrar solo solicitudes pendientes
+   - "✅ Listas" - Mostrar solicitudes que cumplen el tiempo de espera
+   - "🔄 Procesadas" - Mostrar solicitudes ya procesadas
+   - "📋 Todas" - Mostrar todas las solicitudes
+
+**Características:**
+- Filtros dinámicos que actualizan inmediatamente la visualización
+- Cálculo automático del estado de cada solicitud basado en el tiempo de espera configurado
+- Navegación entre páginas manteniendo el filtro aplicado
+
+### `Detalles de Suscriptor VIP` - Información detallada de un suscriptor
+
+**Descripción:** Muestra información detallada de un suscriptor VIP individual, incluyendo fechas, estado y token usado.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. Seleccionar un suscriptor en la lista paginada de suscriptores VIP
+2. El bot muestra la vista detallada del suscriptor
+3. El administrador puede ver información completa (ID, estado, fechas, token)
+4. Si el suscriptor está activo, el administrador puede expulsarlo manualmente del canal
+5. El administrador puede regresar al listado de suscriptores
+
+**Características:**
+- Visualización de información completa del suscriptor
+- Posibilidad de expulsión manual del canal VIP
+- Formato claro y estructurado de la información
+
+**Ejemplo de detalles:**
+```
+👤 Detalles de Suscriptor VIP
+
+<b>User ID:</b> <code>123456789</code>
+<b>Estado:</b> 🟢 Activo
+
+<b>Fecha de Ingreso:</b> 2025-11-13 10:30
+<b>Fecha de Expiración:</b> 2025-12-13 10:30
+<b>Tiempo:</b> 0 días restantes
+
+<b>Token Usado:</b> ID 456789
+
+[🗑️ Expulsar del Canal] (solo si está activo)
+[🔙 Volver al Listado]
+```
+
+### `Expulsión Manual de Suscriptor` - Expulsión forzada de un suscriptor VIP
+
+**Descripción:** Permite expulsar manualmente a un suscriptor VIP del canal, marcándolo como expirado en la base de datos e intentando expulsarlo del canal usando la API de Telegram.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. Ver detalles de un suscriptor VIP activo
+2. Seleccionar "🗑️ Expulsar del Canal"
+3. El bot marca al suscriptor como expirado en la base de datos
+4. El bot intenta expulsar al usuario del canal VIP usando la API de Telegram
+5. El bot notifica el resultado de la operación
+6. El administrador puede regresar al listado de suscriptores
+
+**Características:**
+- Expulsión tanto en la base de datos como en el canal de Telegram
+- Notificación del resultado de la operación
+- Validación de que el suscriptor esté activo antes de expulsar
+
+**Ejemplo de resultado:**
+```
+✅ Suscriptor Marcado Expirado
+
+User <code>123456789</code> ha sido marcado como expirado.
+
+✅ También fue expulsado del canal VIP.
+Esta acción es permanente.
+
+[🔙 Volver al Listado]
 ```
 
 ## Submenú VIP

@@ -17,6 +17,9 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - T12: Admin Handler - Handler del comando /admin que muestra el menú principal de administración con navegación, verificación de estado de configuración y teclado inline
 - T13: Handlers VIP y Free - Submenú VIP (gestión del canal VIP con generación de tokens de invitación), Configuración del canal VIP (configuración del canal VIP por reenvío de mensajes), Generación de tokens de invitación (creación de tokens VIP con duración configurable), Submenú Free (gestión del canal Free con configuración de tiempo de espera), Configuración del canal Free (configuración del canal Free por reenvío de mensajes), Configuración de tiempo de espera (configuración de tiempo de espera para acceso Free)
 - T15: Background Tasks - Tareas programadas que expulsan VIPs expirados del canal, procesan la cola Free para enviar invite links a usuarios que completaron tiempo de espera, limpian datos antiguos y usan APScheduler con configuración de intervalos mediante variables de entorno
+- T24: Pagination System - Sistema de paginación reutilizable con clase Paginator genérica, teclado de navegación paginado y formateadores de contenido para listas largas de elementos
+- T25: Paginated VIP Subscriber Management - Gestión paginada de suscriptores VIP con listado, filtrado por estado (activos, expirados, próximos a expirar, todos), vistas detalladas y expulsión manual de suscriptores
+- T26: Free Queue Visualization - Visualización paginada de cola de solicitudes Free con filtrado por estado (pendientes, listas para procesar, procesadas, todas) y monitoreo del tiempo de espera configurado
 
 ## [1.0.0] - 2025-12-11
 
