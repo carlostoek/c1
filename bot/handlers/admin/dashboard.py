@@ -7,7 +7,7 @@ Handlers para:
 - Acciones rápidas
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aiogram import F
 from aiogram.types import CallbackQuery
@@ -125,7 +125,7 @@ async def _gather_dashboard_data(container: ServiceContainer) -> dict:
         "stats": overall_stats,
         "scheduler": scheduler_status,
         "health": health,
-        "timestamp": datetime.utcnow()
+        "timestamp": datetime.now(timezone.utc)
     }
 
 
@@ -288,7 +288,7 @@ def _format_dashboard_message(data: dict) -> str:
 
             if next_job:
                 next_time = next_job["next_run_time"]
-                time_until = (next_time - datetime.utcnow()).total_seconds() / 60
+                time_until = (next_time - datetime.now(timezone.utc)).total_seconds() / 60
 
                 if time_until < 1:
                     time_text = "< 1 min"
