@@ -8,6 +8,7 @@ from typing import Callable, Dict, Any, Awaitable
 
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
+from aiogram.exceptions import TelegramNetworkError, TelegramBadRequest
 
 from bot.database import get_session
 
@@ -64,7 +65,13 @@ class DatabaseMiddleware(BaseMiddleware):
             try:
                 # Ejecutar handler
                 return await handler(event, data)
+            except (TelegramNetworkError, TelegramBadRequest) as e:
+                # Errores de red/Telegram - loguear como WARNING (no son errores del handler)
+                logger.warning(
+                    f"⚠️ Error de Telegram en handler: {type(e).__name__}: {e}"
+                )
+                raise
             except Exception as e:
-                # Loguear error pero dejar que se propague
+                # Otros errores - loguear como ERROR
                 logger.error(f"❌ Error en handler con sesión DB: {e}", exc_info=True)
                 raise

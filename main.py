@@ -11,6 +11,8 @@ import os
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.exceptions import TelegramNetworkError
+from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 
 from config import Config
 from bot.database import init_db, close_db
@@ -174,10 +176,16 @@ async def main() -> None:
     - Dispatcher con callbacks de startup/shutdown
     - Polling con timeout de 30s (apropiado para Termux)
     """
-    # Crear instancia del bot
+    # Crear instancia del bot con sesión customizada
+    # Aumentar timeout a 120s para handlers que tardan más tiempo
+    session = AiohttpSession(timeout=120)
+
     bot = Bot(
         token=Config.BOT_TOKEN,
-        parse_mode="HTML"  # HTML por defecto para mensajes
+        session=session,
+        default=DefaultBotProperties(
+            parse_mode="HTML"  # HTML por defecto para mensajes
+        )
     )
 
     # Crear storage para FSM (estados de conversación)
