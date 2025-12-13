@@ -1755,8 +1755,23 @@ async def test_stats_service_cache(session_mock):
     assert timestamp3 > timestamp1  # Nuevo timestamp = recálculo forzado
 ```
 
+## Dashboard Integration (T27)
+
+El servicio de estadísticas se integra con el dashboard de estado del sistema (T27) para proporcionar métricas clave en tiempo real:
+
+- `get_overall_stats()` - Utilizado por el dashboard para mostrar estadísticas generales del sistema
+- `get_config_status()` - Utilizado por el dashboard para mostrar estado de configuración
+- `get_scheduler_status()` - Utilizado por el dashboard para mostrar estado de tareas en segundo plano
+
+El dashboard completo proporciona:
+- Visualización del estado de los canales VIP y Free
+- Estadísticas clave como VIPs activos, solicitudes Free pendientes y tokens disponibles
+- Health checks del sistema con identificación de problemas y advertencias
+- Acciones rápidas para acceso directo a funciones administrativas
+- Información actualizada sobre tareas en segundo plano
+
 ---
 
-**Última actualización:** 2025-12-12
+**Última actualización:** 2025-12-13
 **Versión:** 1.1.0
-**Estado:** Documentación actualizada con StatsService (T18) - Implementado
+**Estado:** Documentación actualizada con StatsService (T18) y Dashboard Integration (T27) - Implementado

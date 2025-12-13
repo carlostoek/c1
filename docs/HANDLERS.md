@@ -712,6 +712,178 @@ def stats_menu_keyboard() -> "InlineKeyboardMarkup":
 - Retorno a menú de estadísticas en caso de error
 ```
 
+## Dashboard Handler (T27)
+
+#### admin/dashboard.py - Panel de Control Completo
+
+**Responsabilidad:** Handlers del panel de control completo del sistema que proporciona una visión general del estado del bot con health checks, configuración, estadísticas clave, tareas en segundo plano y acciones rápidas.
+
+**Componentes:**
+- `bot/handlers/admin/dashboard.py` - Handlers principales y callbacks de navegación para el panel de control completo
+
+**Características:**
+- **Estado de configuración:** Visualización del estado de los canales VIP y Free, reacciones configuradas y tiempo de espera
+- **Estadísticas clave:** Métricas importantes como VIPs activos, solicitudes Free pendientes, tokens disponibles y nuevos VIPs
+- **Health checks:** Verificación del estado del sistema con identificación de problemas y advertencias
+- **Background tasks:** Estado del scheduler y próxima ejecución de tareas programadas
+- **Acciones rápidas:** Acceso directo a funciones administrativas desde el dashboard
+- **Actualización automática:** Muestra la hora exacta de la última actualización
+- **Diseño estructurado:** Información organizada en secciones claras con bordes y emojis
+
+**Flujo principal:**
+1. Usuario admin selecciona "📊 Dashboard Completo" en el menú principal
+2. Bot recopila todos los datos necesarios para el dashboard
+3. Bot realiza health checks del sistema
+4. Bot formatea mensaje con `_format_dashboard_message()`
+5. Bot crea teclado inline con `_create_dashboard_keyboard()`
+6. Bot envía dashboard completo con estado general, problemas detectados, configuración actual, estadísticas clave y estado de tareas en segundo plano
+7. Usuario puede navegar a otras secciones desde el teclado inline
+
+**Estructura de callbacks:**
+- `admin:dashboard` - Callback para mostrar el dashboard completo del sistema
+
+**Flujo de recopilación de datos:**
+1. Admin selecciona "📊 Dashboard Completo"
+2. Bot llama a `_gather_dashboard_data()` que recopila:
+   - Estado de configuración (VIP/Free channels, reacciones, tiempo de espera)
+   - Estadísticas generales del sistema
+   - Estado del scheduler y tareas en segundo plano
+   - Realiza health checks del sistema
+3. Bot formatea mensaje con `_format_dashboard_message()`
+4. Bot crea teclado inline con `_create_dashboard_keyboard()`
+5. Bot envía dashboard al admin
+
+**Ejemplo de handler de dashboard:**
+```python
+@admin_router.callback_query(F.data == "admin:dashboard")
+async def callback_admin_dashboard(
+    callback: CallbackQuery,
+    session: AsyncSession
+):
+    """
+    Muestra dashboard completo del sistema.
+
+    Incluye:
+    - Estado de configuración (canales, reacciones)
+    - Estadísticas clave (VIP, Free, Tokens)
+    - Background tasks (estado, próxima ejecución)
+    - Health checks
+    - Acciones rápidas
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+    """
+    logger.info(f"📊 Usuario {callback.from_user.id} abrió dashboard completo")
+
+    await callback.answer("📊 Cargando dashboard...", show_alert=False)
+
+    container = ServiceContainer(session, callback.bot)
+
+    try:
+        # Obtener datos del dashboard
+        dashboard_data = await _gather_dashboard_data(container)
+
+        # Formatear mensaje
+        text = _format_dashboard_message(dashboard_data)
+
+        # Keyboard con acciones rápidas
+        keyboard = _create_dashboard_keyboard(dashboard_data)
+
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+
+        logger.debug("✅ Dashboard mostrado exitosamente")
+
+    except Exception as e:
+        logger.error(f"❌ Error generando dashboard: {e}", exc_info=True)
+
+        await callback.message.edit_text(
+            "❌ <b>Error al Cargar Dashboard</b>\n\n"
+            "No se pudo generar el dashboard completo.\n"
+            "Intenta nuevamente.",
+            reply_markup=create_inline_keyboard([
+                [{"text": "🔄 Reintentar", "callback_data": "admin:dashboard"}],
+                [{"text": "🔙 Volver", "callback_data": "admin:main"}]
+            ]),
+            parse_mode="HTML"
+        )
+```
+
+**Flujo de health checks:**
+1. Bot recibe datos de configuración, estadísticas y scheduler
+2. Bot llama a `_perform_health_checks()` con los datos
+3. Función verifica:
+   - Canales configurados (VIP y Free)
+   - Background tasks corriendo
+   - Tokens disponibles
+   - VIPs próximos a expirar
+   - Cola Free grande
+4. Función determina estado general (healthy, degraded, down)
+5. Bot incluye resultados en el dashboard
+
+**Formato de mensaje del dashboard:**
+- `_format_dashboard_message()` - Dashboard general con secciones de configuración, estadísticas clave, background tasks y health checks
+- Diseño estructurado con emojis y bordes para mejor visualización
+- Muestra estado general del sistema con indicadores visuales
+
+**Interacción con teclados inline:**
+```python
+def _create_dashboard_keyboard(data: dict) -> "InlineKeyboardMarkup":
+    """
+    Crea keyboard del dashboard con acciones rápidas.
+
+    Args:
+        data: Dict con datos del dashboard
+
+    Returns:
+        InlineKeyboardMarkup con acciones
+    """
+    buttons = []
+
+    # Fila 1: Stats y Config
+    buttons.append([
+        {"text": "📊 Estadísticas Detalladas", "callback_data": "admin:stats"},
+        {"text": "⚙️ Configuración", "callback_data": "admin:config"}
+    ])
+
+    # Fila 2: Gestión (adaptativa según configuración)
+    row_2 = []
+
+    if data["config"]["vip_configured"]:
+        row_2.append(
+            {"text": "👥 Suscriptores VIP", "callback_data": "vip:list_subscribers"}
+        )
+
+    if data["config"]["free_configured"]:
+        row_2.append(
+            {"text": "📋 Cola Free", "callback_data": "free:view_queue"}
+        )
+
+    if row_2:
+        buttons.append(row_2)
+
+    # Fila 3: Actualizar y Volver
+    buttons.append([
+        {"text": "🔄 Actualizar", "callback_data": "admin:dashboard"},
+        {"text": "🔙 Menú", "callback_data": "admin:main"}
+    ])
+
+    return create_inline_keyboard(buttons)
+```
+
+**Características del dashboard:**
+- **Actualización automática:** Muestra la hora exacta de la última actualización
+- **Diseño estructurado:** Información organizada en secciones claras con bordes y emojis
+- **Adaptabilidad:** El teclado inline se adapta según la configuración actual (muestra "Suscriptores VIP" solo si canal VIP está configurado)
+- **Acceso directo:** Botones para acceder rápidamente a funciones administrativas importantes
+- **Health checks:** Identificación automática de problemas y advertencias en el sistema
+- **Visualización clara:** Uso de emojis y formato HTML para mejor comprensión del estado del sistema
+```
+
 ## Inyección de Dependencias
 
 Los handlers reciben dependencias inyectadas automáticamente:
@@ -821,6 +993,6 @@ async def test_start_handler():
 
 ---
 
-**Última actualización:** 2025-12-11
+**Última actualización:** 2025-12-13
 **Versión:** 1.0.0
 **Estado:** Documentación de handlers planeados (implementación en fases posteriores)

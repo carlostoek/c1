@@ -883,6 +883,89 @@ Puedes cerrar este chat, te notificaré cuando esté listo! 🔔
   - El token no existe
   - El canal VIP no está configurado
 
+## Dashboard de Estado del Sistema
+
+### `Dashboard Completo` - Panel de control del sistema (T27)
+
+**Descripción:** Accede al panel de control completo del sistema que proporciona una visión general del estado del bot con health checks, configuración, estadísticas clave, tareas en segundo plano y acciones rápidas.
+
+**Permisos:** Solo administradores
+
+**Funcionalidades:**
+- **Estado de configuración:** Visualización del estado de los canales VIP y Free, reacciones configuradas y tiempo de espera
+- **Estadísticas clave:** Métricas importantes como VIPs activos, solicitudes Free pendientes, tokens disponibles y nuevos VIPs
+- **Health checks:** Verificación del estado del sistema con identificación de problemas y advertencias
+- **Background tasks:** Estado del scheduler y próxima ejecución de tareas programadas
+- **Acciones rápidas:** Acceso directo a funciones administrativas desde el dashboard
+
+**Flujo de uso:**
+1. El administrador selecciona "📊 Dashboard Completo" en el menú principal de administración
+2. El bot recopila todos los datos necesarios para el dashboard
+3. El bot realiza health checks del sistema
+4. El bot muestra el dashboard completo con estado general, problemas detectados, configuración actual, estadísticas clave y estado de tareas en segundo plano
+5. El administrador puede navegar a otras secciones desde el teclado inline
+
+**Ejemplo de visualización del dashboard:**
+```
+📊 <b>Dashboard del Sistema</b>
+
+🟢 <b>Estado:</b> Operativo
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ <b>⚙️ CONFIGURACIÓN</b>
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ Canal VIP: ✅ (5 reacciones)
+┃ Canal Free: ✅ (10 min espera)
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ <b>📈 ESTADÍSTICAS CLAVE</b>
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ VIP Activos: <b>25</b>
+┃ Free Pendientes: <b>8</b>
+┃ Tokens Disponibles: <b>12</b>
+┃
+┃ Nuevos VIP (hoy): 2
+┃ Nuevos VIP (semana): 15
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ <b>🔄 BACKGROUND TASKS</b>
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ Estado: 🟢 Corriendo
+┃ Jobs: 3
+┃ Próximo job: 4 min
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+<i>Actualizado: 2025-12-13 10:30:00 UTC</i>
+```
+
+**Teclado inline del dashboard:**
+- "📊 Estadísticas Detalladas" - Acceso al panel de estadísticas completo
+- "⚙️ Configuración" - Acceso al panel de configuración
+- "👥 Suscriptores VIP" - Visualización de suscriptores VIP (si canal VIP está configurado)
+- "📋 Cola Free" - Visualización de cola Free (si canal Free está configurado)
+- "🔄 Actualizar" - Recarga manual del dashboard
+- "🔙 Menú" - Vuelve al menú principal de administración
+
+**Health checks realizados:**
+- **Canales configurados:** Verifica que al menos uno de los canales (VIP o Free) esté configurado
+- **Background tasks:** Verifica que el scheduler esté corriendo
+- **Tokens disponibles:** Alerta si hay menos de 3 tokens disponibles
+- **VIPs próximos a expirar:** Alerta si hay más de 10 VIPs expirando en los próximos 7 días
+- **Cola Free:** Alerta si hay más de 50 solicitudes Free pendientes
+
+**Estados de health check:**
+- **Operativo (🟢):** No se detectaron problemas ni advertencias
+- **Funcionando con Advertencias (🟡):** Se detectaron advertencias pero no problemas críticos
+- **Problemas Detectados (🔴):** Se detectaron problemas críticos que requieren atención
+
+**Características del dashboard:**
+- **Actualización automática:** Muestra la hora exacta de la última actualización
+- **Diseño estructurado:** Información organizada en secciones claras con bordes y emojis
+- **Adaptabilidad:** El teclado inline se adapta según la configuración actual (muestra "Suscriptores VIP" solo si canal VIP está configurado)
+- **Acceso directo:** Botones para acceder rápidamente a funciones administrativas importantes
+
 ## Tareas Programadas (Background Tasks)
 
 El bot ejecuta automáticamente tareas programadas que realizan operaciones periódicas para mantener el sistema funcionando correctamente:
@@ -920,3 +1003,9 @@ El bot ejecuta automáticamente tareas programadas que realizan operaciones peri
 - `PROCESS_FREE_QUEUE_MINUTES`: Intervalo para procesamiento de cola Free (default: 5)
 
 Estas tareas se ejecutan automáticamente sin intervención del usuario y ayudan a mantener el sistema limpio y funcional.
+
+---
+
+**Última actualización:** 2025-12-13
+**Versión:** 1.0.0
+**Estado:** Documentación completa de comandos del bot VIP/Free

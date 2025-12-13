@@ -51,6 +51,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
     Keyboard del menú principal de admin.
 
     Opciones:
+    - Dashboard completo
     - Gestión VIP
     - Gestión Free
     - Configuración
@@ -60,6 +61,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardMarkup con menú principal
     """
     return create_inline_keyboard([
+        [{"text": "📊 Dashboard Completo", "callback_data": "admin:dashboard"}],
         [{"text": "📺 Gestión Canal VIP", "callback_data": "admin:vip"}],
         [{"text": "📺 Gestión Canal Free", "callback_data": "admin:free"}],
         [{"text": "⚙️ Configuración", "callback_data": "admin:config"}],

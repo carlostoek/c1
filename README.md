@@ -79,6 +79,7 @@ nohup python main.py > bot.log 2>&1 &
 │   ├── ARCHITECTURE.md  # Documentación de arquitectura
 │   ├── CHANNEL_SERVICE.md # Documentación específica del servicio de canales
 │   ├── CONFIG_SERVICE.md # Documentación específica del servicio de configuración
+│   ├── DASHBOARD.md # Documentación del dashboard completo del sistema (T27)
 │   └── ...
 ```
 
@@ -1400,6 +1401,7 @@ Este proyecto está en desarrollo iterativo. Consulta las tareas completadas:
 - [x] T24: Pagination System - Sistema de paginación reutilizable con clase Paginator genérica, teclado de navegación paginado y formateadores de contenido para listas largas de elementos
 - [x] T25: Paginated VIP Subscriber Management - Gestión paginada de suscriptores VIP con listado, filtrado por estado (activos, expirados, próximos a expirar, todos), vistas detalladas y expulsión manual de suscriptores
 - [x] T26: Free Queue Visualization - Visualización paginada de cola de solicitudes Free con filtrado por estado (pendientes, listas para procesar, procesadas, todas) y monitoreo del tiempo de espera configurado
+- [x] T27: Complete Status Dashboard - Panel de control completo del sistema con health checks, configuración, estadísticas clave, tareas en segundo plano y acciones rápidas
 - [ ] ONDA 1: MVP Funcional (T1-T17)
 - [ ] ONDA 2: Features Avanzadas (T18-T33)
 - [ ] ONDA 3: Optimización (T34-T44)

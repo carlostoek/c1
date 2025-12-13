@@ -10,6 +10,7 @@ Handlers para:
 import logging
 from aiogram import F
 from aiogram.types import CallbackQuery
+from aiogram.exceptions import TelegramBadRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.handlers.admin.main import admin_router
@@ -64,7 +65,13 @@ async def callback_stats_general(callback: CallbackQuery, session: AsyncSession)
     logger.info(f"📊 Usuario {callback.from_user.id} abrió estadísticas generales")
 
     # Mostrar "cargando..." temporalmente
-    await callback.answer("📊 Calculando estadísticas...", show_alert=False)
+    try:
+        await callback.answer("📊 Calculando estadísticas...", show_alert=False)
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"⚠️ Callback expirado: {e}")
+            return
+        raise
 
     container = ServiceContainer(session, callback.bot)
 
@@ -83,16 +90,40 @@ async def callback_stats_general(callback: CallbackQuery, session: AsyncSession)
 
         logger.debug(f"✅ Stats generales mostradas a user {callback.from_user.id}")
 
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"⚠️ Timeout procesando stats: {e}")
+            try:
+                # Intentar responder al usuario de otra forma
+                await callback.answer("⚠️ La solicitud tardó demasiado. Intenta nuevamente.", show_alert=True)
+            except Exception:
+                pass  # El callback ya expiró, no hay nada que hacer
+        else:
+            logger.error(f"❌ Error Telegram: {e}")
+            try:
+                await callback.message.edit_text(
+                    "❌ <b>Error al Calcular Estadísticas</b>\n\n"
+                    "Hubo un problema al obtener las métricas.\n"
+                    "Intenta nuevamente en unos momentos.",
+                    reply_markup=back_to_main_menu_keyboard(),
+                    parse_mode="HTML"
+                )
+            except Exception:
+                pass
+
     except Exception as e:
         logger.error(f"❌ Error obteniendo stats: {e}", exc_info=True)
 
-        await callback.message.edit_text(
-            "❌ <b>Error al Calcular Estadísticas</b>\n\n"
-            "Hubo un problema al obtener las métricas.\n"
-            "Intenta nuevamente en unos momentos.",
-            reply_markup=back_to_main_menu_keyboard(),
-            parse_mode="HTML"
-        )
+        try:
+            await callback.message.edit_text(
+                "❌ <b>Error al Calcular Estadísticas</b>\n\n"
+                "Hubo un problema al obtener las métricas.\n"
+                "Intenta nuevamente en unos momentos.",
+                reply_markup=back_to_main_menu_keyboard(),
+                parse_mode="HTML"
+            )
+        except Exception:
+            logger.warning(f"⚠️ No se pudo enviar mensaje de error")
 
 
 @admin_router.callback_query(F.data == "admin:stats:refresh")
@@ -106,7 +137,13 @@ async def callback_stats_refresh(callback: CallbackQuery, session: AsyncSession)
     """
     logger.info(f"🔄 Usuario {callback.from_user.id} forzando refresh de stats")
 
-    await callback.answer("🔄 Recalculando estadísticas...", show_alert=False)
+    try:
+        await callback.answer("🔄 Recalculando estadísticas...", show_alert=False)
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"⚠️ Callback expirado: {e}")
+            return
+        raise
 
     container = ServiceContainer(session, callback.bot)
 
@@ -123,13 +160,29 @@ async def callback_stats_refresh(callback: CallbackQuery, session: AsyncSession)
         )
 
         # Notificar que se actualizó
-        await callback.answer("✅ Estadísticas actualizadas", show_alert=False)
+        try:
+            await callback.answer("✅ Estadísticas actualizadas", show_alert=False)
+        except TelegramBadRequest:
+            pass  # Callback puede haber expirado, ignorar
 
         logger.debug("✅ Stats actualizadas exitosamente")
 
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"⚠️ Timeout refrescando stats: {e}")
+        else:
+            logger.error(f"❌ Error Telegram: {e}")
+            try:
+                await callback.answer("❌ Error al actualizar", show_alert=True)
+            except Exception:
+                pass
+
     except Exception as e:
         logger.error(f"❌ Error refrescando stats: {e}", exc_info=True)
-        await callback.answer("❌ Error al actualizar", show_alert=True)
+        try:
+            await callback.answer("❌ Error al actualizar", show_alert=True)
+        except Exception:
+            pass
 
 
 @admin_router.callback_query(F.data == "admin:stats:vip")
@@ -149,7 +202,13 @@ async def callback_stats_vip(callback: CallbackQuery, session: AsyncSession):
     """
     logger.info(f"📊 Usuario {callback.from_user.id} abrió stats VIP detalladas")
 
-    await callback.answer("📊 Calculando estadísticas VIP...", show_alert=False)
+    try:
+        await callback.answer("📊 Calculando estadísticas VIP...", show_alert=False)
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"⚠️ Callback expirado: {e}")
+            return
+        raise
 
     container = ServiceContainer(session, callback.bot)
 
@@ -166,16 +225,35 @@ async def callback_stats_vip(callback: CallbackQuery, session: AsyncSession):
 
         logger.debug(f"✅ VIP stats mostradas a user {callback.from_user.id}")
 
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"⚠️ Timeout procesando VIP stats: {e}")
+        else:
+            logger.error(f"❌ Error Telegram: {e}")
+            try:
+                await callback.message.edit_text(
+                    "❌ <b>Error al Calcular Estadísticas VIP</b>\n\n"
+                    "Hubo un problema al obtener las métricas.\n"
+                    "Intenta nuevamente en unos momentos.",
+                    reply_markup=stats_menu_keyboard(),
+                    parse_mode="HTML"
+                )
+            except Exception:
+                pass
+
     except Exception as e:
         logger.error(f"❌ Error obteniendo VIP stats: {e}", exc_info=True)
 
-        await callback.message.edit_text(
-            "❌ <b>Error al Calcular Estadísticas VIP</b>\n\n"
-            "Hubo un problema al obtener las métricas.\n"
-            "Intenta nuevamente en unos momentos.",
-            reply_markup=stats_menu_keyboard(),
-            parse_mode="HTML"
-        )
+        try:
+            await callback.message.edit_text(
+                "❌ <b>Error al Calcular Estadísticas VIP</b>\n\n"
+                "Hubo un problema al obtener las métricas.\n"
+                "Intenta nuevamente en unos momentos.",
+                reply_markup=stats_menu_keyboard(),
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
 
 
 @admin_router.callback_query(F.data == "admin:stats:free")
@@ -196,7 +274,13 @@ async def callback_stats_free(callback: CallbackQuery, session: AsyncSession):
     """
     logger.info(f"📊 Usuario {callback.from_user.id} abrió stats Free detalladas")
 
-    await callback.answer("📊 Calculando estadísticas Free...", show_alert=False)
+    try:
+        await callback.answer("📊 Calculando estadísticas Free...", show_alert=False)
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"⚠️ Callback expirado: {e}")
+            return
+        raise
 
     container = ServiceContainer(session, callback.bot)
 
@@ -213,16 +297,35 @@ async def callback_stats_free(callback: CallbackQuery, session: AsyncSession):
 
         logger.debug(f"✅ Free stats mostradas a user {callback.from_user.id}")
 
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"⚠️ Timeout procesando Free stats: {e}")
+        else:
+            logger.error(f"❌ Error Telegram: {e}")
+            try:
+                await callback.message.edit_text(
+                    "❌ <b>Error al Calcular Estadísticas Free</b>\n\n"
+                    "Hubo un problema al obtener las métricas.\n"
+                    "Intenta nuevamente en unos momentos.",
+                    reply_markup=stats_menu_keyboard(),
+                    parse_mode="HTML"
+                )
+            except Exception:
+                pass
+
     except Exception as e:
         logger.error(f"❌ Error obteniendo Free stats: {e}", exc_info=True)
 
-        await callback.message.edit_text(
-            "❌ <b>Error al Calcular Estadísticas Free</b>\n\n"
-            "Hubo un problema al obtener las métricas.\n"
-            "Intenta nuevamente en unos momentos.",
-            reply_markup=stats_menu_keyboard(),
-            parse_mode="HTML"
-        )
+        try:
+            await callback.message.edit_text(
+                "❌ <b>Error al Calcular Estadísticas Free</b>\n\n"
+                "Hubo un problema al obtener las métricas.\n"
+                "Intenta nuevamente en unos momentos.",
+                reply_markup=stats_menu_keyboard(),
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
 
 
 @admin_router.callback_query(F.data == "admin:stats:tokens")
@@ -242,7 +345,13 @@ async def callback_stats_tokens(callback: CallbackQuery, session: AsyncSession):
     """
     logger.info(f"📊 Usuario {callback.from_user.id} abrió stats Tokens detalladas")
 
-    await callback.answer("📊 Calculando estadísticas de Tokens...", show_alert=False)
+    try:
+        await callback.answer("📊 Calculando estadísticas de Tokens...", show_alert=False)
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"⚠️ Callback expirado: {e}")
+            return
+        raise
 
     container = ServiceContainer(session, callback.bot)
 
@@ -259,16 +368,35 @@ async def callback_stats_tokens(callback: CallbackQuery, session: AsyncSession):
 
         logger.debug(f"✅ Token stats mostradas a user {callback.from_user.id}")
 
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"⚠️ Timeout procesando Token stats: {e}")
+        else:
+            logger.error(f"❌ Error Telegram: {e}")
+            try:
+                await callback.message.edit_text(
+                    "❌ <b>Error al Calcular Estadísticas de Tokens</b>\n\n"
+                    "Hubo un problema al obtener las métricas.\n"
+                    "Intenta nuevamente en unos momentos.",
+                    reply_markup=stats_menu_keyboard(),
+                    parse_mode="HTML"
+                )
+            except Exception:
+                pass
+
     except Exception as e:
         logger.error(f"❌ Error obteniendo Token stats: {e}", exc_info=True)
 
-        await callback.message.edit_text(
-            "❌ <b>Error al Calcular Estadísticas de Tokens</b>\n\n"
-            "Hubo un problema al obtener las métricas.\n"
-            "Intenta nuevamente en unos momentos.",
-            reply_markup=stats_menu_keyboard(),
-            parse_mode="HTML"
-        )
+        try:
+            await callback.message.edit_text(
+                "❌ <b>Error al Calcular Estadísticas de Tokens</b>\n\n"
+                "Hubo un problema al obtener las métricas.\n"
+                "Intenta nuevamente en unos momentos.",
+                reply_markup=stats_menu_keyboard(),
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
 
 
 def _format_overall_stats_message(stats) -> str:

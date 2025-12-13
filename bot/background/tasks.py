@@ -289,17 +289,27 @@ def stop_background_tasks():
 
 def get_scheduler_status() -> dict:
     """
-    Obtiene el estado actual del scheduler.
-
-    Útil para dashboard admin (ONDA 2).
+    Obtiene el estado actual del scheduler de background tasks.
 
     Returns:
-        Dict con información del scheduler:
+        Dict con info del scheduler:
         {
             "running": bool,
             "jobs_count": int,
-            "jobs": List[dict]
+            "jobs": [
+                {
+                    "id": str,
+                    "name": str,
+                    "next_run_time": datetime or None,
+                    "trigger": str
+                }
+            ]
         }
+
+    Examples:
+        >>> status = get_scheduler_status()
+        >>> if status["running"]:
+        ...     print(f"{status['jobs_count']} jobs activos")
     """
     if _scheduler is None:
         return {
@@ -312,12 +322,13 @@ def get_scheduler_status() -> dict:
     for job in _scheduler.get_jobs():
         jobs_info.append({
             "id": job.id,
-            "name": job.name,
-            "next_run": job.next_run_time.isoformat() if job.next_run_time else None
+            "name": job.name or job.id,
+            "next_run_time": job.next_run_time,
+            "trigger": str(job.trigger)
         })
 
     return {
-        "running": True,
+        "running": _scheduler.running,
         "jobs_count": len(jobs_info),
         "jobs": jobs_info
     }
