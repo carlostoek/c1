@@ -273,6 +273,226 @@ Las nuevas solicitudes esperarán 15 minutos antes de procesarse.
 3. El bot muestra las estadísticas actualizadas inmediatamente
 4. El cache se actualiza con los nuevos valores
 
+## Configuración Avanzada
+
+### `Configuración` - Panel de Configuración Avanzada
+
+**Descripción:** Accede al panel de configuración avanzada que permite gestionar las opciones de reacciones y otras configuraciones del sistema.
+
+**Permisos:** Solo administradores
+
+**Funcionalidades:**
+- Visualización del estado actual de configuración
+- Configuración de reacciones para canales VIP y Free
+- Verificación de parámetros de configuración
+
+**Flujo de uso:**
+1. El administrador selecciona "⚙️ Configuración" en el menú principal
+2. El bot muestra el menú de configuración con las opciones disponibles
+3. El administrador puede navegar entre diferentes opciones de configuración
+
+### `Configurar Reacciones VIP` - Configuración de reacciones para canal VIP
+
+**Descripción:** Configura las reacciones automáticas que se aplicarán a las publicaciones en el canal VIP.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona "⚙️ Configurar Reacciones VIP" en el menú de configuración
+2. El bot muestra las reacciones actuales y solicita ingresar nuevos emojis
+3. El administrador envía los emojis separados por espacios
+4. El bot valida y guarda las nuevas reacciones
+5. El bot actualiza la configuración y notifica el cambio
+
+**Requisitos:**
+- Mínimo 1 emoji
+- Máximo 10 emojis
+- Solo emojis válidos
+
+**Ejemplo de interacción:**
+```
+⚙️ Configurar Reacciones VIP
+
+Reacciones actuales: 👍 ❤️ 🔥 🎉 💯
+
+Envía los emojis que quieres usar como reacciones, separados por espacios.
+Ejemplo: 👍 ❤️ 🔥
+
+Reglas:
+• Mínimo: 1 emoji
+• Máximo: 10 emojis
+• Solo emojis válidos
+
+Las reacciones se aplicarán automáticamente a nuevas publicaciones en el canal VIP.
+
+(Administrador envía: 👍 ❤️ 🌟 💯 ✨)
+✅ Reacciones VIP Configuradas
+Reacciones: 👍 ❤️ 🌟 💯 ✨
+Total: 5 emojis
+Estas reacciones se aplicarán automáticamente a nuevas publicaciones en el canal VIP.
+```
+
+### `Configurar Reacciones Free` - Configuración de reacciones para canal Free
+
+**Descripción:** Configura las reacciones automáticas que se aplicarán a las publicaciones en el canal Free.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona "⚙️ Configurar Reacciones Free" en el menú de configuración
+2. El bot muestra las reacciones actuales y solicita ingresar nuevos emojis
+3. El administrador envía los emojis separados por espacios
+4. El bot valida y guarda las nuevas reacciones
+5. El bot actualiza la configuración y notifica el cambio
+
+**Requisitos:**
+- Mínimo 1 emoji
+- Máximo 10 emojis
+- Solo emojis válidos
+
+**Ejemplo de interacción:**
+```
+⚙️ Configurar Reacciones Free
+
+Reacciones actuales: ✅ ✔️ ☑️
+
+Envía los emojis que quieres usar como reacciones, separados por espacios.
+Ejemplo: ✅ ✔️ ☑️
+
+Reglas:
+• Mínimo: 1 emoji
+• Máximo: 10 emojis
+• Solo emojis válidos
+
+Las reacciones se aplicarán automáticamente a nuevas publicaciones en el canal Free.
+
+(Administrador envía: ✅ ✔️ 📝)
+✅ Reacciones Free Configuradas
+Reacciones: ✅ ✔️ 📝
+Total: 3 emojis
+Estas reacciones se aplicarán automáticamente a nuevas publicaciones en el canal Free.
+```
+
+## Broadcasting
+
+### `Enviar a Canal VIP` - Envío de publicaciones al canal VIP
+
+**Descripción:** Inicia el flujo de envío de contenido al canal VIP con funcionalidad de vista previa y confirmación.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona "📤 Enviar a Canal VIP" en el menú de gestión VIP
+2. El bot solicita enviar el contenido (texto, foto o video)
+3. El administrador envía el contenido deseado
+4. El bot muestra una vista previa del contenido
+5. El administrador confirma o cancela el envío
+6. Si confirma, el bot envía el contenido al canal VIP
+
+**Tipos de contenido soportados:**
+- Texto
+- Foto (con caption opcional)
+- Video (con caption opcional)
+
+**Características:**
+- Vista previa antes de enviar
+- Confirmación de envío
+- Cancelación en cualquier momento
+
+**Ejemplo de interacción:**
+```
+📤 Enviar Publicación a Canal VIP
+
+Envía el contenido que quieres publicar:
+
+• Texto: Envía un mensaje de texto
+• Foto: Envía una foto (con caption opcional)
+• Video: Envía un video (con caption opcional)
+
+El mensaje será enviado exactamente como lo envíes.
+
+👁️ Verás un preview antes de confirmar el envío.
+
+(Administrador envía una foto con caption)
+👁️ Preview de Publicación
+
+Destino: Canal VIP
+Tipo: Foto
+
+Caption:
+Contenido exclusivo para VIPs
+
+⚠️ Verifica que el contenido sea correcto antes de confirmar.
+
+✅ Confirmar y Enviar | ❌ Cancelar | 🔄 Enviar Otro Contenido
+
+(Administrador selecciona "✅ Confirmar y Enviar")
+📤 Resultado del Envío
+
+✅ Canal VIP
+
+La publicación ha sido procesada.
+```
+
+### `Enviar a Canal Free` - Envío de publicaciones al canal Free
+
+**Descripción:** Inicia el flujo de envío de contenido al canal Free con funcionalidad de vista previa y confirmación.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona "📤 Enviar a Canal Free" en el menú de gestión Free
+2. El bot solicita enviar el contenido (texto, foto o video)
+3. El administrador envía el contenido deseado
+4. El bot muestra una vista previa del contenido
+5. El administrador confirma o cancela el envío
+6. Si confirma, el bot envía el contenido al canal Free
+
+**Tipos de contenido soportados:**
+- Texto
+- Foto (con caption opcional)
+- Video (con caption opcional)
+
+**Características:**
+- Vista previa antes de enviar
+- Confirmación de envío
+- Cancelación en cualquier momento
+
+**Ejemplo de interacción:**
+```
+📤 Enviar Publicación a Canal Free
+
+Envía el contenido que quieres publicar:
+
+• Texto: Envía un mensaje de texto
+• Foto: Envía una foto (con caption opcional)
+• Video: Envía un video (con caption opcional)
+
+El mensaje será enviado exactamente como lo envíes.
+
+👁️ Verás un preview antes de confirmar el envío.
+
+(Administrador envía un texto)
+👁️ Preview de Publicación
+
+Destino: Canal Free
+Tipo: Texto
+
+Texto:
+¡Novedades en el canal Free!
+
+⚠️ Verifica que el contenido sea correcto antes de confirmar.
+
+✅ Confirmar y Enviar | ❌ Cancelar | 🔄 Enviar Otro Contenido
+
+(Administrador selecciona "✅ Confirmar y Enviar")
+📤 Resultado del Envío
+
+✅ Canal Free
+
+La publicación ha sido procesada.
+```
+
 ## Comandos de Usuario
 
 ### `/start` - Bienvenida y menú principal de usuario

@@ -51,23 +51,59 @@ class WaitTimeSetupStates(StatesGroup):
 
 class BroadcastStates(StatesGroup):
     """
-    Estados para envío de publicaciones a canales.
+    Estados para envío de publicaciones a canales (BROADCASTING AVANZADO).
 
-    Flujo:
-    1. Admin selecciona "Enviar a Canal VIP"
-    2. Bot entra en estado waiting_for_content
-    3. Admin envía mensaje (texto, foto o video)
-    4. Bot pide confirmación (opcional)
-    5. Bot envía al canal y sale del estado
+    Flujo completo:
+    1. Admin selecciona canal destino (VIP, Free, o Ambos)
+    2. Bot entra en waiting_for_content
+    3. Admin envía contenido (texto, foto, o video)
+    4. Bot muestra preview y entra en waiting_for_confirmation
+    5. Admin confirma o cancela
+    6. Si confirma: Bot envía al canal(es) y sale del estado
+    7. Si cancela: Bot vuelve a waiting_for_content o sale
+
+    Estados adicionales para reacciones (ONDA 2):
+    - selecting_reactions: Admin selecciona reacciones a aplicar
 
     Tipos de Contenido:
     - Soportar: texto, foto, video
     - Estado waiting_for_content acepta cualquiera
-    - Estado waiting_for_confirmation es opcional (puede omitirse)
+    - Estado waiting_for_confirmation maneja confirmación
+    - Estado selecting_reactions permite cambiar reacciones (opcional)
     """
 
-    # Esperando contenido del mensaje a enviar
+    # Estado 1: Esperando contenido del mensaje a enviar
     waiting_for_content = State()
 
-    # Esperando confirmación de envío (opcional)
+    # Estado 2: Esperando confirmación de envío (después de preview)
     waiting_for_confirmation = State()
+
+    # Estado 3: Seleccionando reacciones a aplicar (NUEVO - T23)
+    selecting_reactions = State()
+
+
+class ReactionSetupStates(StatesGroup):
+    """
+    Estados para configuración de reacciones automáticas.
+
+    Flujo:
+    1. Admin selecciona "Configurar Reacciones VIP/Free"
+    2. Bot entra en waiting_for_vip_reactions o waiting_for_free_reactions
+    3. Admin envía lista de emojis separados por espacios
+    4. Bot valida (1-10 emojis) y guarda
+    5. Bot sale del estado
+
+    Validación de Input:
+    - Formato: Emojis separados por espacios
+    - Rango válido: 1-10 emojis
+    - Si no es válido → Error y mantener estado
+    - Si es válido → Guardar en DB y clear state
+
+    NUEVO EN ONDA 2 - T21
+    """
+
+    # Esperando lista de emojis para canal VIP
+    waiting_for_vip_reactions = State()
+
+    # Esperando lista de emojis para canal Free
+    waiting_for_free_reactions = State()

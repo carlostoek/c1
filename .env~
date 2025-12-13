@@ -1,0 +1,14 @@
+# Telegram Bot Configuration
+BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+ADMIN_USER_IDS=123456789,987654321
+
+# Database
+DATABASE_URL=sqlite+aiosqlite:///bot.db
+
+# Channels (se configuran desde el bot)
+VIP_CHANNEL_ID=
+FREE_CHANNEL_ID=
+
+# Bot Settings
+DEFAULT_WAIT_TIME_MINUTES=5
+LOG_LEVEL=INFO

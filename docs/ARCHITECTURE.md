@@ -1677,6 +1677,538 @@ def free_menu_keyboard(is_configured: bool) -> "InlineKeyboardMarkup":
 6. Bot guarda configuración si todo es válido
 7. Bot limpia estado FSM y actualiza menú
 
+### 4.7 Broadcasting Handler (T22)
+
+**Responsabilidad:** Handlers del sistema de broadcasting que permiten a los administradores enviar contenido a los canales VIP y Free con funcionalidad de vista previa y confirmación antes del envío.
+
+**Componentes:**
+- `bot/handlers/admin/broadcast.py` - Handlers principales y callbacks de navegación para el sistema de broadcasting
+
+**Características:**
+- **Envío de contenido:** Envío de texto, fotos y videos a canales VIP y Free
+- **Vista previa:** Visualización del contenido antes de enviarlo al canal
+- **Confirmación de envío:** Confirmación opcional antes de publicar en el canal
+- **Uso de FSM:** Utiliza BroadcastStates para el flujo de envío de contenido
+- **Interacción con teclados inline:** Proporciona opciones de confirmación y control a través de teclado inline
+- **Tipos de contenido soportados:** Texto, foto con caption opcional, video con caption opcional
+
+**Flujo principal:**
+1. Usuario admin selecciona "📤 Enviar a Canal VIP" o "📤 Enviar a Canal Free" en menú de gestión
+2. Bot entra en estado FSM `waiting_for_content`
+3. Usuario envía contenido (texto, foto o video)
+4. Bot procesa contenido y entra en estado `waiting_for_confirmation`
+5. Bot muestra vista previa y solicita confirmación
+6. Usuario confirma o cancela envío
+7. Si confirma: Bot envía contenido al canal y limpia estado FSM
+8. Si cancela: Bot limpia estado FSM y regresa al menú principal
+
+**Estructura de callbacks:**
+- `vip:broadcast` - Callback para iniciar broadcasting al canal VIP
+- `free:broadcast` - Callback para iniciar broadcasting al canal Free
+- `broadcast:confirm` - Callback para confirmar envío de contenido
+- `broadcast:cancel` - Callback para cancelar broadcasting
+- `broadcast:change` - Callback para cambiar contenido antes de enviar
+
+**Aplicación de FSM:**
+```python
+# Aplicar estados FSM para broadcasting
+@admin_router.callback_query(F.data == "vip:broadcast")
+async def callback_broadcast_to_vip(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+    """
+    Inicia broadcasting al canal VIP.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+    """
+    logger.info(f"📤 Usuario {callback.from_user.id} iniciando broadcast a VIP")
+
+    # Guardar canal destino en FSM data
+    await state.set_data({"target_channel": "vip"})
+
+    # Entrar en estado FSM
+    await state.set_state(BroadcastStates.waiting_for_content)
+
+    text = (
+        "📤 <b>Enviar Publicación a Canal VIP</b>\n\n"
+        "Envía el contenido que quieres publicar:\n\n"
+        "• <b>Texto:</b> Envía un mensaje de texto\n"
+        "• <b>Foto:</b> Envía una foto (con caption opcional)\n"
+        "• <b>Video:</b> Envía un video (con caption opcional)\n\n"
+        "El mensaje será enviado exactamente como lo envíes.\n\n"
+        "👁️ Verás un preview antes de confirmar el envío."
+    )
+
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=create_inline_keyboard([
+            [{"text": "❌ Cancelar", "callback_data": "broadcast:cancel"}]
+        ]),
+        parse_mode="HTML"
+    )
+
+    await callback.answer()
+
+@admin_router.message(
+    BroadcastStates.waiting_for_content,
+    F.content_type.in_([ContentType.TEXT, ContentType.PHOTO, ContentType.VIDEO])
+)
+async def process_broadcast_content(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Procesa el contenido enviado para broadcasting.
+
+    Guarda el contenido en FSM data y muestra preview.
+
+    Args:
+        message: Mensaje con el contenido
+        state: FSM context
+        session: Sesión de BD
+    """
+    user_id = message.from_user.id
+
+    # Obtener data del FSM
+    data = await state.get_data()
+    target_channel = data.get("target_channel", "vip")
+
+    logger.info(
+        f"📥 Usuario {user_id} envió contenido para broadcast a {target_channel}"
+    )
+
+    # Determinar tipo de contenido
+    content_type = message.content_type
+    caption = None
+
+    if content_type == ContentType.PHOTO:
+        # Guardar file_id de la foto más grande
+        photo = message.photo[-1]  # Última foto es la más grande
+        file_id = photo.file_id
+        caption = message.caption
+
+    elif content_type == ContentType.VIDEO:
+        file_id = message.video.file_id
+        caption = message.caption
+
+    else:  # TEXT
+        file_id = None
+        caption = message.text
+
+    # Actualizar FSM data con contenido
+    await state.update_data({
+        "content_type": content_type,
+        "file_id": file_id,
+        "caption": caption,
+        "original_message_id": message.message_id,
+    })
+
+    # Mostrar preview
+    preview_text = await _generate_preview_text(target_channel, content_type, caption)
+
+    # Enviar preview al admin
+    await message.answer(
+        text=preview_text,
+        reply_markup=create_inline_keyboard([
+            [
+                {"text": "✅ Confirmar y Enviar", "callback_data": "broadcast:confirm"},
+                {"text": "❌ Cancelar", "callback_data": "broadcast:cancel"}
+            ],
+            [{"text": "🔄 Enviar Otro Contenido", "callback_data": "broadcast:change"}]
+        ]),
+        parse_mode="HTML"
+    )
+
+    # Reenviar el contenido como preview visual
+    if content_type == ContentType.PHOTO:
+        await message.answer_photo(
+            photo=file_id,
+            caption="👁️ <i>Preview del mensaje</i>",
+            parse_mode="HTML"
+        )
+    elif content_type == ContentType.VIDEO:
+        await message.answer_video(
+            video=file_id,
+            caption="👁️ <i>Preview del mensaje</i>",
+            parse_mode="HTML"
+        )
+
+    # Cambiar a estado de confirmación
+    await state.set_state(BroadcastStates.waiting_for_confirmation)
+
+    logger.debug(f"✅ Preview generado para user {user_id}")
+```
+
+**Flujo de envío con confirmación:**
+1. Admin selecciona "📤 Enviar a Canal VIP" o "📤 Enviar a Canal Free"
+2. Bot entra en estado `waiting_for_content`
+3. Admin envía contenido (texto, foto o video)
+4. Bot procesa contenido y entra en estado `waiting_for_confirmation`
+5. Bot muestra vista previa del contenido
+6. Bot solicita confirmación con teclado inline
+7. Admin confirma o cancela envío
+8. Si confirma: Bot envía contenido al canal y limpia estado
+9. Si cancela: Bot limpia estado y regresa al menú
+
+**Ejemplo de confirmación de envío:**
+```python
+@admin_router.callback_query(
+    BroadcastStates.waiting_for_confirmation,
+    F.data == "broadcast:confirm"
+)
+async def callback_broadcast_confirm(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Confirma y envía el mensaje al canal(es).
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    user_id = callback.from_user.id
+
+    # Obtener data del FSM
+    data = await state.get_data()
+    target_channel = data["target_channel"]
+    content_type = data["content_type"]
+    file_id = data.get("file_id")
+    caption = data.get("caption")
+
+    logger.info(f"📤 Usuario {user_id} confirmó broadcast a {target_channel}")
+
+    # Notificar que se está enviando
+    await callback.answer("📤 Enviando publicación...", show_alert=False)
+
+    container = ServiceContainer(session, callback.bot)
+
+    # Determinar canales destino
+    channels_to_send = []
+
+    if target_channel == "vip":
+        vip_channel = await container.channel.get_vip_channel_id()
+        if vip_channel:
+            channels_to_send.append(("VIP", vip_channel))
+
+    elif target_channel == "free":
+        free_channel = await container.channel.get_free_channel_id()
+        if free_channel:
+            channels_to_send.append(("Free", free_channel))
+
+    # Validar que hay canales configurados
+    if not channels_to_send:
+        await callback.message.edit_text(
+            "❌ <b>Error: Canales No Configurados</b>\n\n"
+            "Debes configurar los canales antes de enviar publicaciones.",
+            reply_markup=create_inline_keyboard([
+                [{"text": "🔙 Volver", "callback_data": "admin:main"}]
+            ]),
+            parse_mode="HTML"
+        )
+        await state.clear()
+        return
+
+    # Enviar a cada canal
+    results = []
+
+    for channel_name, channel_id in channels_to_send:
+        try:
+            if content_type == ContentType.PHOTO:
+                success, msg, _ = await container.channel.send_to_channel(
+                    channel_id=channel_id,
+                    text=caption or "",
+                    photo=file_id
+                )
+
+            elif content_type == ContentType.VIDEO:
+                success, msg, _ = await container.channel.send_to_channel(
+                    channel_id=channel_id,
+                    text=caption or "",
+                    video=file_id
+                )
+
+            else:  # TEXT
+                success, msg, _ = await container.channel.send_to_channel(
+                    channel_id=channel_id,
+                    text=caption or ""
+                )
+
+            if success:
+                results.append(f"✅ Canal {channel_name}")
+                logger.info(f"✅ Publicación enviada a canal {channel_name}")
+            else:
+                results.append(f"❌ Canal {channel_name}: {msg}")
+                logger.error(f"❌ Error enviando a {channel_name}: {msg}")
+
+        except Exception as e:
+            results.append(f"❌ Canal {channel_name}: Error inesperado")
+            logger.error(f"❌ Excepción enviando a {channel_name}: {e}", exc_info=True)
+
+    # Mostrar resultados
+    results_text = "\n".join(results)
+
+    await callback.message.edit_text(
+        f"📤 <b>Resultado del Envío</b>\n\n{results_text}\n\n"
+        f"La publicación ha sido procesada.",
+        reply_markup=create_inline_keyboard([
+            [{"text": "🔙 Volver al Menú", "callback_data": "admin:main"}]
+        ]),
+        parse_mode="HTML"
+    )
+
+    # Limpiar estado FSM
+    await state.clear()
+
+    logger.info(f"✅ Broadcasting completado para user {user_id}")
+```
+
+**Uso del ServiceContainer en los handlers de broadcasting:**
+```python
+# Crear container de servicios con sesión de BD y bot
+container = ServiceContainer(session, callback.bot)
+
+# Acceder a servicios específicos
+vip_channel = await container.channel.get_vip_channel_id()
+free_channel = await container.channel.get_free_channel_id()
+success, msg, _ = await container.channel.send_to_channel(
+    channel_id=channel_id,
+    text=caption or "",
+    photo=file_id
+)
+```
+
+**Interacción con teclados inline de broadcasting:**
+```python
+# Teclado para confirmación de envío
+confirmation_keyboard = create_inline_keyboard([
+    [
+        {"text": "✅ Confirmar y Enviar", "callback_data": "broadcast:confirm"},
+        {"text": "❌ Cancelar", "callback_data": "broadcast:cancel"}
+    ],
+    [{"text": "🔄 Enviar Otro Contenido", "callback_data": "broadcast:change"}]
+])
+
+# Teclado para cancelación de broadcasting
+cancel_keyboard = create_inline_keyboard([
+    [{"text": "❌ Cancelar", "callback_data": "broadcast:cancel"}]
+])
+```
+
+### 4.8 Reactions Handler (T23)
+
+**Responsabilidad:** Handlers del sistema de configuración de reacciones automáticas que permiten a los administradores definir emojis que se aplicarán automáticamente a las publicaciones en los canales VIP y Free.
+
+**Componentes:**
+- `bot/handlers/admin/reactions.py` - Handlers principales y callbacks de navegación para el sistema de reacciones
+
+**Características:**
+- **Configuración de reacciones VIP:** Configuración de emojis para el canal VIP
+- **Configuración de reacciones Free:** Configuración de emojis para el canal Free
+- **Validación de emojis:** Validación de formato y cantidad de emojis (1-10)
+- **Uso de FSM:** Utiliza ReactionSetupStates para el flujo de configuración de reacciones
+- **Interacción con teclados inline:** Proporciona opciones de navegación a través de teclado inline
+- **Persistencia de configuración:** Almacenamiento en la tabla BotConfig
+
+**Flujo principal:**
+1. Usuario admin selecciona "⚙️ Configurar Reacciones VIP" o "⚙️ Configurar Reacciones Free" en menú de configuración
+2. Bot entra en estado FSM correspondiente (`waiting_for_vip_reactions` o `waiting_for_free_reactions`)
+3. Usuario envía emojis separados por espacios
+4. Bot valida formato y cantidad de emojis
+5. Si válido: Bot guarda configuración y limpia estado FSM
+6. Si inválido: Bot mantiene estado FSM y solicita reingreso
+
+**Estructura de callbacks:**
+- `config:reactions:vip` - Callback para iniciar configuración de reacciones VIP
+- `config:reactions:free` - Callback para iniciar configuración de reacciones Free
+
+**Aplicación de FSM:**
+```python
+# Aplicar estados FSM para configuración de reacciones VIP
+@admin_router.callback_query(F.data == "config:reactions:vip")
+async def callback_setup_vip_reactions(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+):
+    """
+    Inicia configuración de reacciones para canal VIP.
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+        state: FSM context
+    """
+    logger.info(f"⚙️ Usuario {callback.from_user.id} configurando reacciones VIP")
+
+    container = ServiceContainer(session, callback.bot)
+
+    # Obtener reacciones actuales
+    current_reactions = await container.config.get_vip_reactions()
+
+    if current_reactions:
+        current_text = " ".join(current_reactions)
+        status_text = f"<b>Reacciones actuales:</b> {current_text}\n\n"
+    else:
+        status_text = "<b>Reacciones actuales:</b> <i>Ninguna configurada</i>\n\n"
+
+    # Entrar en estado FSM
+    await state.set_state(ReactionSetupStates.waiting_for_vip_reactions)
+
+    text = (
+        "⚙️ <b>Configurar Reacciones VIP</b>\n\n"
+        f"{status_text}"
+        "Envía los emojis que quieres usar como reacciones, "
+        "separados por espacios.\n\n"
+        "<b>Ejemplo:</b> <code>👍 ❤️ 🔥 🎉 💯</code>\n\n"
+        "<b>Reglas:</b>\n"
+        "• Mínimo: 1 emoji\n"
+        "• Máximo: 10 emojis\n"
+        "• Solo emojis válidos\n\n"
+        "Las reacciones se aplicarán automáticamente a "
+        "nuevas publicaciones en el canal VIP."
+    )
+
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=create_inline_keyboard([
+            [{"text": "❌ Cancelar", "callback_data": "admin:config"}]
+        ]),
+        parse_mode="HTML"
+    )
+
+    await callback.answer()
+
+@admin_router.message(ReactionSetupStates.waiting_for_vip_reactions)
+async def process_vip_reactions_input(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext
+):
+    """
+    Procesa el input de reacciones VIP.
+
+    Args:
+        message: Mensaje con emojis
+        session: Sesión de BD
+        state: FSM context
+    """
+    user_id = message.from_user.id
+    text = message.text.strip()
+
+    logger.info(f"⚙️ Usuario {user_id} enviando reacciones VIP: {text}")
+
+    # Validar emojis
+    is_valid, error_msg, emojis = validate_emoji_list(text)
+
+    if not is_valid:
+        # Input inválido
+        await message.answer(
+            f"❌ <b>Input Inválido</b>\n\n"
+            f"{error_msg}\n\n"
+            f"Por favor, envía los emojis separados por espacios.\n"
+            f"Ejemplo: <code>👍 ❤️ 🔥</code>",
+            parse_mode="HTML"
+        )
+        # Mantener estado FSM para reintentar
+        return
+
+    container = ServiceContainer(session, message.bot)
+
+    try:
+        # Guardar reacciones
+        await container.config.set_vip_reactions(emojis)
+
+        reactions_text = " ".join(emojis)
+
+        await message.answer(
+            f"✅ <b>Reacciones VIP Configuradas</b>\n\n"
+            f"<b>Reacciones:</b> {reactions_text}\n"
+            f"<b>Total:</b> {len(emojis)} emojis\n\n"
+            f"Estas reacciones se aplicarán automáticamente a "
+            f"nuevas publicaciones en el canal VIP.",
+            reply_markup=create_inline_keyboard([
+                [{"text": "🔙 Volver a Configuración", "callback_data": "admin:config"}]
+            ]),
+            parse_mode="HTML"
+        )
+
+        # Limpiar estado FSM
+        await state.clear()
+
+        logger.info(f"✅ Reacciones VIP configuradas: {len(emojis)} emojis")
+
+    except ValueError as e:
+        # Error de validación del service
+        logger.error(f"❌ Error validando reacciones VIP: {e}")
+
+        await message.answer(
+            f"❌ <b>Error al Guardar Reacciones</b>\n\n"
+            f"{str(e)}\n\n"
+            f"Intenta nuevamente.",
+            parse_mode="HTML"
+        )
+        # Mantener estado para reintentar
+
+    except Exception as e:
+        # Error inesperado
+        logger.error(f"❌ Error guardando reacciones VIP: {e}", exc_info=True)
+
+        await message.answer(
+            "❌ <b>Error Inesperado</b>\n\n"
+            "No se pudieron guardar las reacciones.\n"
+            "Intenta nuevamente.",
+            parse_mode="HTML"
+        )
+        await state.clear()
+```
+
+**Flujo de configuración de reacciones:**
+1. Admin selecciona "⚙️ Configurar Reacciones VIP" o "⚙️ Configurar Reacciones Free"
+2. Bot entra en estado FSM correspondiente
+3. Bot muestra reacciones actuales y solicita nuevas reacciones
+4. Admin envía emojis separados por espacios
+5. Bot valida formato y cantidad (1-10 emojis)
+6. Bot guarda configuración en BD
+7. Bot limpia estado FSM y actualiza menú
+
+**Validación de reacciones:**
+- Mínimo 1 emoji
+- Máximo 10 emojis
+- Solo caracteres de emoji válidos
+- Formato: emojis separados por espacios
+
+**Uso del ServiceContainer en los handlers de reacciones:**
+```python
+# Crear container de servicios con sesión de BD y bot
+container = ServiceContainer(session, message.bot)
+
+# Acceder a servicios específicos
+current_reactions = await container.config.get_vip_reactions()
+await container.config.set_vip_reactions(emojis)
+current_reactions = await container.config.get_free_reactions()
+await container.config.set_free_reactions(emojis)
+```
+
+**Interacción con teclados inline de reacciones:**
+```python
+# Teclado para cancelación de configuración de reacciones
+cancel_keyboard = create_inline_keyboard([
+    [{"text": "❌ Cancelar", "callback_data": "admin:config"}]
+])
+
+# Teclado para volver a menú de configuración
+back_to_config_keyboard = create_inline_keyboard([
+    [{"text": "🔙 Volver a Configuración", "callback_data": "admin:config"}]
+])
+```
+
 ### 7. Services
 
 **Responsabilidad:** Lógica de negocio reutilizable

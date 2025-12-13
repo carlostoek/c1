@@ -146,6 +146,239 @@ class UserStates(StatesGroup):
     viewing_help = State()                  # Viendo ayuda
 ```
 
+### BroadcastStates (T21)
+
+Máquina de estado para envío de publicaciones a canales (broadcasting).
+
+```python
+class BroadcastStates(StatesGroup):
+    """
+    Estados para envío de publicaciones a canales (BROADCASTING AVANZADO).
+
+    Flujo completo:
+    1. Admin selecciona canal destino (VIP, Free, o Ambos)
+    2. Bot entra en waiting_for_content
+    3. Admin envía contenido (texto, foto, o video)
+    4. Bot muestra preview y entra en waiting_for_confirmation
+    5. Admin confirma o cancela
+    6. Si confirma: Bot envía al canal(es) y sale del estado
+    7. Si cancela: Bot vuelve a waiting_for_content o sale
+
+    Estados adicionales para reacciones (ONDA 2):
+    - selecting_reactions: Admin selecciona reacciones a aplicar
+
+    Tipos de Contenido:
+    - Soportar: texto, foto, video
+    - Estado waiting_for_content acepta cualquiera
+    - Estado waiting_for_confirmation maneja confirmación
+    - Estado selecting_reactions permite cambiar reacciones (opcional)
+    """
+
+    # Estado 1: Esperando contenido del mensaje a enviar
+    waiting_for_content = State()
+
+    # Estado 2: Esperando confirmación de envío (después de preview)
+    waiting_for_confirmation = State()
+
+    # Estado 3: Seleccionando reacciones a aplicar (NUEVO - T23)
+    selecting_reactions = State()
+```
+
+#### Diagrama de Transiciones BroadcastStates
+
+```
+                    ┌─────────────────────────────────┐
+                    │    [Admin selecciona canal]     │
+                    │  Inicia broadcasting            │
+                    └──────────┬──────────────────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+              ▼                ▼                ▼
+        ┌──────────┐      ┌──────────┐    ┌────────┐
+        │ Enviar   │      │ Ver      │    │ Confir │
+        │ Contenido│      │ Preview  │    │ mar/env│
+        └────┬─────┘      └──────────┘    └───┬────┘
+             │                                 │
+             ▼                                 ▼
+    ┌─────────────────┐            ┌──────────────────┐
+    │ Admin envía     │            │ Mostrar preview  │
+    │ contenido       │            │ y pedir confirma │
+    │ (texto, foto,   │            │ ción             │
+    │ video)          │            │                  │
+    └────┬────────────┘            └────┬─────────────┘
+         │                              │
+         ▼                              ▼
+    ┌─────────────────┐    ┌──────────────────────┐
+    │ [Contenido      │    │ [Confirmar envío]    │
+    │ recibido]       │    │ Enviar contenido     │
+    │ Procesar        │    │ al canal             │
+    │ contenido       │    │ ✅ Enviado           │
+    └────┬────────────┘    └──────┬───────────────┘
+         │                        │
+         └────────────┬───────────┘
+                      │
+                      ▼
+                 [Volver a menú]
+```
+
+#### Ejemplos de Uso BroadcastStates
+
+**Envío de Contenido:**
+```python
+# Handler 1: Iniciar espera de contenido
+@admin_router.callback_query(F.data == "vip:broadcast")
+async def callback_broadcast_to_vip(callback, state):
+    await state.set_data({"target_channel": "vip"})
+    await state.set_state(BroadcastStates.waiting_for_content)
+    await callback.message.edit_text("Envía el contenido que quieres publicar...")
+
+# Handler 2: Procesar contenido recibido
+@admin_router.message(
+    BroadcastStates.waiting_for_content,
+    F.content_type.in_([ContentType.TEXT, ContentType.PHOTO, ContentType.VIDEO])
+)
+async def process_broadcast_content(message, state, session):
+    # Guardar contenido en FSM data
+    await state.update_data({
+        "content_type": message.content_type,
+        "file_id": getattr(message, 'photo', [None])[-1].file_id if message.photo else
+                  getattr(message, 'video', None).file_id if message.video else None,
+        "caption": getattr(message, 'caption', getattr(message, 'text', ''))
+    })
+
+    # Mostrar preview y cambiar a estado de confirmación
+    await state.set_state(BroadcastStates.waiting_for_confirmation)
+    # Mostrar preview al admin con opciones de confirmación
+```
+
+### ReactionSetupStates (T23)
+
+Máquina de estado para configuración de reacciones automáticas.
+
+```python
+class ReactionSetupStates(StatesGroup):
+    """
+    Estados para configuración de reacciones automáticas.
+
+    Flujo:
+    1. Admin selecciona "Configurar Reacciones VIP/Free"
+    2. Bot entra en waiting_for_vip_reactions o waiting_for_free_reactions
+    3. Admin envía lista de emojis separados por espacios
+    4. Bot valida (1-10 emojis) y guarda
+    5. Bot sale del estado
+
+    Validación de Input:
+    - Formato: Emojis separados por espacios
+    - Rango válido: 1-10 emojis
+    - Si no es válido → Error y mantener estado
+    - Si es válido → Guardar en DB y clear state
+
+    NUEVO EN ONDA 2 - T21
+    """
+
+    # Esperando lista de emojis para canal VIP
+    waiting_for_vip_reactions = State()
+
+    # Esperando lista de emojis para canal Free
+    waiting_for_free_reactions = State()
+```
+
+#### Diagrama de Transiciones ReactionSetupStates
+
+```
+                    ┌─────────────────────────────────┐
+                    │    [Admin selecciona config    │
+                    │  reacciones VIP o Free]         │
+                    └──────────┬──────────────────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+              ▼                ▼                ▼
+        ┌──────────┐      ┌──────────┐    ┌────────┐
+        │ Config   │      │ Config   │    │ Validar│
+        │ Reacc.   │      │ Reacc.   │    │ y guardar│
+        │ VIP      │      │ Free     │    │        │
+        └────┬─────┘      └────┬─────┘    └────────┘
+             │                 │
+             ▼                 ▼
+    ┌──────────────────┐ ┌─────────────────────┐
+    │ Bot entra en     │ │ Bot entra en        │
+    │ waiting_for_     │ │ waiting_for_        │
+    │ vip_reactions    │ │ free_reactions      │
+    │                  │ │                     │
+    │ [Admin envía     │ │ [Admin envía        │
+    │ emojis]          │ │ emojis]             │
+    └────┬─────────────┘ └────┬────────────────┘
+         │                    │
+         ▼                    ▼
+    ┌──────────────────┐ ┌──────────────────┐
+    │ Validar emojis   │ │ Validar emojis   │
+    │ (1-10, formato)  │ │ (1-10, formato)  │
+    │ Guardar en BD    │ │ Guardar en BD    │
+    │ Limpiar estado   │ │ Limpiar estado   │
+    └────┬─────────────┘ └────┬─────────────┘
+         │                    │
+         └────────────┬───────┘
+                      │
+                      ▼
+                  [Volver a config]
+```
+
+#### Ejemplos de Uso ReactionSetupStates
+
+**Configuración de Reacciones VIP:**
+```python
+# Handler 1: Iniciar configuración de reacciones VIP
+@admin_router.callback_query(F.data == "config:reactions:vip")
+async def callback_setup_vip_reactions(callback, session, state):
+    await state.set_state(ReactionSetupStates.waiting_for_vip_reactions)
+    await callback.message.edit_text(
+        "Envía los emojis que quieres usar como reacciones para el canal VIP, "
+        "separados por espacios.\n\nEjemplo: 👍 ❤️ 🔥 🎉 💯"
+    )
+
+# Handler 2: Procesar emojis recibidos
+@admin_router.message(ReactionSetupStates.waiting_for_vip_reactions)
+async def process_vip_reactions_input(message, session, state):
+    text = message.text.strip()
+
+    # Validar emojis
+    is_valid, error_msg, emojis = validate_emoji_list(text)
+
+    if not is_valid:
+        await message.answer(f"❌ {error_msg}\n\nIntenta nuevamente.")
+        return  # Mantener estado para reintentar
+
+    # Guardar reacciones en BD
+    container = ServiceContainer(session, message.bot)
+    await container.config.set_vip_reactions(emojis)
+
+    await message.answer(
+        f"✅ Reacciones VIP configuradas: {' '.join(emojis)}"
+    )
+
+    # Limpiar estado
+    await state.clear()
+```
+
+**Configuración de Reacciones Free:**
+```python
+# Similar para Free
+@admin_router.callback_query(F.data == "config:reactions:free")
+async def callback_setup_free_reactions(callback, session, state):
+    await state.set_state(ReactionSetupStates.waiting_for_free_reactions)
+    await callback.message.edit_text(
+        "Envía los emojis que quieres usar como reacciones para el canal Free, "
+        "separados por espacios.\n\nEjemplo: ✅ ✔️ ☑️"
+    )
+
+@admin_router.message(ReactionSetupStates.waiting_for_free_reactions)
+async def process_free_reactions_input(message, session, state):
+    # Similar a VIP pero guarda reacciones Free
+    # ...
+```
+
 #### Diagrama de Transiciones UserStates
 
 ```
