@@ -17,7 +17,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.handlers.admin.main import admin_router
-from bot.database.models import VIPSubscriber
+from bot.database.models import VIPSubscriber, FreeChannelRequest
 from bot.services.container import ServiceContainer
 from bot.utils.pagination import (
     paginate_query_results,
@@ -464,3 +464,272 @@ async def callback_vip_kick_subscriber(
             ]),
             parse_mode="HTML"
         )
+
+
+# ===== VISUALIZACIÓN COLA FREE =====
+
+@admin_router.callback_query(F.data == "free:view_queue")
+async def callback_view_free_queue(
+    callback: CallbackQuery,
+    session: AsyncSession
+):
+    """
+    Muestra cola de solicitudes Free paginada.
+
+    Por defecto muestra solo pendientes en la página 1.
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+    """
+    logger.info(f"📋 Usuario {callback.from_user.id} viendo cola Free")
+
+    await callback.answer("📋 Cargando cola...", show_alert=False)
+
+    # Mostrar página 1, filtro "pending"
+    await _show_free_queue_page(
+        callback=callback,
+        session=session,
+        page_number=1,
+        filter_status="pending"
+    )
+
+
+@admin_router.callback_query(F.data.startswith("free:queue:page:"))
+async def callback_free_queue_page(
+    callback: CallbackQuery,
+    session: AsyncSession
+):
+    """
+    Navega a una página específica de la cola Free.
+
+    Callback data format: "free:queue:page:N" o "free:queue:page:N:FILTER"
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+    """
+    # Parsear callback data
+    parts = callback.data.split(":")
+
+    try:
+        page_number = int(parts[3])
+        filter_status = parts[4] if len(parts) > 4 else "pending"
+    except (IndexError, ValueError) as e:
+        logger.error(f"❌ Error parseando callback: {callback.data} - {e}")
+        await callback.answer("❌ Error de navegación", show_alert=True)
+        return
+
+    logger.debug(
+        f"📋 Usuario {callback.from_user.id} navegando a página {page_number}, "
+        f"filtro={filter_status}"
+    )
+
+    await _show_free_queue_page(
+        callback=callback,
+        session=session,
+        page_number=page_number,
+        filter_status=filter_status
+    )
+
+
+@admin_router.callback_query(F.data.startswith("free:filter:"))
+async def callback_free_filter(
+    callback: CallbackQuery,
+    session: AsyncSession
+):
+    """
+    Cambia filtro de visualización de cola Free.
+
+    Filtros disponibles:
+    - pending: Solo pendientes
+    - ready: Listas para procesar (tiempo cumplido)
+    - processed: Ya procesadas
+    - all: Todas
+
+    Callback data format: "free:filter:FILTER"
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+    """
+    filter_status = callback.data.split(":")[2]
+
+    logger.info(
+        f"🔍 Usuario {callback.from_user.id} aplicando filtro Free: {filter_status}"
+    )
+
+    await callback.answer(f"🔍 Filtrando: {_get_free_filter_name(filter_status)}")
+
+    # Mostrar página 1 con nuevo filtro
+    await _show_free_queue_page(
+        callback=callback,
+        session=session,
+        page_number=1,
+        filter_status=filter_status
+    )
+
+
+async def _show_free_queue_page(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    page_number: int,
+    filter_status: str = "pending"
+):
+    """
+    Muestra una página de la cola Free con filtro aplicado.
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+        page_number: Número de página a mostrar
+        filter_status: Filtro a aplicar (pending, ready, processed, all)
+    """
+    from bot.database.models import BotConfig
+
+    # Obtener tiempo de espera configurado
+    config_result = await session.execute(
+        select(BotConfig.wait_time_minutes).where(BotConfig.id == 1)
+    )
+    wait_time_minutes = config_result.scalar() or 5
+
+    # Construir query según filtro
+    query = select(FreeChannelRequest).order_by(
+        FreeChannelRequest.request_date.asc()  # Más antiguas primero
+    )
+
+    if filter_status == "pending":
+        query = query.where(FreeChannelRequest.processed == False)
+    elif filter_status == "ready":
+        # Listas para procesar (tiempo cumplido y no procesadas)
+        cutoff_time = datetime.utcnow() - timedelta(minutes=wait_time_minutes)
+        query = query.where(
+            and_(
+                FreeChannelRequest.processed == False,
+                FreeChannelRequest.request_date <= cutoff_time
+            )
+        )
+    elif filter_status == "processed":
+        query = query.where(FreeChannelRequest.processed == True)
+    # "all" no aplica filtro adicional
+
+    # Ejecutar query
+    result = await session.execute(query)
+    requests = result.scalars().all()
+
+    # Paginar resultados
+    page = paginate_query_results(
+        results=list(requests),
+        page_number=page_number,
+        page_size=10
+    )
+
+    # Formatear mensaje
+    filter_name = _get_free_filter_name(filter_status)
+    header = format_page_header(page, f"Cola Free - {filter_name}")
+
+    if page.is_empty:
+        text = f"{header}\n\n<i>No hay solicitudes en esta categoría.</i>"
+    else:
+        # Formatter específico que incluye wait_time
+        def formatter(req, idx):
+            return _format_free_request(req, idx, wait_time_minutes)
+
+        items_text = format_items_list(page.items, formatter)
+        text = f"{header}\n\n{items_text}"
+
+    # Agregar info de configuración
+    text += f"\n\n⏱️ <i>Tiempo de espera configurado: {wait_time_minutes} min</i>"
+
+    # Crear keyboard con filtros y paginación
+    additional_buttons = [
+        # Fila de filtros
+        [
+            {"text": "⏳ Pendientes" if filter_status == "pending" else "Pendientes",
+             "callback_data": "free:filter:pending"},
+            {"text": "✅ Listas" if filter_status == "ready" else "Listas",
+             "callback_data": "free:filter:ready"},
+        ],
+        [
+            {"text": "🔄 Procesadas" if filter_status == "processed" else "Procesadas",
+             "callback_data": "free:filter:processed"},
+            {"text": "📋 Todas" if filter_status == "all" else "Todas",
+             "callback_data": "free:filter:all"},
+        ]
+    ]
+
+    keyboard = create_pagination_keyboard(
+        page=page,
+        callback_pattern=f"free:queue:page:{{page}}:{filter_status}",
+        additional_buttons=additional_buttons,
+        back_callback="admin:free"
+    )
+
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+
+
+def _get_free_filter_name(filter_status: str) -> str:
+    """Retorna nombre legible del filtro Free."""
+    names = {
+        "pending": "Pendientes",
+        "ready": "Listas para Procesar",
+        "processed": "Procesadas",
+        "all": "Todas"
+    }
+    return names.get(filter_status, "Todas")
+
+
+def _format_free_request(
+    request: FreeChannelRequest,
+    index: int,
+    wait_time_minutes: int
+) -> str:
+    """
+    Formatea una solicitud Free para listado.
+
+    Args:
+        request: Objeto FreeChannelRequest
+        index: Índice en la lista (1-indexed)
+        wait_time_minutes: Tiempo de espera configurado
+
+    Returns:
+        String HTML formateado
+    """
+    # Calcular tiempo transcurrido
+    elapsed_minutes = (datetime.utcnow() - request.request_date).total_seconds() / 60
+
+    if request.processed:
+        # Solicitud ya procesada
+        emoji = "✅"
+        processed_date = request.processed_at.strftime("%Y-%m-%d %H:%M")
+        status_text = f"Procesada: {processed_date}"
+    else:
+        # Solicitud pendiente
+        remaining_minutes = wait_time_minutes - elapsed_minutes
+
+        if remaining_minutes <= 0:
+            # Lista para procesar
+            emoji = "🟢"
+            status_text = f"Lista (hace {abs(int(remaining_minutes))} min)"
+        elif remaining_minutes < 2:
+            # Muy próxima
+            emoji = "🟡"
+            status_text = f"Falta {int(remaining_minutes)} min"
+        else:
+            # Aún esperando
+            emoji = "⏳"
+            status_text = f"Falta {int(remaining_minutes)} min"
+
+    # Formatear fecha de solicitud
+    request_date = request.request_date.strftime("%Y-%m-%d %H:%M")
+
+    return (
+        f"{emoji} <b>{index}.</b> "
+        f"User <code>{request.user_id}</code>\n"
+        f"   ├─ Solicitó: {request_date}\n"
+        f"   └─ {status_text}"
+    )
