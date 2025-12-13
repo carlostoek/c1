@@ -1,640 +1,411 @@
-# Documentación de Comandos
+# Comandos del Bot VIP/Free
 
-Referencia completa de comandos disponibles en el bot, funcionalidades y ejemplos de uso.
+Documentación completa de los comandos disponibles en el bot de administración de canales VIP y Free.
 
-## Estado Actual de Comandos
+## Comandos de Administración
 
-En ONDA 1 Fase 1.1 (MVP Básico), la mayoría de comandos están **pendientes de implementar** en fases posteriores.
+### `/admin` - Panel de Administración Principal
 
-| Fase | Estado | Comandos |
-|------|--------|----------|
-| 1.1 (Actual) | Completada | - |
-| 1.2 (Próxima) | Pendiente | Admin: /admin, /generar_token, /config |
-| 1.3 (Próxima) | Pendiente | User: /start, /vip, /free |
-| 1.4+ | Pendiente | Avanzados |
+**Descripción:** Abre el panel de administración principal con acceso a todas las funciones de gestión.
 
-## Comandos Planeados (ONDA 1+)
+**Permisos:** Solo administradores (definidos en `ADMIN_USER_IDS`)
 
-### Comandos de Usuario
+**Flujo de uso:**
+1. El administrador envía `/admin`
+2. El bot verifica permisos y muestra el menú principal
+3. Opciones disponibles:
+   - Gestión Canal VIP
+   - Gestión Canal Free
+   - Configuración
 
-#### /start
-Comando de bienvenida y menú principal del bot.
-
+**Ejemplo:**
 ```
-Descripción:
-  Envía mensaje de bienvenida y muestra opciones disponibles para usuarios
+/admin
+🤖 Panel de Administración
+✅ Bot configurado correctamente
 
-Sintaxis:
-  /start
-
-Permisos:
-  Ninguno (cualquier usuario)
-
-Respuesta:
-  [Menú inline con botones:]
-  - Acceso VIP (Canjear Token)
-  - Acceso Free (Cola de Espera)
-  - Ayuda
-
-Ejemplo:
-  Usuario: /start
-  Bot: ¡Hola! Bienvenido al bot...
+Selecciona una opción:
+- 📺 Gestión Canal VIP
+- 📺 Gestión Canal Free
+- ⚙️ Configuración
 ```
 
-Implementación planeada en Fase 1.3:
-```python
-@router.message.command("start")
-async def start_handler(message: Message) -> None:
-    """Manejador del comando /start"""
-    # Enviar mensaje de bienvenida
-    # Mostrar teclado inline con opciones
-    # No requiere DB para MVP
+## Submenú VIP
+
+### `Gestión Canal VIP` - Opción del menú admin
+
+**Descripción:** Accede al submenú de gestión del canal VIP.
+
+**Permisos:** Solo administradores
+
+**Funcionalidades:**
+- Verificar estado de configuración del canal VIP
+- Generar tokens de invitación VIP
+- Configurar o reconfigurar el canal VIP
+
+**Flujo de uso:**
+1. Seleccionar "Gestión Canal VIP" en el menú principal
+2. El bot muestra estado actual del canal VIP
+3. Opciones disponibles dependiendo del estado:
+   - Si está configurado: "🎟️ Generar Token de Invitación", "🔧 Reconfigurar Canal"
+   - Si no está configurado: "⚙️ Configurar Canal VIP"
+
+### `Configurar Canal VIP` - Configuración del canal VIP
+
+**Descripción:** Configura el canal VIP por reenvío de mensajes.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. Seleccionar "⚙️ Configurar Canal VIP"
+2. El bot solicita reenviar un mensaje del canal VIP
+3. El administrador va al canal VIP y reenvía cualquier mensaje al bot
+4. El bot extrae automáticamente el ID del canal
+5. El bot verifica permisos y configura el canal
+6. El bot actualiza el menú con el canal configurado
+
+**Requisitos:**
+- El bot debe ser administrador del canal VIP
+- El bot debe tener permiso para invitar usuarios
+
+**Ejemplo de interacción:**
+```
+👉 Reenvía un mensaje del canal ahora...
+
+(Administrador reenvía un mensaje del canal VIP)
+✅ Canal VIP Configurado
+Canal: Mi Canal VIP
+ID: -1001234567890
+Ya puedes generar tokens de invitación.
 ```
 
-#### /vip
-Acceso al canal VIP mediante token de invitación.
+### `Generar Token de Invitación` - Creación de tokens VIP
 
+**Descripción:** Genera un token de invitación para acceso VIP.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. Asegurarse de que el canal VIP esté configurado
+2. Seleccionar "🎟️ Generar Token de Invitación"
+3. El bot genera un token único con duración configurable
+4. El bot envía el token al administrador
+5. El administrador comparte el token con el usuario
+
+**Características del token:**
+- 16 caracteres alfanuméricos
+- Válido por 24 horas (por defecto)
+- Un solo uso
+- Se marca como usado después del primer canje
+
+**Ejemplo de token generado:**
 ```
-Descripción:
-  Inicia flujo de canje de token VIP
-  Usuario ingresa token y obtiene acceso
+🎟️ Token VIP Generado
 
-Sintaxis:
-  /vip
+Token: ABCD1234EFGH5678
+⏱️ Válido por: 24 horas
+📅 Expira: 2025-12-12 10:30 UTC
 
-Permisos:
-  Ninguno (cualquier usuario)
-
-Estados FSM:
-  waiting_for_vip_token → Esperando que usuario ingrese token
-
-Flujo:
-  1. Usuario envía /vip
-  2. Bot responde: "Ingresa tu token VIP:"
-  3. Usuario envía token (ej: ABC123XYZ456789)
-  4. Bot valida:
-     - Token existe
-     - No fue usado antes
-     - No expiró
-  5. Si válido:
-     - Crear VIPSubscriber en BD
-     - Marcar token como usado
-     - Invitar a canal VIP
-     - "Bienvenido! Acceso VIP válido por 24h"
-  6. Si inválido:
-     - "Token inválido o expirado"
-
-Ejemplo:
-  Usuario: /vip
-  Bot: Ingresa tu token VIP:
-  Usuario: ABC123XYZ456789
-  Bot: ✅ Bienvenido al canal VIP!
-       Tu acceso es válido hasta 2025-12-12 11:30
-       Días restantes: 1
+👉 Comparte este token con el usuario.
+El usuario debe enviarlo al bot para canjear acceso VIP.
 ```
 
-Implementación planeada en Fase 1.3:
-```python
-@router.message.command("vip")
-async def vip_handler(message: Message, state: FSMContext) -> None:
-    """Inicia flujo de canje de token VIP"""
-    await message.answer("Ingresa tu token VIP:")
-    await state.set_state(UserStates.waiting_for_vip_token)
+## Submenú Free
 
-@router.message(UserStates.waiting_for_vip_token)
-async def vip_token_handler(message: Message, state: FSMContext, session: AsyncSession) -> None:
-    """Procesa token VIP ingresado"""
-    token_str = message.text.strip()
-    # Validar token
-    # Crear suscriptor
-    # Invitar a canal
-    await state.clear()
+### `Gestión Canal Free` - Opción del menú admin
+
+**Descripción:** Accede al submenú de gestión del canal Free.
+
+**Permisos:** Solo administradores
+
+**Funcionalidades:**
+- Verificar estado de configuración del canal Free
+- Configurar o reconfigurar el canal Free
+- Configurar tiempo de espera para acceso Free
+
+**Flujo de uso:**
+1. Seleccionar "Gestión Canal Free" en el menú principal
+2. El bot muestra estado actual del canal Free y tiempo de espera
+3. Opciones disponibles dependiendo del estado:
+   - Si está configurado: "⏱️ Configurar Tiempo de Espera", "🔧 Reconfigurar Canal"
+   - Si no está configurado: "⚙️ Configurar Canal Free"
+
+### `Configurar Canal Free` - Configuración del canal Free
+
+**Descripción:** Configura el canal Free por reenvío de mensajes.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. Seleccionar "⚙️ Configurar Canal Free"
+2. El bot solicita reenviar un mensaje del canal Free
+3. El administrador va al canal Free y reenvía cualquier mensaje al bot
+4. El bot extrae automáticamente el ID del canal
+5. El bot verifica permisos y configura el canal
+6. El bot actualiza el menú con el canal configurado
+
+**Requisitos:**
+- El bot debe ser administrador del canal Free
+- El bot debe tener permiso para invitar usuarios
+
+**Ejemplo de interacción:**
+```
+👉 Reenvía un mensaje del canal ahora...
+
+(Administrador reenvía un mensaje del canal Free)
+✅ Canal Free Configurado
+Canal: Mi Canal Free
+ID: -1000987654321
+Los usuarios ya pueden solicitar acceso.
 ```
 
-#### /free
-Solicitar acceso al canal Free con tiempo de espera.
+### `Configurar Tiempo de Espera` - Configuración del tiempo de espera
 
+**Descripción:** Configura el tiempo de espera para acceso al canal Free.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. Asegurarse de que el canal Free esté configurado
+2. Seleccionar "⏱️ Configurar Tiempo de Espera"
+3. El bot solicita ingresar el nuevo tiempo en minutos
+4. El administrador envía el número de minutos
+5. El bot valida y actualiza la configuración
+6. El bot actualiza el menú con el nuevo tiempo
+
+**Requisitos:**
+- El tiempo debe ser al menos 1 minuto
+- Solo se aceptan valores numéricos
+
+**Ejemplo de interacción:**
 ```
-Descripción:
-  Solicita acceso al canal Free
-  El bot invita después de esperar DEFAULT_WAIT_TIME_MINUTES
+⏱️ Configurar Tiempo de Espera
 
-Sintaxis:
-  /free
+Tiempo actual: 10 minutos
 
-Permisos:
-  Ninguno (cualquier usuario)
+Envía el nuevo tiempo de espera en minutos.
+Ejemplo: 5
 
-Flujo:
-  1. Usuario envía /free
-  2. Bot:
-     - Verifica si ya tiene solicitud pendiente
-     - Si NO: Crea FreeChannelRequest
-     - Si SÍ: "Ya tienes una solicitud pendiente"
-  3. Bot responde: "Tu solicitud fue registrada"
-                   "Espera 5 minutos..."
-  4. [Background Task ejecuta cada 5 min]
-     - Busca FreeChannelRequest listas (cumplieron espera)
-     - Invita usuarios a canal Free
-     - Marca como processed
-  5. Usuario recibe invitación al canal
+El tiempo debe ser mayor o igual a 1 minuto.
 
-Ejemplo:
-  Usuario: /free
-  Bot: ✅ Solicitud registrada
-       Serás invitado en 5 minutos
-       [Después de 5 min...]
-       ¡Bienvenido al canal Free!
-       Tu acceso es permanente mientras el bot esté activo
+(Administrador envía: 15)
+✅ Tiempo de Espera Actualizado
+Nuevo tiempo: 15 minutos
+Las nuevas solicitudes esperarán 15 minutos antes de procesarse.
 ```
 
-Implementación planeada en Fase 1.3:
-```python
-@router.message.command("free")
-async def free_handler(message: Message, session: AsyncSession) -> None:
-    """Solicita acceso al canal Free"""
-    # Verificar solicitud pendiente
-    # Crear FreeChannelRequest
-    # Background task procesa cada 5 min
+## Comandos de Usuario
+
+### `/start` - Bienvenida y menú principal de usuario
+
+**Descripción:** Punto de entrada para usuarios que detecta el rol (admin/VIP/usuario) y proporciona las opciones correspondientes.
+
+**Permisos:** Todos los usuarios
+
+**Flujo de uso:**
+1. El usuario envía `/start`
+2. El bot detecta el rol del usuario (admin, VIP o normal)
+3. Si es admin: redirige al panel de administración
+4. Si es VIP: muestra mensaje de bienvenida con días restantes de suscripción
+5. Si es usuario normal: muestra menú con opciones VIP/Free
+
+**Opciones disponibles para usuarios normales:**
+- Canjear Token VIP: Iniciar flujo de canje de tokens VIP
+- Solicitar Acceso Free: Iniciar flujo de solicitud de acceso Free
+
+**Ejemplo:**
+```
+/start
+👋 Hola Usuario!
+
+Bienvenido al bot de acceso a canales.
+
+Opciones disponibles:
+
+🎟️ Canjear Token VIP
+Si tienes un token de invitación, canjéalo para acceso VIP.
+
+📺 Solicitar Acceso Free
+Solicita acceso al canal gratuito (con tiempo de espera).
+
+👉 Selecciona una opción:
 ```
 
-### Comandos de Administrador
+### `/vip` - Canje de token VIP (Futuro)
 
-#### /admin
-Menú principal de administración (requiere permisos admin).
+**Descripción:** Solicitar acceso VIP ingresando un token. (Funcionalidad movida al flujo de `/start`)
 
-```
-Descripción:
-  Acceso al panel de administración
-  Solo disponible para admins configurados en ADMIN_USER_IDS
+**Permisos:** Usuarios normales
 
-Sintaxis:
-  /admin
+**Flujo de uso:**
+1. El usuario envía `/vip`
+2. El bot solicita ingresar el token VIP
+3. El bot valida y procesa el token
+4. El bot envía link de invitación al canal VIP
 
-Permisos:
-  Admin (verificado por AdminAuthMiddleware)
+### `/free` - Solicitud de acceso Free (Futuro)
 
-Respuesta:
-  [Menú inline con botones:]
-  - Gestionar VIP
-    - Generar Token
-    - Ver Tokens
-    - Ver Suscriptores
-    - Renovar Suscripción
-  - Gestionar Free
-    - Ver Cola de Espera
-    - Procesar Manual
-  - Configuración
-    - Canales
-    - Tiempo Espera
-    - Reacciones
+**Descripción:** Solicitar acceso al canal Free. (Funcionalidad movida al flujo de `/start`)
 
-Ejemplo:
-  Admin: /admin
-  Bot: Panel de Administración
-       [Botones para gestión]
+**Permisos:** Usuarios normales
+
+**Flujo de uso:**
+1. El usuario envía `/free`
+2. El bot registra la solicitud en la cola
+3. El bot notifica el tiempo de espera
+4. El bot envía link de invitación cuando se cumple el tiempo
 ```
 
-Implementación planeada en Fase 1.2:
-```python
-@router.message.command("admin")
-async def admin_handler(message: Message) -> None:
-    """Panel principal de admin"""
-    # Verificar permisos (AdminAuthMiddleware)
-    # Enviar teclado con opciones de admin
+## Flujos de Usuario
+
+### Flujo VIP - Canje de Tokens
+
+**Descripción:** Proceso para que usuarios canjeen tokens VIP y reciban acceso al canal VIP.
+
+**Flujo de uso:**
+1. Usuario selecciona "Canjear Token VIP" en el menú de `/start`
+2. Bot verifica que canal VIP esté configurado
+3. Bot entra en estado FSM `waiting_for_token`
+4. Usuario envía token de invitación
+5. Bot valida token (formato, vigencia, no usado)
+6. Bot genera invite link único para el usuario
+7. Bot envía link de acceso al canal VIP
+
+**Características del invite link:**
+- Válido por 1 hora
+- Solo puede usarse 1 vez
+- No se comparte con otros usuarios
+
+**Ejemplo de interacción:**
+```
+👉 Copia y pega tu token aquí...
+(Usuario envía: ABCD1234EFGH5678)
+✅ Token Canjeado Exitosamente!
+
+🎉 Tu acceso VIP está activo
+⏱️ Duración: 30 días
+
+👇 Usa este link para unirte al canal VIP:
+https://t.me/+abc123def456
+
+⚠️ Importante:
+• El link expira en 1 hora
+• Solo puedes usarlo 1 vez
+• No lo compartas con otros
+
+Disfruta del contenido exclusivo! 🚀
 ```
 
-#### /generar_token
-Generar nuevo token VIP (admin).
+### Flujo Free - Solicitud de Acceso
 
+**Descripción:** Proceso para que usuarios soliciten acceso al canal Free con tiempo de espera.
+
+**Flujo de uso:**
+1. Usuario selecciona "Solicitar Acceso Free" en el menú de `/start`
+2. Bot verifica que canal Free esté configurado
+3. Bot verifica si usuario ya tiene solicitud pendiente
+4. Si no tiene solicitud: crea nueva solicitud y notifica tiempo de espera
+5. Si ya tiene solicitud: muestra tiempo restante
+6. Proceso automático procesa solicitudes cuando cumplen tiempo de espera
+7. Bot envía notificación con invite link al usuario
+
+**Características del tiempo de espera:**
+- Configurable por administrador (mínimo 1 minuto)
+- Procesamiento automático en background
+- Notificación al usuario cuando esté listo
+
+**Ejemplo de interacción:**
 ```
-Descripción:
-  Genera token único para invitar usuarios a VIP
-  Incluye selección de duración
+✅ Solicitud Recibida
 
-Sintaxis:
-  /generar_token
+Tu solicitud de acceso al canal Free ha sido registrada.
 
-Permisos:
-  Admin
+⏱️ Tiempo de espera: 10 minutos
 
-Estados FSM:
-  admin_generating_token → Seleccionando duración
+📨 Recibirás un mensaje con el link de invitación cuando el tiempo se cumpla.
 
-Flujo:
-  1. Admin: /generar_token
-  2. Bot: "Selecciona duración del token:"
-          [Botones:]
-          - 24 horas
-          - 7 días
-          - 30 días
-          - Duración personalizada
-  3. Admin selecciona opción
-  4. Si "Personalizada": Bot pide horas
-  5. Bot:
-     - Genera token único de 16 caracteres
-     - Guarda en BD: InvitationToken
-     - Responde: "Token generado:
-                  ABC123XYZ456789
-                  Válido por: 24 horas
-                  Generado por: @admin_username
-                  Crea un enlace de invitación"
+💡 No necesitas hacer nada más, el proceso es automático.
 
-Ejemplo:
-  Admin: /generar_token
-  Bot: Selecciona duración:
-       [24h] [7d] [30d] [Custom]
-  Admin: Presiona [24h]
-  Bot: ✅ Token generado: ABC123XYZ456789
-       Válido por 24 horas
-       Comparte este token para invitar usuarios VIP
+Puedes cerrar este chat, te notificaré cuando esté listo! 🔔
 ```
 
-Implementación planeada en Fase 1.2:
-```python
-@router.message.command("generar_token")
-async def generar_token_handler(message: Message, state: FSMContext) -> None:
-    """Inicia flujo de generación de token"""
-    # Mostrar opciones de duración
-    # Usar callbackquery para selección
-    # Generar token con secrets
-    # Guardar en BD
-```
-
-#### /ver_tokens
-Ver lista de tokens generados (admin).
-
-```
-Descripción:
-  Lista todos los tokens con su estado
-  Puedes filtrar por: válidos, usados, expirados
-
-Sintaxis:
-  /ver_tokens [filtro]
-
-Filtros:
-  todos    - Todos los tokens (default)
-  validos  - Tokens sin usar y no expirados
-  usados   - Tokens ya canjeados
-  expirados - Tokens expirados
-
-Respuesta:
-  Tabla con:
-  - Token (primeros 8 caracteres)
-  - Estado (válido/usado/expirado)
-  - Generado por
-  - Creado hace X tiempo
-  - Canjeado por (si aplica)
-
-Ejemplo:
-  Admin: /ver_tokens validos
-  Bot: 📋 Tokens válidos (3):
-
-       1. ABC123XY... [VÁLIDO]
-          Creado hace 2 horas
-          Expira en 22 horas
-
-       2. DEF456UV... [VÁLIDO]
-          Creado hace 5 horas
-          Expira en 19 horas
-
-       3. GHI789ST... [VÁLIDO]
-          Creado hace 1 día
-          Expira en 10 horas
-```
-
-Implementación planeada en Fase 1.2:
-```python
-@router.message.command("ver_tokens")
-async def ver_tokens_handler(message: Message, command: CommandObject, session: AsyncSession) -> None:
-    """Muestra lista de tokens"""
-    filtro = command.args or "todos"
-    # Consultar tokens según filtro
-    # Formatear tabla
-    # Enviar respuesta
-```
-
-#### /suscriptores
-Ver suscriptores VIP (admin).
-
-```
-Descripción:
-  Lista usuarios con suscripción VIP activa
-  Incluye información de expiración
-
-Sintaxis:
-  /suscriptores [filtro]
-
-Filtros:
-  activos   - Suscripción aún válida (default)
-  proximos  - Expiran en próximos 7 días
-  expirados - Suscripción ya expirada
-  todos     - Todos los suscriptores
-
-Respuesta:
-  Tabla con:
-  - User ID
-  - Días restantes
-  - Fecha expiración
-  - Token usado
-  - Acciones (renovar, eliminar)
-
-Ejemplo:
-  Admin: /suscriptores proximos
-  Bot: 📊 Suscriptores próximos a expirar (2):
-
-       1. User 987654321
-          Expira en 2 días (2025-12-13 11:30)
-          Token: ABC123XY...
-          [Renovar] [Eliminar]
-
-       2. User 555555555
-          Expira en 5 días (2025-12-16 11:30)
-          Token: DEF456UV...
-          [Renovar] [Eliminar]
-```
-
-Implementación planeada en Fase 1.2:
-```python
-@router.message.command("suscriptores")
-async def suscriptores_handler(message: Message, command: CommandObject, session: AsyncSession) -> None:
-    """Muestra suscriptores VIP"""
-    filtro = command.args or "activos"
-    # Consultar suscriptores
-    # Formatear tabla
-    # Enviar con botones de acción
-```
-
-#### /config
-Configuración del bot (admin).
-
-```
-Descripción:
-  Accede a panel de configuración
-  Permite cambiar canales, tiempos, reacciones
-
-Sintaxis:
-  /config
-
-Permisos:
-  Admin
-
-Menú:
-  - Canales
-    - Ver Canal VIP
-    - Configurar Canal VIP
-    - Ver Canal Free
-    - Configurar Canal Free
-  - Tiempos
-    - Ver Tiempo de Espera Free
-    - Cambiar Tiempo de Espera
-  - Reacciones
-    - Ver Reacciones VIP
-    - Configurar Reacciones VIP
-    - Ver Reacciones Free
-    - Configurar Reacciones Free
-  - Tarifas
-    - Ver Tarifas
-    - Cambiar Tarifas
-
-Ejemplo:
-  Admin: /config
-  Bot: ⚙️ Configuración del Bot
-
-       [Canales]
-       [Tiempos]
-       [Reacciones]
-       [Tarifas]
-```
-
-Implementación planeada en Fase 1.4:
-```python
-@router.message.command("config")
-async def config_handler(message: Message, state: FSMContext) -> None:
-    """Panel de configuración"""
-    # Mostrar menú de opciones
-    # Usar callbackquery para navegar
-    # Actualizar BotConfig en BD
-```
-
-#### /stats
-Estadísticas del bot (admin).
-
-```
-Descripción:
-  Muestra estadísticas generales
-  Usuarios VIP, Free, tokens, etc.
-
-Sintaxis:
-  /stats
-
-Permisos:
-  Admin
-
-Respuesta:
-  📊 Estadísticas del Bot:
-
-  👥 Usuarios VIP: 42 (3 próximos a expirar)
-  📋 Tokens generados: 50
-     - Válidos: 8
-     - Usados: 40
-     - Expirados: 2
-
-  📺 Canal Free:
-     - Solicitudes en cola: 15
-     - Procesadas hoy: 23
-
-  💾 Base de datos: 125 KB
-  ⏱️ Tiempo de espera Free: 5 minutos
-  🔧 Versión: ONDA 1 (MVP)
-```
-
-Implementación planeada en Fase 1.5:
-```python
-@router.message.command("stats")
-async def stats_handler(message: Message, session: AsyncSession) -> None:
-    """Muestra estadísticas"""
-    # Contar usuarios VIP
-    # Contar tokens
-    # Contar requests Free
-    # Formatear respuesta
-```
-
-### Comandos Especiales
-
-#### /help
-Ayuda general del bot.
-
-```
-Descripción:
-  Muestra información de ayuda
-  Diferentes para usuarios y admins
-
-Sintaxis:
-  /help
-
-Respuesta (Usuario normal):
-  ℹ️ Ayuda del Bot VIP/Free
-
-  /start - Menú principal
-  /vip - Acceso al canal VIP (necesitas token)
-  /free - Solicitar acceso Free
-  /help - Esta ayuda
-
-  Problemas? Contacta con @admin_username
-
-Respuesta (Admin):
-  ℹ️ Ayuda de Administración
-
-  /admin - Panel de administración
-  /generar_token - Crear nuevo token VIP
-  /ver_tokens - Ver tokens
-  /suscriptores - Ver suscriptores
-  /config - Configuración del bot
-  /stats - Estadísticas
-  /help - Esta ayuda
-
-  Para usuarios:
-  /start - Menú principal
-```
-
-Implementación planeada en Fase 1.3:
-```python
-@router.message.command("help")
-async def help_handler(message: Message) -> None:
-    """Muestra ayuda según el tipo de usuario"""
-    if Config.is_admin(message.from_user.id):
-        # Mostrar ayuda admin
-    else:
-        # Mostrar ayuda usuario
-```
-
-## Manejo de Errores en Comandos
-
-### Errores Comunes
-
-**Usuario no autorizado:**
-```
-Admin: /admin
-Bot: ❌ No tienes permisos para usar este comando
-     Por favor contacta con el administrador
-```
-
-**Configuración incompleta:**
-```
-Admin: /config
-Bot: ⚠️ Error: Canal VIP no configurado
-     Configura los canales primero: /config
-```
-
-**Token inválido:**
-```
-Usuario: /vip
-Bot: Ingresa tu token VIP:
-Usuario: INVALID123
-Bot: ❌ Token inválido
-     Verifica que esté bien escrito
-     Token debe tener 16 caracteres
-```
-
-**Solicitud duplicada:**
-```
-Usuario: /free
-Bot: ⚠️ Ya tienes una solicitud pendiente
-     Serás invitado en X minutos
-     Espera a que se complete
-```
-
-## Validaciones de Comandos
-
-### Token VIP
-- Longitud: exactamente 16 caracteres
-- Caracteres válidos: a-z, A-Z, 0-9
-- Formato: case-sensitive
-- No debe estar usado previamente
-- No debe haber expirado
-
-### User ID
-- Debe ser número válido
-- Rango: enteros positivos de 32-64 bits
-- Identificador único por usuario
-
-### Canal ID
-- Formato: -100XXXXXXXXXXX (negativo de 13-15 dígitos)
-- Alternativa: @nombre_canal
-
-### Tiempo de Espera
-- Mínimo: 1 minuto
-- Máximo: 10080 minutos (7 días)
-- Valor por defecto: 5 minutos
-
-## Flujos de Comandos (FSM)
-
-### Flujo de Usuario Normal
-
-```
-[Inicio]
-   │
-   ▼
-/start ─────┬──→ /vip ──→ [waiting_for_vip_token] ──→ [VIP]
-   │        │
-   │        └──→ /free ──→ [waiting_confirmation] ──→ [Free Queue]
-   │
-   └──→ /help ──→ [Información]
-```
-
-### Flujo de Administrador
-
-```
-[Inicio]
-   │
-   ▼
-/admin ─────┬──→ /generar_token ──→ [selecting_duration] ──→ [Token Creado]
-   │        │
-   │        ├──→ /ver_tokens ──→ [List Tokens]
-   │        │
-   │        ├──→ /suscriptores ──→ [List Subscribers]
-   │        │
-   │        └──→ /config ──────┬─→ [configure_vip_channel]
-   │                           │
-   │                           ├─→ [configure_free_channel]
-   │                           │
-   │                           └─→ [configure_wait_time]
-   │
-   └──→ /stats ──→ [Estadísticas]
-
-   └──→ /help ──→ [Admin Help]
-```
-
-## Mensajes de Estado
-
-El bot utiliza emojis para indicar estado:
-
-- ✅ Operación exitosa
-- ❌ Error o validación fallida
-- ⚠️ Advertencia
-- ℹ️ Información
-- 📋 Lista o tabla
-- 📊 Estadísticas
-- ⏱️ Tiempo
-- 📺 Canal
-- 👥 Usuarios
-- 💾 Base de datos
-- 🔧 Configuración
-
-## Futuras Mejoras
-
-En ONDA 2+:
-
-- [ ] Comandos de paginación (/prev, /next)
-- [ ] Autocomplete en argumentos
-- [ ] Comandos de búsqueda (/buscar_usuario)
-- [ ] Comandos de reporte (/reporte)
-- [ ] Comandos de backup (/backup)
-- [ ] Comandos de moderación (/ban, /unban)
-
----
-
-**Última actualización:** 2025-12-11
-**Versión:** 1.0.0
-**Estado:** Documentación de comandos planeados (implementación en fases posteriores)
+## Ejemplos de Flujos Completos
+
+### Flujo de Configuración VIP Completo
+
+1. Administrador envía `/admin`
+2. Selecciona "Gestión Canal VIP"
+3. Selecciona "⚙️ Configurar Canal VIP"
+4. Reenvía mensaje del canal VIP
+5. Bot configura el canal
+6. Selecciona "🎟️ Generar Token de Invitación"
+7. Bot genera y envía token VIP
+
+### Flujo de Configuración Free Completo
+
+1. Administrador envía `/admin`
+2. Selecciona "Gestión Canal Free"
+3. Selecciona "⚙️ Configurar Canal Free"
+4. Reenvía mensaje del canal Free
+5. Bot configura el canal
+6. Selecciona "⏱️ Configurar Tiempo de Espera"
+7. Ingresa nuevo tiempo (por ejemplo: 20)
+8. Bot actualiza tiempo de espera
+
+## Errores Comunes y Soluciones
+
+### Error de permisos en configuración de canal
+- **Problema:** El bot no puede configurar un canal
+- **Causa:** El bot no es administrador o no tiene permisos suficientes
+- **Solución:** Asegurarse de que el bot sea administrador con permiso para invitar usuarios
+
+### Error de formato en tiempo de espera
+- **Problema:** El bot no acepta el tiempo de espera ingresado
+- **Causa:** No es un número o es menor a 1
+- **Solución:** Ingresar un número entero mayor o igual a 1
+
+### Error de token inválido
+- **Problema:** El token no se puede canjear
+- **Causas posibles:**
+  - El token ya fue usado
+  - El token ha expirado
+  - El token no existe
+  - El canal VIP no está configurado
+
+## Tareas Programadas (Background Tasks)
+
+El bot ejecuta automáticamente tareas programadas que realizan operaciones periódicas para mantener el sistema funcionando correctamente:
+
+### Tarea: Expulsión de VIPs expirados
+- **Frecuencia:** Cada 60 minutos (configurable con `CLEANUP_INTERVAL_MINUTES`)
+- **Funcionalidad:** Marca como expirados y expulsa del canal a los suscriptores VIP cuya fecha pasó
+- **Proceso:**
+  1. Busca suscriptores VIP con fecha de expiración anterior a la actual
+  2. Marca como expirados en la base de datos
+  3. Expulsa del canal VIP usando la API de Telegram
+  4. Registra en logs el número de usuarios expulsados
+
+### Tarea: Procesamiento de cola Free
+- **Frecuencia:** Cada 5 minutos (configurable con `PROCESS_FREE_QUEUE_MINUTES`)
+- **Funcionalidad:** Busca solicitudes que cumplieron el tiempo de espera y envía invite links a los usuarios
+- **Proceso:**
+  1. Busca solicitudes Free que cumplen el tiempo de espera configurado
+  2. Para cada solicitud:
+     - Marca como procesada
+     - Crea un invite link único (válido 24 horas, un solo uso)
+     - Envía el link al usuario por mensaje privado
+  3. Registra en logs el número de solicitudes procesadas
+
+### Tarea: Limpieza de datos antiguos
+- **Frecuencia:** Diariamente a las 3 AM UTC
+- **Funcionalidad:** Elimina solicitudes Free procesadas hace más de 30 días
+- **Proceso:**
+  1. Busca solicitudes Free procesadas hace más de 30 días
+  2. Elimina los registros antiguos de la base de datos
+  3. Registra en logs el número de registros eliminados
+
+**Configuración de intervalos:**
+- `CLEANUP_INTERVAL_MINUTES`: Intervalo para expulsión de VIPs expirados (default: 60)
+- `PROCESS_FREE_QUEUE_MINUTES`: Intervalo para procesamiento de cola Free (default: 5)
+
+Estas tareas se ejecutan automáticamente sin intervención del usuario y ayudan a mantener el sistema limpio y funcional.
