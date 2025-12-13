@@ -1253,6 +1253,178 @@ cancel_keyboard = create_inline_keyboard([
 - `get_wait_time()` - Obtiene tiempo de espera configurado para solicitudes Free
 ```
 
+### 4.6 Stats Handler (T19)
+
+**Responsabilidad:** Handlers del panel de estadísticas que proporcionan métricas generales y detalladas sobre el sistema, incluyendo suscriptores VIP, solicitudes Free y tokens de invitación, con funcionalidades de caching y actualización manual.
+
+**Componentes:**
+- `bot/handlers/admin/stats.py` - Handlers principales y callbacks de navegación para el panel de estadísticas
+
+**Características:**
+- **Dashboard general:** Visualización de métricas generales del sistema (VIP, Free, Tokens)
+- **Estadísticas VIP detalladas:** Métricas sobre suscriptores VIP (activos, expirados, próximos a expirar)
+- **Estadísticas Free detalladas:** Métricas sobre solicitudes Free (pendientes, procesadas, tiempos de espera)
+- **Estadísticas de tokens:** Métricas sobre tokens de invitación (generados, usados, expirados, tasa de conversión)
+- **Sistema de cache:** Implementación de cache con TTL de 5 minutos para optimizar performance
+- **Actualización manual:** Posibilidad de forzar recálculo de estadísticas ignorando el cache
+- **Formato visual:** Mensajes HTML formateados con iconos y estructura clara
+- **Proyecciones de ingresos:** Cálculo de ingresos proyectados mensuales y anuales basados en suscriptores activos
+
+**Flujo principal:**
+1. Usuario admin selecciona "📊 Estadísticas" en el menú principal
+2. Bot muestra dashboard de estadísticas generales con cache
+3. Usuario puede navegar entre diferentes vistas de estadísticas
+4. Bot actualiza estadísticas cada 5 minutos (cache TTL)
+5. Usuario puede forzar actualización manual con "🔄 Actualizar Estadísticas"
+
+**Estructura de callbacks:**
+- `admin:stats` - Callback para mostrar el dashboard general de estadísticas
+- `admin:stats:vip` - Callback para mostrar estadísticas VIP detalladas
+- `admin:stats:free` - Callback para mostrar estadísticas Free detalladas
+- `admin:stats:tokens` - Callback para mostrar estadísticas de tokens
+- `admin:stats:refresh` - Callback para forzar recálculo de estadísticas (ignorar cache)
+
+**Aplicación de ServiceContainer:**
+```python
+# Aplicar container de servicios para acceder al servicio de estadísticas
+container = ServiceContainer(session, callback.bot)
+
+# Acceder al servicio de estadísticas
+stats = await container.stats.get_overall_stats()
+vip_stats = await container.stats.get_vip_stats()
+free_stats = await container.stats.get_free_stats()
+token_stats = await container.stats.get_token_stats()
+```
+
+**Flujo de estadísticas generales:**
+1. Admin selecciona "📊 Estadísticas" en menú principal
+2. Bot llama a `container.stats.get_overall_stats()` con cache
+3. Bot formatea mensaje con `_format_overall_stats_message()`
+4. Bot envía mensaje con teclado de estadísticas
+5. Admin puede navegar entre vistas o actualizar
+
+**Ejemplo de handler de estadísticas generales:**
+```python
+@admin_router.callback_query(F.data == "admin:stats")
+async def callback_stats_general(callback: CallbackQuery, session: AsyncSession):
+    """
+    Muestra dashboard de estadísticas generales.
+
+    Incluye:
+    - Resumen VIP (activos, expirados, próximos a expirar)
+    - Resumen Free (pendientes, procesadas)
+    - Resumen Tokens (generados, usados, disponibles)
+    - Actividad reciente (hoy, semana, mes)
+    - Proyección de ingresos
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD (inyectada por middleware)
+    """
+    logger.info(f"📊 Usuario {callback.from_user.id} abrió estadísticas generales")
+
+    # Mostrar "cargando..." temporalmente
+    await callback.answer("📊 Calculando estadísticas...", show_alert=False)
+
+    container = ServiceContainer(session, callback.bot)
+
+    try:
+        # Obtener estadísticas generales (con cache)
+        stats = await container.stats.get_overall_stats()
+
+        # Construir mensaje
+        text = _format_overall_stats_message(stats)
+
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=stats_menu_keyboard(),
+            parse_mode="HTML"
+        )
+
+        logger.debug(f"✅ Stats generales mostradas a user {callback.from_user.id}")
+
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo stats: {e}", exc_info=True)
+
+        await callback.message.edit_text(
+            "❌ <b>Error al Calcular Estadísticas</b>\n\n"
+            "Hubo un problema al obtener las métricas.\n"
+            "Intenta nuevamente en unos momentos.",
+            reply_markup=back_to_main_menu_keyboard(),
+            parse_mode="HTML"
+        )
+```
+
+**Flujo de estadísticas VIP detalladas:**
+1. Admin selecciona "📊 Ver Stats VIP Detalladas"
+2. Bot llama a `container.stats.get_vip_stats()` con cache
+3. Bot formatea mensaje con `_format_vip_stats_message()`
+4. Bot incluye información sobre suscriptores activos, expirados y próximos a expirar
+5. Bot envía mensaje con teclado de estadísticas
+
+**Flujo de estadísticas Free detalladas:**
+1. Admin selecciona "📊 Ver Stats Free Detalladas"
+2. Bot llama a `container.stats.get_free_stats()` con cache
+3. Bot formatea mensaje con `_format_free_stats_message()`
+4. Bot incluye información sobre solicitudes listas para procesar y tiempo promedio de espera
+5. Bot envía mensaje con teclado de estadísticas
+
+**Flujo de estadísticas de tokens:**
+1. Admin selecciona "🎟️ Ver Stats de Tokens"
+2. Bot llama a `container.stats.get_token_stats()` con cache
+3. Bot formatea mensaje con `_format_token_stats_message()`
+4. Bot incluye tasa de conversión y métricas por período
+5. Bot envía mensaje con teclado de estadísticas
+
+**Flujo de actualización manual:**
+1. Admin selecciona "🔄 Actualizar Estadísticas"
+2. Bot llama a servicios con `force_refresh=True`
+3. Servicios ignoran cache y recalculan desde BD
+4. Bot actualiza mensaje con estadísticas recién calculadas
+5. Cache se actualiza con nuevos valores
+
+**Interacción con teclados inline:**
+```python
+def stats_menu_keyboard() -> "InlineKeyboardMarkup":
+    """
+    Keyboard del menú de estadísticas.
+
+    Opciones:
+    - Ver Stats VIP Detalladas
+    - Ver Stats Free Detalladas
+    - Ver Stats de Tokens
+    - Actualizar Estadísticas (force refresh)
+    - Volver al Menú Principal
+
+    Returns:
+        InlineKeyboardMarkup con menú de stats
+    """
+    return create_inline_keyboard([
+        [{"text": "📊 Ver Stats VIP Detalladas", "callback_data": "admin:stats:vip"}],
+        [{"text": "📊 Ver Stats Free Detalladas", "callback_data": "admin:stats:free"}],
+        [{"text": "🎟️ Ver Stats de Tokens", "callback_data": "admin:stats:tokens"}],
+        [{"text": "🔄 Actualizar Estadísticas", "callback_data": "admin:stats:refresh"}],
+        [{"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}],
+    ])
+```
+
+**Formato de mensajes de estadísticas:**
+- `_format_overall_stats_message()` - Dashboard general con secciones VIP, Free, Tokens, Actividad y Proyección de Ingresos
+- `_format_vip_stats_message()` - Estadísticas VIP con secciones Estado General, Próximas a Expirar, Actividad Reciente y Top Suscriptores
+- `_format_free_stats_message()` - Estadísticas Free con secciones Estado General, Procesamiento, Actividad Reciente y Próximas a Procesar
+- `_format_token_stats_message()` - Estadísticas de Tokens con secciones Estado General, Generados/Usados por Período y Tasa de Conversión
+
+**Funciones de utilidad:**
+- `format_currency(amount)` - Formatea cantidades como moneda (ej: "$1,234.56")
+- `format_percentage(value)` - Formatea valores como porcentaje (ej: "85.5%")
+
+**Manejo de errores:**
+- Cada handler está envuelto en try-catch para manejar errores de cálculo de estadísticas
+- Mensajes de error claros para el usuario administrador
+- Logging detallado de errores para debugging
+- Retorno a menú de estadísticas en caso de error
+```
+
 ### 4.5 Free Handler (T13)
 
 **Responsabilidad:** Handlers del submenú Free que gestionan el canal Free con configuración de tiempo de espera, configuración del canal Free por reenvío de mensajes y configuración de tiempo de espera para acceso Free

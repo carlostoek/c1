@@ -54,6 +54,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
     - Gestión VIP
     - Gestión Free
     - Configuración
+    - Estadísticas
 
     Returns:
         InlineKeyboardMarkup con menú principal
@@ -62,6 +63,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
         [{"text": "📺 Gestión Canal VIP", "callback_data": "admin:vip"}],
         [{"text": "📺 Gestión Canal Free", "callback_data": "admin:free"}],
         [{"text": "⚙️ Configuración", "callback_data": "admin:config"}],
+        [{"text": "📊 Estadísticas", "callback_data": "admin:stats"}],
     ])
 
 
@@ -76,6 +78,29 @@ def back_to_main_menu_keyboard() -> InlineKeyboardMarkup:
     """
     return create_inline_keyboard([
         [{"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}]
+    ])
+
+
+def stats_menu_keyboard() -> InlineKeyboardMarkup:
+    """
+    Keyboard del menú de estadísticas.
+
+    Opciones:
+    - Ver Stats VIP Detalladas
+    - Ver Stats Free Detalladas
+    - Ver Stats de Tokens
+    - Actualizar Estadísticas (force refresh)
+    - Volver al Menú Principal
+
+    Returns:
+        InlineKeyboardMarkup con menú de stats
+    """
+    return create_inline_keyboard([
+        [{"text": "📊 Ver Stats VIP Detalladas", "callback_data": "admin:stats:vip"}],
+        [{"text": "📊 Ver Stats Free Detalladas", "callback_data": "admin:stats:free"}],
+        [{"text": "🎟️ Ver Stats de Tokens", "callback_data": "admin:stats:tokens"}],
+        [{"text": "🔄 Actualizar Estadísticas", "callback_data": "admin:stats:refresh"}],
+        [{"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}],
     ])
 
 
