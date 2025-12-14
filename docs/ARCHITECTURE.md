@@ -3145,6 +3145,51 @@ class TokenService:
 
 ### 3. Repository Pattern (planeado)
 
+### 4. Pricing System Architecture (T28)
+
+**Componentes:**
+- `bot/services/pricing.py`: PricingService para gestión de planes de suscripción
+- `bot/database/models.py`: SubscriptionPlan model para almacenamiento de planes
+- `bot/database/enums.py`: UserRole enum para roles de usuarios
+- `bot/services/user.py`: UserService para gestión de usuarios y roles
+- `bot/handlers/admin/vip.py`: Generación de tokens con deep links profesionales
+- `bot/handlers/user/start.py`: Activación automática desde deep links
+
+**Características:**
+- Sistema de planes con nombre, duración, precio y moneda
+- Gestión CRUD completa de planes de suscripción
+- Deep links profesionales con formato `https://t.me/bot?start=TOKEN`
+- Activación automática de suscripciones desde deep links
+- Sistema de roles jerárquico (FREE, VIP, ADMIN) con transiciones automáticas
+
+### 5. User Role Management Architecture (T29)
+
+**Componentes:**
+- `bot/database/enums.py`: UserRole enum con FREE, VIP, ADMIN
+- `bot/database/models.py`: User model con campo de rol
+- `bot/services/user.py`: UserService con métodos de gestión de roles
+- `bot/handlers/user/start.py`: Detección y manejo de roles en el flujo de usuario
+
+**Características:**
+- Transiciones automáticas basadas en estado de suscripción
+- Verificación de permisos por rol
+- Gestión manual de roles por administradores
+- Integración con otros sistemas del bot
+
+### 6. Deep Links Architecture (T30)
+
+**Componentes:**
+- `bot/handlers/user/start.py`: Manejo de parámetros de deep links
+- `bot/handlers/admin/vip.py`: Generación de deep links profesionales
+- `bot/services/subscription.py`: Activación de suscripciones desde tokens
+- `bot/services/user.py`: Actualización de roles durante activación
+
+**Características:**
+- Formato estándar: `https://t.me/botname?start=TOKEN`
+- Activación automática sin pasos manuales
+- Integración con sistema de precios y roles
+- Registro y seguimiento de activaciones
+
 Para aislar lógica de acceso a datos:
 
 ```python

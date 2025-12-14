@@ -1495,6 +1495,479 @@ async def test_handler(message: Message):
     overall_stats = await stats_service.get_overall_stats()
 ```
 
+## PricingService (Fase 2.0)
+
+Gestión de planes de suscripción con precios, duración y monedas configurables.
+
+```python
+from bot.database.models import SubscriptionPlan
+from bot.database.enums import UserRole
+import logging
+
+logger = logging.getLogger(__name__)
+
+class PricingService:
+    """
+    Servicio para gestionar planes de suscripción.
+
+    Attributes:
+        session: Sesión de base de datos
+    """
+
+    def __init__(self, session: AsyncSession):
+        """
+        Inicializa el servicio de pricing.
+
+        Args:
+            session: Sesión de SQLAlchemy
+        """
+        self.session = session
+
+    async def create_plan(
+        self,
+        name: str,
+        duration_days: int,
+        price: float,
+        created_by: int,
+        currency: str = "$"
+    ) -> SubscriptionPlan:
+        """
+        Crea un nuevo plan de suscripción.
+
+        Args:
+            name: Nombre del plan (ej: "Plan Mensual")
+            duration_days: Duración en días
+            price: Precio del plan
+            created_by: User ID del admin que crea el plan
+            currency: Símbolo de moneda (default: "$")
+
+        Returns:
+            SubscriptionPlan creado
+
+        Raises:
+            ValueError: Si los parámetros son inválidos
+
+        Examples:
+            >>> plan = await service.create_plan(
+            ...     name="Plan Mensual",
+            ...     duration_days=30,
+            ...     price=9.99,
+            ...     created_by=123456
+            ... )
+        """
+        # Validaciones
+        if not name or len(name.strip()) == 0:
+            raise ValueError("El nombre del plan no puede estar vacío")
+
+        if duration_days <= 0:
+            raise ValueError("La duración debe ser mayor a 0 días")
+
+        if price < 0:
+            raise ValueError("El precio no puede ser negativo")
+
+        # Crear plan
+        plan = SubscriptionPlan(
+            name=name.strip(),
+            duration_days=duration_days,
+            price=price,
+            currency=currency,
+            active=True,
+            created_at=datetime.utcnow(),
+            created_by=created_by
+        )
+
+        self.session.add(plan)
+        await self.session.commit()
+        await self.session.refresh(plan)
+
+        logger.info(
+            f"✅ Plan creado: {plan.name} ({plan.duration_days} días, "
+            f"{plan.currency}{plan.price}) por admin {created_by}"
+        )
+
+        return plan
+
+    async def get_all_plans(self, active_only: bool = True) -> List[SubscriptionPlan]:
+        """
+        Obtiene todos los planes.
+
+        Args:
+            active_only: Si True, solo retorna planes activos (default: True)
+
+        Returns:
+            Lista de SubscriptionPlan ordenados por duración
+        """
+        query = select(SubscriptionPlan).order_by(SubscriptionPlan.duration_days.asc())
+
+        if active_only:
+            query = query.where(SubscriptionPlan.active == True)
+
+        result = await self.session.execute(query)
+        plans = result.scalars().all()
+
+        logger.debug(f"📋 Obtenidos {len(plans)} planes (active_only={active_only})")
+
+        return list(plans)
+
+    async def get_plan_by_id(self, plan_id: int) -> Optional[SubscriptionPlan]:
+        """
+        Obtiene un plan por su ID.
+
+        Args:
+            plan_id: ID del plan
+
+        Returns:
+            SubscriptionPlan o None si no existe
+        """
+        result = await self.session.execute(
+            select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
+        )
+        plan = result.scalar_one_or_none()
+
+        if plan:
+            logger.debug(f"📦 Plan encontrado: {plan.name} (ID: {plan_id})")
+        else:
+            logger.warning(f"⚠️ Plan no encontrado: ID {plan_id}")
+
+        return plan
+
+    async def update_plan(
+        self,
+        plan_id: int,
+        name: Optional[str] = None,
+        duration_days: Optional[int] = None,
+        price: Optional[float] = None,
+        currency: Optional[str] = None
+    ) -> Optional[SubscriptionPlan]:
+        """
+        Actualiza un plan existente.
+
+        Args:
+            plan_id: ID del plan a actualizar
+            name: Nuevo nombre (opcional)
+            duration_days: Nueva duración (opcional)
+            price: Nuevo precio (opcional)
+            currency: Nuevo símbolo de moneda (opcional)
+
+        Returns:
+            SubscriptionPlan actualizado o None si no existe
+
+        Raises:
+            ValueError: Si los parámetros son inválidos
+        """
+        plan = await self.get_plan_by_id(plan_id)
+
+        if not plan:
+            return None
+
+        # Validar y actualizar campos
+        if name is not None:
+            if len(name.strip()) == 0:
+                raise ValueError("El nombre no puede estar vacío")
+            plan.name = name.strip()
+
+        if duration_days is not None:
+            if duration_days <= 0:
+                raise ValueError("La duración debe ser mayor a 0 días")
+            plan.duration_days = duration_days
+
+        if price is not None:
+            if price < 0:
+                raise ValueError("El precio no puede ser negativo")
+            plan.price = price
+
+        if currency is not None:
+            plan.currency = currency
+
+        await self.session.commit()
+        await self.session.refresh(plan)
+
+        logger.info(f"✅ Plan actualizado: {plan.name} (ID: {plan_id})")
+
+        return plan
+
+    async def toggle_plan_status(self, plan_id: int) -> Optional[SubscriptionPlan]:
+        """
+        Activa o desactiva un plan.
+
+        Args:
+            plan_id: ID del plan
+
+        Returns:
+            SubscriptionPlan actualizado o None si no existe
+        """
+        plan = await self.get_plan_by_id(plan_id)
+
+        if not plan:
+            return None
+
+        plan.active = not plan.active
+
+        await self.session.commit()
+        await self.session.refresh(plan)
+
+        status = "activado" if plan.active else "desactivado"
+        logger.info(f"✅ Plan {status}: {plan.name} (ID: {plan_id})")
+
+        return plan
+
+    async def delete_plan(self, plan_id: int) -> bool:
+        """
+        Elimina un plan (solo si no tiene tokens asociados).
+
+        Args:
+            plan_id: ID del plan a eliminar
+
+        Returns:
+            True si se eliminó, False si no existe o tiene tokens
+        """
+        plan = await self.get_plan_by_id(plan_id)
+
+        if not plan:
+            return False
+
+        # Verificar si tiene tokens usando query directa
+        result = await self.session.execute(
+            select(func.count(InvitationToken.id)).where(
+                InvitationToken.plan_id == plan_id
+            )
+        )
+        token_count = result.scalar() or 0
+
+        if token_count > 0:
+            logger.warning(
+                f"⚠️ No se puede eliminar plan {plan.name}: "
+                f"tiene {token_count} tokens asociados"
+            )
+            return False
+
+        await self.session.delete(plan)
+        await self.session.commit()
+
+        logger.info(f"✅ Plan eliminado: {plan.name} (ID: {plan_id})")
+
+        return True
+```
+
+## UserService (Fase 2.1)
+
+Gestión de usuarios y roles con soporte para transiciones automáticas entre roles FREE, VIP y ADMIN.
+
+```python
+from bot.database.models import User
+from bot.database.enums import UserRole
+import logging
+
+logger = logging.getLogger(__name__)
+
+class UserService:
+    """
+    Servicio para gestionar usuarios del sistema.
+
+    Attributes:
+        session: Sesión de base de datos
+    """
+
+    def __init__(self, session: AsyncSession):
+        """
+        Inicializa el servicio de usuarios.
+
+        Args:
+            session: Sesión de SQLAlchemy
+        """
+        self.session = session
+
+    async def get_or_create_user(
+        self,
+        telegram_user: TelegramUser,
+        default_role: UserRole = UserRole.FREE
+    ) -> User:
+        """
+        Obtiene un usuario existente o lo crea si no existe.
+
+        Args:
+            telegram_user: Objeto User de Telegram
+            default_role: Rol por defecto si se crea (default: FREE)
+
+        Returns:
+            User del sistema
+
+        Examples:
+            >>> user = await service.get_or_create_user(message.from_user)
+        """
+        # Buscar usuario existente
+        result = await self.session.execute(
+            select(User).where(User.user_id == telegram_user.id)
+        )
+        user = result.scalar_one_or_none()
+
+        if user:
+            # Usuario existe - actualizar datos si cambiaron
+            updated = False
+
+            if user.username != telegram_user.username:
+                user.username = telegram_user.username
+                updated = True
+
+            if user.first_name != telegram_user.first_name:
+                user.first_name = telegram_user.first_name
+                updated = True
+
+            if user.last_name != telegram_user.last_name:
+                user.last_name = telegram_user.last_name
+                updated = True
+
+            if updated:
+                user.updated_at = datetime.utcnow()
+                await self.session.commit()
+                await self.session.refresh(user)
+                logger.debug(f"👤 Usuario actualizado: {user.user_id}")
+
+            return user
+
+        # Usuario no existe - crear
+        user = User(
+            user_id=telegram_user.id,
+            username=telegram_user.username,
+            first_name=telegram_user.first_name,
+            last_name=telegram_user.last_name,
+            role=default_role,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+
+        logger.info(
+            f"✅ Usuario creado: {user.user_id} (@{user.username}) - "
+            f"Rol: {default_role.value}"
+        )
+
+        return user
+
+    async def get_user(self, user_id: int) -> Optional[User]:
+        """
+        Obtiene un usuario por ID.
+
+        Args:
+            user_id: ID de Telegram del usuario
+
+        Returns:
+            User o None si no existe
+        """
+        result = await self.session.execute(
+            select(User).where(User.user_id == user_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def change_role(
+        self,
+        user_id: int,
+        new_role: UserRole,
+        reason: str = "Manual"
+    ) -> Optional[User]:
+        """
+        Cambia el rol de un usuario.
+
+        Args:
+            user_id: ID del usuario
+            new_role: Nuevo rol a asignar
+            reason: Razón del cambio (para logging)
+
+        Returns:
+            User actualizado o None si no existe
+
+        Examples:
+            >>> await service.change_role(123456, UserRole.VIP, "Token activado")
+        """
+        user = await self.get_user(user_id)
+
+        if not user:
+            logger.warning(f"⚠️ Usuario no encontrado para cambio de rol: {user_id}")
+            return None
+
+        old_role = user.role
+        user.role = new_role
+        user.updated_at = datetime.utcnow()
+
+        await self.session.commit()
+        await self.session.refresh(user)
+
+        logger.info(
+            f"🔄 Rol cambiado: User {user_id} | "
+            f"{old_role.value} → {new_role.value} | "
+            f"Razón: {reason}"
+        )
+
+        return user
+
+    async def promote_to_vip(self, user_id: int) -> Optional[User]:
+        """
+        Promociona un usuario a VIP.
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            User actualizado o None si no existe
+        """
+        return await self.change_role(user_id, UserRole.VIP, "Promoción a VIP")
+
+    async def demote_to_free(self, user_id: int) -> Optional[User]:
+        """
+        Degrada un usuario a Free.
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            User actualizado o None si no existe
+        """
+        return await self.change_role(user_id, UserRole.FREE, "Degradación a Free")
+
+    async def promote_to_admin(self, user_id: int) -> Optional[User]:
+        """
+        Promociona un usuario a Admin (uso manual).
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            User actualizado o None si no existe
+        """
+        return await self.change_role(user_id, UserRole.ADMIN, "Promoción a Admin")
+
+    async def is_admin(self, user_id: int) -> bool:
+        """
+        Verifica si un usuario es admin.
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            True si es admin, False si no
+        """
+        user = await self.get_user(user_id)
+        return user.is_admin if user else False
+
+    async def get_users_by_role(self, role: UserRole) -> List[User]:
+        """
+        Obtiene todos los usuarios con un rol específico.
+
+        Args:
+            role: Rol a filtrar
+
+        Returns:
+            Lista de Users
+        """
+        result = await self.session.execute(
+            select(User).where(User.role == role).order_by(User.created_at.desc())
+        )
+        return list(result.scalars().all())
+```
+
 ## Lazy Loading en ServiceContainer
 
 El ServiceContainer implementa lazy loading para optimizar el consumo de memoria en Termux:

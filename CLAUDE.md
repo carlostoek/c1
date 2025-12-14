@@ -1049,3 +1049,160 @@ Fase de mejoras, utilidades reutilizables, y testing E2E completo.
 - T30: Broadcasting avanzado
 - T31: Estadísticas avanzadas
 - T32: Deployment
+
+═══════════════════════════════════════════════════════════════
+# ONDA 3 - FEATURES AVANZADAS (PRODUCCIÓN)
+═══════════════════════════════════════════════════════════════
+
+---
+
+## ✅ A1 - Sistema Completo de Tarifas/Planes ✅
+
+Sistema de tarifas configurables con soporte para múltiples planes de suscripción.
+
+**Completado:**
+- Crear, actualizar, eliminar planes
+- Activar/desactivar planes
+- Validación de duración y precio
+- Tests E2E completos
+
+---
+
+## ✅ A2 - Sistema Completo de Roles de Usuario ✅
+
+Gestión de roles avanzada (FREE, VIP, ADMIN) con emisión de eventos.
+
+**Completado:**
+- Cambio de roles con historial
+- Promoted/Demoted events
+- Validación de permisos por rol
+- Tests E2E completos
+
+---
+
+## ✅ A3 - GENERACIÓN DE TOKENS CON DEEP LINKS Y ACTIVACIÓN AUTOMÁTICA ✅
+
+**Descripción:**
+Sistema profesional de generación de tokens vinculados a planes de suscripción.
+Los usuarios activan su suscripción automáticamente haciendo click en un deep link.
+
+**Cambios Principales:**
+
+#### 1. Generación de Tokens por Tarifa
+- Admin selecciona tarifa configurada (menú con botones)
+- Token se vincula automáticamente con el plan
+- Deep link profesional generado: `https://t.me/bot?start=TOKEN`
+
+#### 2. Activación Automática vía Deep Link
+- Handler `/start` maneja parámetros (deep links)
+- Detecta automáticamente tokens en parámetros
+- Activa suscripción VIP sin pasos adicionales
+- Cambia rol usuario de FREE a VIP automáticamente
+
+#### 3. Métodos nuevos en SubscriptionService
+```python
+async def generate_vip_token(
+    generated_by: int,
+    duration_hours: int = 24,
+    plan_id: Optional[int] = None  # NUEVO
+) -> InvitationToken
+
+async def activate_vip_subscription(  # NUEVO
+    user_id: int,
+    token_id: int,
+    duration_hours: int
+) -> VIPSubscriber
+```
+
+#### 4. Handlers Modificados
+- **admin/vip.py:**
+  - `callback_generate_token_select_plan`: Muestra menú de planes
+  - `callback_generate_token_with_plan`: Genera token con deep link
+  - Integración con PricingService
+
+- **user/start.py:**
+  - `cmd_start`: Detecta deep links en parámetros
+  - `_activate_token_from_deeplink`: Activación automática
+  - `_send_welcome_message`: Refactorizado para reutilización
+
+#### 5. Flujo de Usuario
+
+**Desde Admin:**
+```
+1. /admin → Gestión Canal VIP → Generar Token
+2. Seleccionar "Plan Mensual - $9.99"
+3. Copiar deep link: https://t.me/botname?start=TOKEN
+4. Enviar al usuario por cualquier canal
+```
+
+**Desde Usuario:**
+```
+1. Hacer click en: https://t.me/botname?start=TOKEN
+2. Abre conversación con el bot
+3. Mensaje automático: "¡Suscripción VIP Activada!"
+4. Click en "Unirse al Canal VIP"
+5. Acceso inmediato al contenido exclusivo
+```
+
+#### 6. Compatibilidad
+- Tokens antiguos sin `plan_id` siguen funcionando (error apropiado)
+- Invite links se generan automáticamente (5 horas de validez)
+- Extensión de suscripción si usuario ya es VIP
+- Rol cambia automáticamente a VIP en BD
+
+#### 7. Validaciones Implementadas
+- ✅ Token de un solo uso (no se puede canjear dos veces)
+- ✅ Expiración de token (24 horas)
+- ✅ Expiración de invite link (5 horas)
+- ✅ Validación de plan activo
+- ✅ Canal VIP debe estar configurado
+
+#### 8. Tests E2E (7 tests - 100% pasando)
+
+```
+✅ test_generate_token_with_plan
+   - Generar token vinculado a plan específico
+   - Duration automática desde plan.duration_days
+
+✅ test_activate_vip_from_deep_link
+   - Activar suscripción desde deep link
+   - Cambio automático de rol FREE → VIP
+   - Generación de invite link
+
+✅ test_deep_link_format
+   - Validar formato correcto del deep link
+   - Contiene token y username del bot
+
+✅ test_extend_vip_via_deep_link
+   - Extender suscripción si usuario ya es VIP
+   - No crea duplicados en BD
+
+✅ test_backward_compatibility_token_without_plan
+   - Tokens antiguos sin plan_id funcionan
+   - Error apropiado si plan no disponible
+
+✅ test_token_expiry_validation
+   - Token inválido después de 24 horas
+   - Mensaje de error correcto
+
+✅ test_token_single_use
+   - Token rechaza segundo uso
+   - Mensaje "token ya fue usado"
+```
+
+#### 9. Archivos Modificados
+- `bot/services/subscription.py` (+28 líneas): `generate_vip_token`, `activate_vip_subscription`
+- `bot/handlers/admin/vip.py` (+165 líneas): Generación con deep links
+- `bot/handlers/user/start.py` (+165 líneas): Activación automática
+- `tests/test_a3_deep_links.py` (NUEVO): 7 tests E2E
+
+#### 10. Estadísticas Finales A3
+- **Tests:** 7/7 pasando ✅
+- **Líneas agregadas:** ~358 (código productivo)
+- **Líneas tests:** ~490
+- **Type Hints:** 100%
+- **Docstrings:** 100%
+- **Compatibilidad:** Backwards-compatible
+
+**Status:** ✅ A3 COMPLETADO
+**Próximo:** A4 - Broadcasting Avanzado

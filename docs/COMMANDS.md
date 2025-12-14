@@ -966,6 +966,45 @@ Puedes cerrar este chat, te notificaré cuando esté listo! 🔔
 - **Adaptabilidad:** El teclado inline se adapta según la configuración actual (muestra "Suscriptores VIP" solo si canal VIP está configurado)
 - **Acceso directo:** Botones para acceder rápidamente a funciones administrativas importantes
 
+## Comandos Relacionados con el Sistema de Precios y Roles
+
+### `/admin` - Panel de Administración (Actualizado)
+
+**Descripción:** El panel de administración ahora incluye funcionalidades para gestionar planes de suscripción y roles de usuarios.
+
+**Nuevas funcionalidades:**
+- **Gestión de Planes de Suscripción:** Crear, listar, actualizar y activar/desactivar planes de suscripción
+- **Visualización de Roles:** Ver usuarios por rol (FREE, VIP, ADMIN)
+- **Gestión Profesional de Tokens:** Generación de tokens asociados a planes con deep links profesionales
+
+**Flujo de gestión de planes:**
+1. Administrador selecciona "📊 Dashboard Completo" o navega a la gestión de planes
+2. Puede crear nuevos planes con nombre, duración y precio
+3. Puede activar/desactivar planes existentes
+4. Puede ver estadísticas de uso de planes
+
+### `Generar Token con Plan` - Generación Profesional de Tokens
+
+**Descripción:** Nuevo flujo que permite generar tokens VIP asociados a planes de suscripción específicos con deep links profesionales.
+
+**Flujo de uso:**
+1. Administrador selecciona "Generar Token con Plan" en el menú VIP
+2. Sistema muestra lista de planes disponibles
+3. Administrador selecciona un plan
+4. Sistema genera token asociado al plan
+5. Sistema crea deep link profesional: `https://t.me/bot?start=TOKEN`
+6. Administrador recibe el deep link para distribuir
+
+**Características:**
+- Deep link con formato profesional
+- Información clara del plan asociado
+- Fácil distribución y seguimiento
+
+**Ejemplo de deep link generado:**
+```
+https://t.me/mi_bot_vip?start=ABCD1234EFGH5678
+```
+
 ## Tareas Programadas (Background Tasks)
 
 El bot ejecuta automáticamente tareas programadas que realizan operaciones periódicas para mantener el sistema funcionando correctamente:

@@ -49,6 +49,8 @@ class ServiceContainer:
         self._channel_service = None
         self._config_service = None
         self._stats_service = None
+        self._pricing_service = None
+        self._user_service = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -128,6 +130,44 @@ class ServiceContainer:
 
         return self._stats_service
 
+    # ===== PRICING SERVICE =====
+
+    @property
+    def pricing(self):
+        """
+        Service de gestión de planes de suscripción/tarifas.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            PricingService: Instancia del service
+        """
+        if self._pricing_service is None:
+            from bot.services.pricing import PricingService
+            logger.debug("🔄 Lazy loading: PricingService")
+            self._pricing_service = PricingService(self._session)
+
+        return self._pricing_service
+
+    # ===== USER SERVICE =====
+
+    @property
+    def user(self):
+        """
+        Service de gestión de usuarios y roles.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            UserService: Instancia del service
+        """
+        if self._user_service is None:
+            from bot.services.user import UserService
+            logger.debug("🔄 Lazy loading: UserService")
+            self._user_service = UserService(self._session)
+
+        return self._user_service
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -149,6 +189,10 @@ class ServiceContainer:
             loaded.append("config")
         if self._stats_service is not None:
             loaded.append("stats")
+        if self._pricing_service is not None:
+            loaded.append("pricing")
+        if self._user_service is not None:
+            loaded.append("user")
 
         return loaded
 

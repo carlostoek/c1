@@ -107,3 +107,36 @@ class ReactionSetupStates(StatesGroup):
 
     # Esperando lista de emojis para canal Free
     waiting_for_free_reactions = State()
+
+
+class PricingSetupStates(StatesGroup):
+    """
+    Estados para configurar planes de suscripción.
+
+    Flujo:
+    1. Admin selecciona "Crear Tarifa"
+    2. Bot entra en waiting_for_name
+    3. Admin envía nombre: "Plan Mensual"
+    4. Bot entra en waiting_for_days
+    5. Admin envía días: "30"
+    6. Bot entra en waiting_for_price
+    7. Admin envía precio: "9.99"
+    8. Bot confirma y guarda
+    9. Bot sale del estado
+
+    Validación:
+    - Nombre: No vacío, máximo 100 caracteres
+    - Días: Número entero > 0, máximo 3650 (10 años)
+    - Precio: Número decimal >= 0, máximo 9999
+    - Si no es válido → Error y mantener estado
+    - Si es válido → Guardar en DB y clear state
+    """
+
+    # Paso 1: Esperando nombre del plan
+    waiting_for_name = State()
+
+    # Paso 2: Esperando duración en días
+    waiting_for_days = State()
+
+    # Paso 3: Esperando precio del plan
+    waiting_for_price = State()
