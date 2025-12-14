@@ -21,6 +21,23 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - T25: Paginated VIP Subscriber Management - Gestión paginada de suscriptores VIP con listado, filtrado por estado (activos, expirados, próximos a expirar, todos), vistas detalladas y expulsión manual de suscriptores
 - T26: Free Queue Visualization - Visualización paginada de cola de solicitudes Free con filtrado por estado (pendientes, listas para procesar, procesadas, todas) y monitoreo del tiempo de espera configurado
 - T27: Complete Status Dashboard - Panel de control completo del sistema con health checks, configuración, estadísticas clave, tareas en segundo plano y acciones rápidas
+- A1: Pricing System - Sistema de gestión de planes de suscripción con precios, duración y monedas configurables (T28)
+- A2: User Roles - Sistema de roles jerárquico con transiciones automáticas entre FREE, VIP y ADMIN (T29)
+- A3: Deep Links - Sistema de deep links para activación automática de tokens VIP con formato profesional (T30)
+- `docs/PRICING_SYSTEM.md` - Documentación completa del sistema de precios
+- `docs/USER_ROLES.md` - Documentación completa del sistema de roles de usuario
+- `docs/DEEP_LINKS.md` - Documentación completa del sistema de deep links
+- `PricingService` en `bot/services/pricing.py` - Servicio para gestión de planes de suscripción
+- `UserService` en `bot/services/user.py` - Servicio para gestión de usuarios y roles
+- `UserRole` enum en `bot/database/enums.py` - Enumeración de roles de usuario
+- `SubscriptionPlan` model en `bot/database/models.py` - Modelo para almacenamiento de planes
+- Funcionalidad de generación de deep links profesionales en `bot/handlers/admin/vip.py`
+- Activación automática desde deep links en `bot/handlers/user/start.py`
+- Actualización de roles automáticos durante activación de suscripciones
+- Soporte para múltiples monedas en planes de suscripción
+- Validaciones de seguridad para tokens y activaciones
+- Registro y logging de transiciones de roles
+- Integración entre sistemas de precios, roles y deep links
 
 ## [1.0.0] - 2025-12-11
 

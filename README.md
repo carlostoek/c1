@@ -187,6 +187,40 @@ Implementación de Finite State Machine (FSM) para manejar flujos interactivos c
   - Canje de tokens VIP
   - Solicitud de acceso Free
 
+### Pricing System (T28)
+Sistema de gestión de planes de suscripción con precios, duración y monedas configurables:
+
+- **Subscription Plans:** Creación de planes con nombre, duración en días y precio
+- **Plan Management:** CRUD completo de planes de suscripción (crear, listar, actualizar, activar/desactivar)
+- **Currency Support:** Configuración de símbolo de moneda por plan (USD, EUR, etc.)
+- **Integration with Tokens:** Tokens VIP generados asociados a planes específicos con información de precio y duración
+- **Professional Deep Links:** Generación de deep links profesionales para distribución de tokens
+- **Role Management:** Sistema de roles de usuario (FREE, VIP, ADMIN) con transiciones automáticas
+
+**Documentación:** Ver `docs/PRICING_SYSTEM.md` para detalles completos del sistema de precios.
+
+### User Roles System (T29)
+Sistema de roles jerárquico para clasificar usuarios con diferentes permisos y funcionalidades:
+
+- **Role Hierarchy:** FREE (default), VIP (suscriptores pagos), ADMIN (gestión del bot)
+- **Automatic Transitions:** Cambios automáticos de rol basados en estado de suscripción
+- **Permission Control:** Acceso diferenciado a funcionalidades según rol
+- **Role Management:** Promoción y degradación de roles con registro de motivos
+- **Integration with Pricing:** Usuarios VIP tienen acceso a planes de suscripción
+
+**Documentación:** Ver `docs/USER_ROLES.md` para detalles completos del sistema de roles.
+
+### Deep Links System (T30)
+Sistema de deep links para activación automática de tokens VIP con formato profesional:
+
+- **Professional Format:** Deep links con formato `https://t.me/botname?start=TOKEN`
+- **Automatic Activation:** Activación automática de suscripciones al hacer click en el enlace
+- **Token Integration:** Deep links generados asociados a planes de suscripción específicos
+- **User Experience:** Proceso simplificado de activación sin pasos manuales
+- **Link Distribution:** Fácil distribución de enlaces para activación de suscripciones
+
+**Documentación:** Ver `docs/DEEP_LINKS.md` para detalles completos del sistema de deep links.
+
 **Ejemplo de uso de estados FSM:**
 ```python
 from aiogram.fsm.context import FSMContext
