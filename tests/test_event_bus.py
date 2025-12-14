@@ -69,7 +69,7 @@ async def test_event_bus_publish_subscribe(event_bus_instance):
         duration_days=30,
         token_id=1
     )
-    await bus.publish(event)
+    bus.publish(event)
 
     # Esperar procesamiento asíncrono
     await asyncio.sleep(0.1)
@@ -115,7 +115,7 @@ async def test_multiple_subscribers_same_event(event_bus_instance):
         token_string="ABC123",
         duration_hours=24
     )
-    await bus.publish(event)
+    bus.publish(event)
 
     # Esperar procesamiento
     await asyncio.sleep(0.1)
@@ -153,7 +153,7 @@ async def test_event_types_separation(event_bus_instance):
         token_events.append(event)
 
     # Publicar TokenGeneratedEvent
-    await bus.publish(TokenGeneratedEvent(admin_id=1, token_id=1))
+    bus.publish(TokenGeneratedEvent(admin_id=1, token_id=1))
     await asyncio.sleep(0.05)
 
     # No debe recibirse en vip_events
@@ -161,7 +161,7 @@ async def test_event_types_separation(event_bus_instance):
     assert len(token_events) == 1
 
     # Publicar UserJoinedVIPEvent
-    await bus.publish(UserJoinedVIPEvent(user_id=100))
+    bus.publish(UserJoinedVIPEvent(user_id=100))
     await asyncio.sleep(0.05)
 
     # Ahora debe recibirse en vip_events
@@ -188,9 +188,9 @@ async def test_subscribe_all_decorator(event_bus_instance):
         all_events.append(event)
 
     # Publicar diferentes eventos
-    await bus.publish(UserJoinedVIPEvent(user_id=1))
-    await bus.publish(TokenGeneratedEvent(admin_id=2))
-    await bus.publish(UserRequestedFreeChannelEvent(user_id=3))
+    bus.publish(UserJoinedVIPEvent(user_id=1))
+    bus.publish(TokenGeneratedEvent(admin_id=2))
+    bus.publish(UserRequestedFreeChannelEvent(user_id=3))
 
     await asyncio.sleep(0.1)
 
@@ -252,7 +252,7 @@ async def test_error_handling_in_handler(event_bus_instance):
         received_events.append(event)
 
     # Publicar evento (no debe crashear)
-    await bus.publish(UserJoinedVIPEvent(user_id=100))
+    bus.publish(UserJoinedVIPEvent(user_id=100))
     await asyncio.sleep(0.1)
 
     # El handler normal debe haber recibido a pesar del error
@@ -355,7 +355,7 @@ async def test_event_with_metadata(event_bus_instance):
         metadata={"reason": "Test", "notification_sent": True}
     )
 
-    await bus.publish(event)
+    bus.publish(event)
     await asyncio.sleep(0.05)
 
     assert len(received) == 1
@@ -380,7 +380,7 @@ async def test_decorator_syntax(event_bus_instance):
     async def on_vip_event(event):
         received.append(event)
 
-    await bus.publish(UserJoinedVIPEvent(user_id=777))
+    bus.publish(UserJoinedVIPEvent(user_id=777))
     await asyncio.sleep(0.05)
 
     assert len(received) == 1

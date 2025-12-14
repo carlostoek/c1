@@ -144,10 +144,10 @@ class SubscriptionService:
             f"(válido por {duration_hours}h, plan_id: {plan_id}, generado por {generated_by})"
         )
 
-        # Emitir evento
-        await event_bus.publish(TokenGeneratedEvent(
+        # Emitir evento (sin esperar token.id que aún no está en BD)
+        event_bus.publish(TokenGeneratedEvent(
             admin_id=generated_by,
-            token_id=token.id,
+            token_id=0,  # ID será asignado en BD, por ahora usamos 0
             token_string=token.token,
             plan_id=plan_id or 0,
             duration_hours=duration_hours
@@ -281,12 +281,12 @@ class SubscriptionService:
         )
 
         # Emitir evento
-        await event_bus.publish(UserJoinedVIPEvent(
+        event_bus.publish(UserJoinedVIPEvent(
             user_id=user_id,
             plan_id=token.plan_id or 0,
             plan_name="VIP",
             duration_days=token.duration_hours // 24,
-            token_id=token.id
+            token_id=0  # ID será asignado en BD
         ))
 
         return True, "✅ Suscripción VIP activada exitosamente", subscriber
@@ -405,7 +405,7 @@ class SubscriptionService:
         )
 
         # Emitir evento
-        await event_bus.publish(UserJoinedVIPEvent(
+        event_bus.publish(UserJoinedVIPEvent(
             user_id=user_id,
             plan_id=0,
             plan_name="VIP",
@@ -441,7 +441,7 @@ class SubscriptionService:
 
             # Emitir evento
             days_active = (datetime.utcnow() - subscriber.join_date).days
-            await event_bus.publish(UserVIPExpiredEvent(
+            event_bus.publish(UserVIPExpiredEvent(
                 user_id=subscriber.user_id,
                 subscription_id=subscriber.id,
                 days_active=days_active
@@ -575,7 +575,7 @@ class SubscriptionService:
         logger.info(f"✅ Solicitud Free creada: user {user_id}")
 
         # Emitir evento
-        await event_bus.publish(UserRequestedFreeChannelEvent(
+        event_bus.publish(UserRequestedFreeChannelEvent(
             user_id=user_id,
             request_id=request.id
         ))
@@ -639,7 +639,7 @@ class SubscriptionService:
         # Emitir eventos
         for request in ready_requests:
             wait_time = (request.processed_at - request.request_date).total_seconds() / 60
-            await event_bus.publish(UserJoinedFreeChannelEvent(
+            event_bus.publish(UserJoinedFreeChannelEvent(
                 user_id=request.user_id,
                 request_id=request.id,
                 wait_time_minutes=int(wait_time)

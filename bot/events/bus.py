@@ -124,18 +124,31 @@ class EventBus:
         logger.debug(f"📝 Suscrito global: {handler.__name__}")
         return handler
 
-    async def publish(self, event: Event):
+    def publish(self, event: Event):
         """
-        Publica un evento a todos los suscriptores.
+        Publica un evento a todos los suscriptores de forma asincrónica no-bloqueante.
+
+        El evento se procesa en segundo plano sin bloquear la ejecución actual.
+        Todos los handlers se ejecutan en paralelo de manera segura.
 
         Args:
             event: Instancia del evento a publicar
 
         Examples:
-            >>> await bus.publish(UserJoinedVIPEvent(
+            >>> bus.publish(UserJoinedVIPEvent(
             ...     user_id=123,
             ...     plan_name="Mensual"
             ... ))
+        """
+        # Programar procesamiento asincrónico sin bloquear
+        asyncio.create_task(self._process_event(event))
+
+    async def _process_event(self, event: Event):
+        """
+        Procesa un evento de manera asincrónica (ejecutado en background).
+
+        Args:
+            event: Evento a procesar
         """
         event_type = type(event)
 

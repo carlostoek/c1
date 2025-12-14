@@ -7,6 +7,7 @@ Validar:
 3. Cambio de rol de FREE a VIP automáticamente
 4. Compatibilidad con tokens antiguos sin plan
 """
+import asyncio
 import logging
 import pytest
 from datetime import datetime, timedelta
@@ -78,6 +79,8 @@ async def test_generate_token_with_plan(mock_bot):
 
         # Paso 3: Verificar que el token está vinculado
         print("  3. Verificando vinculación token-plan...")
+        # Permitir que los eventos se procesen antes de hacer refresh
+        await asyncio.sleep(0.05)
         await session.refresh(token)
         assert token.plan is not None
         assert token.plan.name == plan_name
