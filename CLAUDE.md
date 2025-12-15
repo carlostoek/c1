@@ -178,7 +178,7 @@ def generate_vip_token(
 ### 5. Commit
 
 ```bash
-# Sin referencias a herramientas externas
+# Sin referencias a herramientas externas como Claude, Claude Code.
 
 # Mensaje describiendo cambios:
 # - Líneas de código
