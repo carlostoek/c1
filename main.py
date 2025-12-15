@@ -84,6 +84,10 @@ async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
         logger.error(f"❌ Error al inicializar BD: {e}")
         sys.exit(1)
 
+    # Registrar listeners de gamificación
+    from bot.gamification.listeners import GamificationListeners
+    GamificationListeners.register_all()
+
     # TODO: Registrar handlers (ONDA 1 - Fases siguientes)
     # from bot.handlers import register_all_handlers
     # register_all_handlers(dispatcher)

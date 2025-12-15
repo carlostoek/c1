@@ -2953,6 +2953,294 @@ async def on_shutdown(bot: Bot, dispatcher: Dispatcher) -> None:
 - Información de próxima ejecución de tareas
 ```
 
+### 8.3 Event Bus (Pub/Sub) (B1)
+
+**Responsabilidad:** Sistema centralizado de eventos pub/sub completamente desacoplado para comunicación entre componentes
+
+**Componentes:**
+```
+events/
+├── __init__.py
+├── base.py          # Clase base Event
+├── bus.py           # EventBus singleton
+├── decorators.py    # Decoradores @subscribe
+└── types.py         # Definiciones de eventos
+```
+
+**Arquitectura:**
+```python
+class EventBus:
+    """
+    Event Bus singleton - Sistema de publicación/suscripción de eventos.
+
+    Permite que módulos publiquen eventos sin conocer a los suscriptores,
+    y que módulos se suscriban a eventos sin modificar el código fuente.
+    """
+
+    _instance: "EventBus" = None  # Singleton
+    _subscribers: Dict[Type[Event], List[Callable]] = defaultdict(list)  # Por tipo
+    _global_subscribers: List[Callable] = []  # Todos los eventos
+    _lock = asyncio.Lock()  # Thread-safe
+
+    def subscribe(self, event_type: Type[Event], handler: Callable = None):
+        """Suscribe un handler a un tipo de evento (decorador o directo)"""
+
+    def subscribe_all(self, handler: Callable):
+        """Suscribe un handler a TODOS los eventos"""
+
+    def publish(self, event: Event):
+        """Publica evento de forma asincrónica no-bloqueante"""
+
+    async def _process_event(self, event: Event):
+        """Procesa evento en background, ejecuta handlers en paralelo"""
+```
+
+**Patrones de Diseño:**
+- **Singleton:** Una sola instancia global
+- **Pub/Sub:** Publicación/suscripción desacoplada
+- **Async/Await:** Procesamiento no bloqueante
+- **Thread-safe:** Uso de locks para operaciones concurrentes
+
+**Eventos Disponibles:**
+- `UserStartedBotEvent` - Usuario ejecuta /start
+- `UserJoinedVIPEvent` - Usuario activa VIP
+- `MessageReactedEvent` - Usuario reacciona a mensaje
+- `PointsAwardedEvent` - Besitos otorgados
+- `BadgeUnlockedEvent` - Badge desbloqueado
+- `RankUpEvent` - Cambio de rango
+- `DailyLoginEvent` - Login diario reclamado
+- `UserReferredEvent` - Usuario refiere a otro
+
+**Uso en Handlers:**
+```python
+from bot.events import event_bus, UserJoinedVIPEvent
+
+# Publicar evento
+event_bus.publish(UserJoinedVIPEvent(
+    user_id=user_id,
+    plan_name="Mensual",
+    duration_days=30
+))
+```
+
+**Uso en Listeners:**
+```python
+from bot.events import subscribe, UserJoinedVIPEvent
+
+@subscribe(UserJoinedVIPEvent)
+async def on_user_joined_vip(event: UserJoinedVIPEvent):
+    # Otorgar recompensas, enviar notificaciones, etc.
+    pass
+```
+
+**Características:**
+- **Procesamiento paralelo:** Todos los handlers se ejecutan en paralelo
+- **No bloqueante:** Publicación no bloquea ejecución
+- **Manejo de errores:** Cada handler protegido individualmente
+- **Logging detallado:** Seguimiento de eventos y errores
+- **Suscriptores globales:** Listeners que reciben todos los eventos
+
+### 8.4 Notification System (B2)
+
+**Responsabilidad:** Sistema centralizado de notificaciones con templates HTML y RewardBatch para agrupar recompensas
+
+**Componentes:**
+```
+notifications/
+├── __init__.py
+├── types.py         # NotificationType enum
+├── templates.py     # NotificationTemplates
+├── batch.py         # Reward, RewardBatch
+└── service.py       # NotificationService
+```
+
+**Arquitectura:**
+```python
+class NotificationService:
+    """
+    Servicio para enviar notificaciones a usuarios.
+
+    Centraliza todo el envío de mensajes para:
+    - Consistencia visual
+    - Logging automático
+    - Templates reutilizables
+    - RewardBatch para agrupar recompensas
+    """
+    def send(self, user_id, notification_type, context, keyboard=None):
+        """Envía notificación individual"""
+
+    def send_reward_batch(self, batch: RewardBatch, keyboard=None):
+        """Envía lote de recompensas unificado"""
+
+    async def _get_template(self, notification_type: NotificationType) -> str:
+        """Obtiene template (BD o default)"""
+
+class NotificationTemplates:
+    """Repositorio de templates HTML con placeholders"""
+    WELCOME_DEFAULT = """..."""
+    BESITOS_EARNED = """..."""
+    BADGE_UNLOCKED = """..."""
+    # ... más templates
+
+@dataclass
+class RewardBatch:
+    """Lote de recompensas para notificación unificada"""
+    user_id: int
+    action: str
+    rewards: List[Reward]
+
+    def add_besitos(self, amount: int, reason: str = ""):
+    def add_badge(self, badge_name: str, description: str = ""):
+    def add_rank_up(self, old_rank: str, new_rank: str):
+```
+
+**Tipos de Notificaciones:**
+- `WELCOME` - Mensaje de bienvenida
+- `POINTS_EARNED` - Besitos ganados
+- `BADGE_UNLOCKED` - Badge desbloqueado
+- `RANK_UP` - Cambio de rango
+- `VIP_ACTIVATED` - Activación VIP
+- `DAILY_LOGIN` - Regalo diario
+- `REFERRAL_SUCCESS` - Referido exitoso
+
+**Templates Disponibles:**
+- `WELCOME_DEFAULT` - Bienvenida con rol y sistema de Besitos
+- `BESITOS_EARNED` - Notificación de puntos ganados
+- `BADGE_UNLOCKED` - Desbloqueo de insignia
+- `RANK_UP` - Cambio de rango con progreso
+- `DAILY_LOGIN` - Regalo diario con streak
+- `REWARD_BATCH` - Agrupación de múltiples recompensas
+
+**RewardBatch System:**
+```python
+# Agrupar múltiples recompensas en una sola notificación
+batch = RewardBatch(user_id=123, action="Reaccionaste a un mensaje")
+batch.add_besitos(50, "Reacción")
+batch.add_badge("🏆 Reactor Pro", "50 reacciones totales")
+batch.add_rank_up("Novato", "Bronce")
+
+await container.notifications.send_reward_batch(batch)
+```
+
+**Características:**
+- **Templates HTML:** Formato consistente con emojis y formato
+- **Personalización:** Templates pueden ser personalizados en BD
+- **Agrupación:** RewardBatch evita spam de notificaciones
+- **Logging:** Seguimiento de notificaciones enviadas
+- **Fallback seguro:** Templates por defecto si hay error
+- **Integración:** Con gamificación y eventos
+
+### 8.5 Gamification System (B3)
+
+**Responsabilidad:** Sistema completo de gamificación con Besitos, badges, rangos, daily login y reacciones
+
+**Componentes:**
+```
+gamification/
+├── __init__.py
+├── config.py        # GamificationConfig
+├── service.py       # GamificationService
+├── listeners.py     # Event listeners de gamificación
+├── reactions.py     # Sistema de reacciones (opcional)
+```
+
+**Arquitectura:**
+```python
+class GamificationService:
+    """Servicio principal de gamificación"""
+    async def award_besitos(self, user_id, action, custom_amount=None, custom_reason=None):
+        """Otorga Besitos con verificación de rank up"""
+
+    async def check_and_unlock_badges(self, user_id):
+        """Verifica y desbloquea badges ganados"""
+
+    async def claim_daily_login(self, user_id):
+        """Reclama regalo diario con streak tracking"""
+
+    async def can_react_to_message(self, user_id):
+        """Verifica rate limiting de reacciones"""
+
+    async def record_reaction(self, user_id):
+        """Registra reacción del usuario"""
+
+class GamificationConfig:
+    """Configuración centralizada de gamificación"""
+    MAX_REACTIONS_PER_DAY = 50
+    MIN_SECONDS_BETWEEN_REACTIONS = 5
+
+    REWARDS = {
+        "user_started": (10, "Regalo de bienvenida"),
+        "message_reacted": (5, "Reacción a mensaje"),
+        # ... más recompensas
+    }
+
+    BADGES = [
+        # Definiciones de badges con requisitos
+    ]
+
+    RANKS = [
+        # Definiciones de rangos con Besitos requeridos
+    ]
+```
+
+**Sistema de Besitos:**
+- **Puntos ganados por:** reacciones, login diario, VIP, referidos, etc.
+- **Recompensas configurables:** 10 Besitos por bienvenida, 100 por VIP, etc.
+- **Otorgamiento automático:** Integrado con Event Bus
+- **Seguimiento persistente:** Almacenado en base de datos
+
+**Rangos Disponibles:**
+- 🌱 **Novato:** 0-499 Besitos
+- 🥉 **Bronce:** 500-1999 Besitos
+- 🥈 **Plata:** 2000+ Besitos
+- **Cambio automático:** Al otorgar Besitos se verifica rango
+
+**Badges Disponibles:**
+- ❤️ **Reactor:** 100 reacciones totales
+- 🔥 **Hot Streak:** 7 días de login consecutivo
+- 🌟 **Consistent:** 30 días de login consecutivo
+- 💋 **Coleccionista:** 1000 Besitos acumulados
+- 👑 **VIP:** Usuario con VIP activo
+
+**Daily Login System:**
+- **Recompensa diaria:** Besitos base + bonus por racha
+- **Seguimiento de streak:** Días consecutivos y récord personal
+- **Rate limiting:** No se puede reclamar más de una vez al día
+- **Motivación:** Recompensas crecientes por mantener racha
+
+**Sistema de Reacciones:**
+- **Rate limiting:** 50 reacciones/día, 5 segundos entre reacciones
+- **Recompensas automáticas:** Besitos por cada reacción válida
+- **Bonus diario:** Extra por primera reacción del día
+- **Integración:** Con Event Bus y RewardBatch
+
+**Modelos de Base de Datos:**
+- `UserProgress`: Progreso individual (Besitos, rango, reacciones, etc.)
+- `UserBadge`: Badges desbloqueados por usuario
+- `DailyStreak`: Información de racha diaria
+- `BesitosTransaction`: Historial de transacciones
+
+**Eventos Integrados:**
+- `PointsAwardedEvent` - Emitido al otorgar Besitos
+- `BadgeUnlockedEvent` - Emitido al desbloquear badge
+- `RankUpEvent` - Emitido al cambiar de rango
+
+**Integración con Event Bus:**
+```python
+@subscribe(MessageReactedEvent)
+async def on_message_reacted(event: MessageReactedEvent):
+    # Otorgar Besitos, verificar badges, enviar notificación
+    pass
+```
+
+**Características:**
+- **Desacoplado:** Integrado con Event Bus para flexibilidad
+- **Configurable:** Recompensas y badges personalizables
+- **Seguro:** Rate limiting y validación de estados
+- **Persistente:** Progreso almacenado en base de datos
+- **Notificaciones:** Integrado con sistema de notificaciones
+- **Escalable:** Fácil agregar nuevos badges y recompensas
+
 ### 9. Utilities
 
 **Responsabilidad:** Funciones y utilidades comunes

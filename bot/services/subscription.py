@@ -25,6 +25,14 @@ from bot.database.models import (
     FreeChannelRequest,
     BotConfig
 )
+from bot.events import (
+    event_bus,
+    TokenGeneratedEvent,
+    UserJoinedVIPEvent,
+    UserVIPExpiredEvent,
+    UserRequestedFreeChannelEvent,
+    UserJoinedFreeChannelEvent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +143,15 @@ class SubscriptionService:
             f"✅ Token VIP generado: {token.token} "
             f"(válido por {duration_hours}h, plan_id: {plan_id}, generado por {generated_by})"
         )
+
+        # Emitir evento (sin esperar token.id que aún no está en BD)
+        event_bus.publish(TokenGeneratedEvent(
+            admin_id=generated_by,
+            token_id=0,  # ID será asignado en BD, por ahora usamos 0
+            token_string=token.token,
+            plan_id=plan_id or 0,
+            duration_hours=duration_hours
+        ))
 
         return token
 
@@ -263,6 +280,15 @@ class SubscriptionService:
             f"(expira: {expiry_date})"
         )
 
+        # Emitir evento
+        event_bus.publish(UserJoinedVIPEvent(
+            user_id=user_id,
+            plan_id=token.plan_id or 0,
+            plan_name="VIP",
+            duration_days=token.duration_hours // 24,
+            token_id=0  # ID será asignado en BD
+        ))
+
         return True, "✅ Suscripción VIP activada exitosamente", subscriber
 
     # ===== GESTIÓN VIP =====
@@ -378,6 +404,15 @@ class SubscriptionService:
             f"(expira: {expiry_date})"
         )
 
+        # Emitir evento
+        event_bus.publish(UserJoinedVIPEvent(
+            user_id=user_id,
+            plan_id=0,
+            plan_name="VIP",
+            duration_days=duration_hours // 24,
+            token_id=token_id
+        ))
+
         return subscriber
 
     async def expire_vip_subscribers(self) -> int:
@@ -403,6 +438,14 @@ class SubscriptionService:
             subscriber.status = "expired"
             count += 1
             logger.info(f"⏱️ VIP expirado: user {subscriber.user_id}")
+
+            # Emitir evento
+            days_active = (datetime.utcnow() - subscriber.join_date).days
+            event_bus.publish(UserVIPExpiredEvent(
+                user_id=subscriber.user_id,
+                subscription_id=subscriber.id,
+                days_active=days_active
+            ))
 
         if count > 0:
             await self.session.commit()
@@ -531,6 +574,12 @@ class SubscriptionService:
 
         logger.info(f"✅ Solicitud Free creada: user {user_id}")
 
+        # Emitir evento
+        event_bus.publish(UserRequestedFreeChannelEvent(
+            user_id=user_id,
+            request_id=request.id
+        ))
+
         return request
 
     async def get_free_request(self, user_id: int) -> Optional[FreeChannelRequest]:
@@ -586,6 +635,15 @@ class SubscriptionService:
         await self.session.commit()
 
         logger.info(f"✅ {len(ready_requests)} solicitud(es) Free procesadas")
+
+        # Emitir eventos
+        for request in ready_requests:
+            wait_time = (request.processed_at - request.request_date).total_seconds() / 60
+            event_bus.publish(UserJoinedFreeChannelEvent(
+                user_id=request.user_id,
+                request_id=request.id,
+                wait_time_minutes=int(wait_time)
+            ))
 
         return list(ready_requests)
 

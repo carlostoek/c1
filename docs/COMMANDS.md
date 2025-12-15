@@ -2,6 +2,71 @@
 
 Documentación completa de los comandos disponibles en el bot de administración de canales VIP y Free.
 
+## Comandos de Gamificación
+
+### `/progress` - Ver progreso de gamificación
+**Descripción:** Muestra el progreso actual del usuario en el sistema de gamificación, incluyendo Besitos acumulados, rango actual, badges desbloqueados y streak de login.
+
+**Uso:** `/progress`
+
+**Parámetros:** Ninguno
+
+**Permisos:** Todos los usuarios
+
+**Flujo de ejecución:**
+1. El usuario envía `/progress`
+2. El bot obtiene el progreso del usuario desde la base de datos
+3. El bot formatea y envía un mensaje con:
+   - Total de Besitos acumulados
+   - Rango actual
+   - Badges desbloqueados
+   - Días de racha actual
+   - Total de reacciones
+   - Fecha de registro
+
+**Ejemplo de salida:**
+```
+📊 <b>Tu Progreso en Gamificación</b>
+
+💋 <b>besitos:</b> 245
+⭐ <b>Rango:</b> Novato
+🏆 <b>Badges:</b> 3/5 desbloqueados
+🔥 <b>Racha:</b> 5 días consecutivos
+❤️ <b>Reacciones:</b> 23 totales
+📅 <b>Registrado:</b> hace 2 semanas
+```
+
+### `/daily` - Reclamar regalo diario
+**Descripción:** Permite al usuario reclamar su recompensa diaria de Besitos y mantener su streak de login.
+
+**Uso:** `/daily`
+
+**Parámetros:** Ninguno
+
+**Permisos:** Todos los usuarios
+
+**Flujo de ejecución:**
+1. El usuario envía `/daily`
+2. El bot verifica si ya reclamó hoy
+3. Si no ha reclamado:
+   - Actualiza la racha de login
+   - Otorga Besitos base + bonus por racha
+   - Verifica si desbloquea nuevos badges
+   - Envía notificación de recompensa
+
+**Ejemplo de salida:**
+```
+🎁 <b>¡Regalo Diario Reclamado!</b>
+
+<b>+25 Besitos 💋</b>
+
+Días consecutivos: 7 🔥
+
+<b>¡Nuevo récord personal de racha!</b>
+
+¡Vuelve mañana para mantener tu racha!
+```
+
 ## Comandos de Administración
 
 ### `/admin` - Panel de Administración Principal
