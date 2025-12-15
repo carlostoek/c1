@@ -12,7 +12,9 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
+from unittest.mock import AsyncMock
 from bot.database.models import Base, ReactionConfig, MessageReaction, User
+from bot.database.enums import UserRole
 from bot.services.reactions import ReactionService
 from bot.database.engine import init_db, close_db
 
@@ -85,12 +87,24 @@ async def sample_user(db_session):
     user = User(
         user_id=123456789,
         username="testuser",
-        is_vip=False
+        first_name="Test",
+        last_name="User",
+        role=UserRole.FREE  # Usar el campo role en lugar de intentar asignar is_vip
     )
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
     return user
+
+
+@pytest.fixture
+def mock_bot():
+    """
+    Mock de bot de Telegram para pruebas.
+    """
+    from unittest.mock import AsyncMock
+    mock = AsyncMock()
+    return mock
 
 
 @pytest_asyncio.fixture

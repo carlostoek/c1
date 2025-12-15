@@ -92,10 +92,14 @@ async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
     # from bot.handlers import register_all_handlers
     # register_all_handlers(dispatcher)
 
-    # TODO: Registrar middlewares (ONDA 1 - Fase 1.3)
-    # from bot.middlewares import DatabaseMiddleware, AdminAuthMiddleware
-    # dispatcher.update.middleware(DatabaseMiddleware())
-    # dispatcher.message.middleware(AdminAuthMiddleware())
+    # Registrar middlewares
+    from bot.middlewares import DatabaseMiddleware, AdminAuthMiddleware
+    dispatcher.update.middleware(DatabaseMiddleware())
+
+    # Registrar AdminAuthMiddleware solo para el router de admin
+    from bot.handlers.admin import admin_router
+    admin_router.message.middleware(AdminAuthMiddleware())
+    admin_router.callback_query.middleware(AdminAuthMiddleware())
 
     # Iniciar background tasks
     start_background_tasks(bot)

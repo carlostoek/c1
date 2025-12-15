@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.handlers.admin.main import admin_router
 from bot.states.admin import BroadcastStates
 from bot.services.container import ServiceContainer
-from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.keyboards import create_inline_keyboard, create_reaction_keyboard
 
 logger = logging.getLogger(__name__)
 
