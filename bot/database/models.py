@@ -138,6 +138,168 @@ class User(Base):
         )
 
 
+class UserProgress(Base):
+    """
+    Progreso de gamificación de un usuario.
+
+    Almacena el progreso general: Besitos totales, rango actual, estadísticas.
+
+    Attributes:
+        user_id: ID del usuario (FK a users)
+        total_besitos: Total de Besitos acumulados (lifetime)
+        current_rank: Rango actual
+        total_reactions: Total de reacciones dadas
+        reactions_today: Reacciones dadas hoy (reset diario)
+        last_reaction_at: Última vez que reaccionó
+        created_at: Fecha de creación del progreso
+        updated_at: Última actualización
+    """
+
+    __tablename__ = "user_progress"
+
+    user_id = Column(
+        BigInteger,
+        ForeignKey("users.user_id"),
+        primary_key=True
+    )
+    total_besitos = Column(Integer, nullable=False, default=0)
+    current_rank = Column(String(50), nullable=False, default="Novato")
+    total_reactions = Column(Integer, nullable=False, default=0)
+    reactions_today = Column(Integer, nullable=False, default=0)
+    last_reaction_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relaciones
+    user = relationship("User", uselist=False, lazy="selectin")
+    badges = relationship(
+        "UserBadge",
+        back_populates="user_progress",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    daily_streak = relationship(
+        "DailyStreak",
+        back_populates="user_progress",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<UserProgress(user_id={self.user_id}, "
+            f"besitos={self.total_besitos}, rank='{self.current_rank}')>"
+        )
+
+
+class UserBadge(Base):
+    """
+    Insignia desbloqueada por un usuario.
+
+    Attributes:
+        id: ID único
+        user_id: ID del usuario
+        badge_id: ID de la insignia (del config)
+        unlocked_at: Fecha de desbloqueo
+    """
+
+    __tablename__ = "user_badges"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        BigInteger,
+        ForeignKey("user_progress.user_id"),
+        nullable=False
+    )
+    badge_id = Column(String(50), nullable=False)
+    unlocked_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    # Relación
+    user_progress = relationship(
+        "UserProgress",
+        back_populates="badges"
+    )
+
+    __table_args__ = (
+        Index('idx_user_badges_user_id', 'user_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f"<UserBadge(user_id={self.user_id}, badge_id='{self.badge_id}')>"
+
+
+class DailyStreak(Base):
+    """
+    Racha de login diario de un usuario.
+
+    Attributes:
+        user_id: ID del usuario (PK y FK)
+        current_streak: Días consecutivos actuales
+        longest_streak: Récord de días consecutivos
+        last_login_date: Última fecha de login
+        total_logins: Total de logins (lifetime)
+    """
+
+    __tablename__ = "daily_streaks"
+
+    user_id = Column(
+        BigInteger,
+        ForeignKey("user_progress.user_id"),
+        primary_key=True
+    )
+    current_streak = Column(Integer, nullable=False, default=0)
+    longest_streak = Column(Integer, nullable=False, default=0)
+    last_login_date = Column(DateTime, nullable=True)
+    total_logins = Column(Integer, nullable=False, default=0)
+
+    # Relación
+    user_progress = relationship(
+        "UserProgress",
+        back_populates="daily_streak"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<DailyStreak(user_id={self.user_id}, "
+            f"streak={self.current_streak}, longest={self.longest_streak})>"
+        )
+
+
+class BesitosTransaction(Base):
+    """
+    Historial de transacciones de Besitos.
+
+    Lleva un log de todos los Besitos ganados/gastados.
+
+    Attributes:
+        id: ID único
+        user_id: ID del usuario
+        amount: Cantidad (+ ganados, - gastados)
+        reason: Razón de la transacción
+        created_at: Fecha de la transacción
+    """
+
+    __tablename__ = "besitos_transactions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, nullable=False)
+    amount = Column(Integer, nullable=False)
+    reason = Column(String(200), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_besitos_transactions_user_id', 'user_id'),
+    )
+
+    def __repr__(self) -> str:
+        sign = "+" if self.amount > 0 else ""
+        return (
+            f"<BesitosTransaction(user_id={self.user_id}, "
+            f"amount={sign}{self.amount}, reason='{self.reason}')>"
+        )
+
+
 class SubscriptionPlan(Base):
     """
     Modelo de planes de suscripción/tarifas.

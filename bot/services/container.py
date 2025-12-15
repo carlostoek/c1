@@ -52,6 +52,7 @@ class ServiceContainer:
         self._pricing_service = None
         self._user_service = None
         self._notification_service = None
+        self._gamification_service = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -188,6 +189,25 @@ class ServiceContainer:
 
         return self._notification_service
 
+    # ===== GAMIFICATION SERVICE =====
+
+    @property
+    def gamification(self):
+        """
+        Service de gamificación.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            GamificationService: Instancia del service
+        """
+        if self._gamification_service is None:
+            from bot.gamification.service import GamificationService
+            logger.debug("🔄 Lazy loading: GamificationService")
+            self._gamification_service = GamificationService(self._session)
+
+        return self._gamification_service
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -215,6 +235,8 @@ class ServiceContainer:
             loaded.append("user")
         if self._notification_service is not None:
             loaded.append("notifications")
+        if self._gamification_service is not None:
+            loaded.append("gamification")
 
         return loaded
 
