@@ -162,3 +162,67 @@ def config_menu_keyboard() -> InlineKeyboardMarkup:
         [{"text": "⚙️ Configurar Reacciones Free", "callback_data": "config:reactions:free"}],
         [{"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}],
     ])
+
+
+from typing import List, Optional
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+def create_reaction_keyboard(
+    reactions: List[tuple],
+    channel_id: int,
+    message_id: int,
+    counts: Optional[dict] = None
+) -> InlineKeyboardMarkup:
+    """
+    Crea keyboard inline con botones de reacción.
+    
+    Args:
+        reactions: Lista de tuplas (reaction_id, emoji, label)
+        channel_id: ID del canal de Telegram
+        message_id: ID del mensaje de Telegram
+        counts: Dict opcional {emoji: count} para mostrar contadores
+        
+    Returns:
+        InlineKeyboardMarkup con botones de reacción
+        
+    Example:
+        >>> reactions = [(1, "❤️", "Me encanta"), (2, "👍", "Me gusta")]
+        >>> keyboard = create_reaction_keyboard(
+        ...     reactions=reactions,
+        ...     channel_id=-1001234567890,
+        ...     message_id=12345,
+        ...     counts={"❤️": 10, "👍": 5}
+        ... )
+    
+    Format de callback_data: react:{emoji}:{channel_id}:{message_id}
+    """
+    buttons = []
+    
+    # Agrupar en filas de máximo 3 botones
+    row = []
+    for reaction_id, emoji, label in reactions:
+        # Construir texto del botón con contador si existe
+        count = counts.get(emoji, 0) if counts else 0
+        button_text = f"{emoji} {count}" if count > 0 else emoji
+        
+        # Construir callback_data
+        callback_data = f"react:{emoji}:{channel_id}:{message_id}"
+        
+        button = InlineKeyboardButton(
+            text=button_text,
+            callback_data=callback_data
+        )
+        
+        row.append(button)
+        
+        # Cada 3 botones, crear nueva fila
+        if len(row) == 3:
+            buttons.append(row)
+            row = []
+    
+    # Agregar última fila si quedaron botones
+    if row:
+        buttons.append(row)
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+

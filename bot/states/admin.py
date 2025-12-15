@@ -51,35 +51,22 @@ class WaitTimeSetupStates(StatesGroup):
 
 class BroadcastStates(StatesGroup):
     """
-    Estados para envío de publicaciones a canales (BROADCASTING AVANZADO).
-
+    Estados FSM para broadcasting de contenido a canales.
+    
     Flujo completo:
-    1. Admin selecciona canal destino (VIP, Free, o Ambos)
-    2. Bot entra en waiting_for_content
-    3. Admin envía contenido (texto, foto, o video)
-    4. Bot muestra preview y entra en waiting_for_confirmation
-    5. Admin confirma o cancela
-    6. Si confirma: Bot envía al canal(es) y sale del estado
-    7. Si cancela: Bot vuelve a waiting_for_content o sale
-
-    Estados adicionales para reacciones (ONDA 2):
-    - selecting_reactions: Admin selecciona reacciones a aplicar
-
-    Tipos de Contenido:
-    - Soportar: texto, foto, video
-    - Estado waiting_for_content acepta cualquiera
-    - Estado waiting_for_confirmation maneja confirmación
-    - Estado selecting_reactions permite cambiar reacciones (opcional)
+    1. waiting_for_content: Admin envía contenido (texto, foto, video)
+    2. waiting_for_confirmation: Admin ve preview y confirma si enviar
+    3. choosing_options: Admin elige opciones (reacciones, protección) [NUEVO]
+    
+    Estados:
+    - waiting_for_content: Esperando contenido del admin
+    - waiting_for_confirmation: Esperando confirmación de envío
+    - choosing_options: Esperando selección de opciones (reacciones + protección)
     """
-
-    # Estado 1: Esperando contenido del mensaje a enviar
+    
     waiting_for_content = State()
-
-    # Estado 2: Esperando confirmación de envío (después de preview)
     waiting_for_confirmation = State()
-
-    # Estado 3: Seleccionando reacciones a aplicar (NUEVO - T23)
-    selecting_reactions = State()
+    choosing_options = State()  # AGREGAR esta línea
 
 
 class ReactionSetupStates(StatesGroup):

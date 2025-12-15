@@ -243,73 +243,99 @@ class ChannelService:
 
     async def send_to_channel(
         self,
-        channel_id: str,
-        text: Optional[str] = None,
+        channel_id: int,
+        text: str,
         photo: Optional[str] = None,
         video: Optional[str] = None,
-        **kwargs
-    ) -> Tuple[bool, str, Optional[Message]]:
+        protect_content: bool = False  # AGREGAR este parámetro
+    ) -> tuple[bool, str, Optional[Message]]:
         """
-        Envía un mensaje al canal especificado.
-
+        Envía un mensaje a un canal.
+        
         Soporta:
-        - Solo texto
-        - Solo foto (con caption opcional)
-        - Solo video (con caption opcional)
-
+        - Texto simple
+        - Foto con caption
+        - Video con caption
+        - Protección de contenido (restrict forwarding/saving)
+        
         Args:
-            channel_id: ID del canal
-            text: Texto del mensaje
-            photo: File ID o URL de foto
-            video: File ID o URL de video
-            **kwargs: Parámetros adicionales (parse_mode, etc)
-
+            channel_id: ID del canal de Telegram
+            text: Texto del mensaje o caption
+            photo: File ID de foto (opcional)
+            video: File ID de video (opcional)
+            protect_content: Si True, restringe reenvío/guardado (nuevo)
+            
         Returns:
-            Tuple[bool, str, Optional[Message]]:
-                - bool: éxito
-                - str: mensaje descriptivo
-                - Optional[Message]: mensaje enviado (si éxito)
+            Tupla (success, message, sent_message):
+            - success: True si se envió correctamente
+            - message: Mensaje de éxito o descripción de error
+            - sent_message: Objeto Message de Telegram o None
+            
+        Example:
+            >>> success, msg, sent = await service.send_to_channel(
+            ...     channel_id=-1001234567890,
+            ...     text="Hola mundo",
+            ...     protect_content=True  # Contenido protegido
+            ... )
         """
         try:
             sent_message = None
-
-            # Determinar tipo de mensaje
+            
+            # Enviar según tipo de contenido
             if photo:
-                # Mensaje con foto
+                # Enviar foto con caption
                 sent_message = await self.bot.send_photo(
                     chat_id=channel_id,
                     photo=photo,
-                    caption=text,
-                    **kwargs
+                    caption=text if text else None,
+                    parse_mode="HTML",
+                    protect_content=protect_content  # AGREGAR
                 )
+                logger.info(
+                    f"📷 Foto enviada a canal {channel_id} "
+                    f"[protected: {protect_content}]"  # AGREGAR logging
+                )
+            
             elif video:
-                # Mensaje con video
+                # Enviar video con caption
                 sent_message = await self.bot.send_video(
                     chat_id=channel_id,
                     video=video,
-                    caption=text,
-                    **kwargs
+                    caption=text if text else None,
+                    parse_mode="HTML",
+                    protect_content=protect_content  # AGREGAR
                 )
-            elif text:
-                # Solo texto
+                logger.info(
+                    f"🎥 Video enviado a canal {channel_id} "
+                    f"[protected: {protect_content}]"  # AGREGAR logging
+                )
+            
+            else:
+                # Enviar texto simple
                 sent_message = await self.bot.send_message(
                     chat_id=channel_id,
                     text=text,
-                    **kwargs
+                    parse_mode="HTML",
+                    protect_content=protect_content  # AGREGAR
                 )
-            else:
-                return False, "❌ Debes proporcionar texto, foto o video", None
-
-            logger.info(f"✅ Mensaje enviado al canal {channel_id}")
-            return True, "✅ Publicación enviada correctamente", sent_message
-
-        except TelegramForbiddenError:
-            return False, "❌ Bot no tiene permiso para publicar en el canal", None
-        except TelegramBadRequest as e:
-            return False, f"❌ Error al enviar: {str(e)}", None
+                logger.info(
+                    f"📝 Mensaje enviado a canal {channel_id} "
+                    f"[protected: {protect_content}]"  # AGREGAR logging
+                )
+            
+            return (
+                True,
+                "Mensaje enviado exitosamente",
+                sent_message
+            )
+        
         except Exception as e:
-            logger.error(f"Error al enviar mensaje a {channel_id}: {e}")
-            return False, f"❌ Error inesperado: {str(e)}", None
+            error_msg = f"Error al enviar mensaje: {str(e)}"
+            logger.error(
+                f"❌ Error enviando a canal {channel_id}: {e}",
+                exc_info=True
+            )
+            return (False, error_msg, None)
 
     async def forward_to_channel(
         self,
