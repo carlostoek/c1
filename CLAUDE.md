@@ -319,7 +319,6 @@ async def process_channel(message: Message, state: FSMContext):
 
 ## Paso 4: Commit
 
-```bash
 git add .
 git commit -m "Mensaje descriptivo
 
@@ -327,11 +326,7 @@ git commit -m "Mensaje descriptivo
 - Métodos: create_X, delete_X, validate_X
 - Características: Feature A, Feature B
 - Patrones: Singleton, DI
-
-🤖 Generated with Claude Code
-
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
-```
+"
 
 ═══════════════════════════════════════════════════════════════
 # GUÍA DE TESTING
