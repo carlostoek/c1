@@ -1437,3 +1437,133 @@ keyboard = create_pagination_keyboard(
 ### Navegación y Estado
 
 El sistema de paginación mantiene el estado de filtro entre páginas, permitiendo al usuario navegar sin perder el contexto de visualización. Los teclados de paginación incluyen botones de filtro para cambiar dinámicamente la vista sin salir del modo paginado.
+
+## Nuevas Funcionalidades de API
+
+### Event Bus Integration
+
+#### Eventos Disponibles
+- `UserStartedBotEvent` - Emitido cuando un usuario inicia el bot
+- `UserJoinedVIPEvent` - Emitido cuando un usuario activa VIP
+- `MessageReactedEvent` - Emitido cuando un usuario reacciona a un mensaje
+- `PointsAwardedEvent` - Emitido cuando se otorgan Besitos
+- `BadgeUnlockedEvent` - Emitido cuando se desbloquea un badge
+- `RankUpEvent` - Emitido cuando un usuario sube de rango
+- `DailyLoginEvent` - Emitido cuando se reclama el regalo diario
+
+#### Publicación de Eventos
+```python
+from bot.events import event_bus, UserJoinedVIPEvent
+
+# Publicar evento
+event_bus.publish(UserJoinedVIPEvent(
+    user_id=123,
+    plan_name="Mensual",
+    duration_days=30
+))
+```
+
+#### Suscripción a Eventos
+```python
+from bot.events import subscribe, UserJoinedVIPEvent
+
+@subscribe(UserJoinedVIPEvent)
+async def on_user_joined_vip(event: UserJoinedVIPEvent):
+    # Manejar evento
+    pass
+```
+
+### Notification System
+
+#### Envío de Notificaciones
+```python
+# Envío de notificación individual
+await container.notifications.send(
+    user_id=123,
+    notification_type=NotificationType.POINTS_EARNED,
+    context={
+        "amount": 50,
+        "reason": "Reacción a mensaje",
+        "total_besitos": 150
+    }
+)
+
+# Envío de batch de recompensas
+batch = await container.notifications.create_reward_batch(
+    user_id=123,
+    action="Reaccionaste a un mensaje"
+)
+batch.add_besitos(50, "Reacción")
+batch.add_badge("🏆 Reactor Pro", "50 reacciones totales")
+await container.notifications.send_reward_batch(batch)
+```
+
+### Gamification System
+
+#### Otorgamiento de Besitos
+```python
+# Otorgar Besitos por acción
+amount, ranked_up, new_rank = await container.gamification.award_besitos(
+    user_id=123,
+    action="message_reacted"
+)
+
+# Verificar y desbloquear badges
+new_badges = await container.gamification.check_and_unlock_badges(user_id=123)
+
+# Reclamar daily login
+besitos, streak, is_record = await container.gamification.claim_daily_login(user_id=123)
+```
+
+#### Verificación de Reacciones
+```python
+# Verificar si usuario puede reaccionar
+puede_reaccionar = await container.gamification.can_react_to_message(user_id=123)
+
+# Registrar reacción
+if puede_reaccionar:
+    await container.gamification.record_reaction(user_id=123)
+```
+
+### Nuevos Comandos de API
+
+#### `/progress` - Obtener Progreso de Gamificación
+- **Descripción:** Obtiene y muestra el progreso del usuario en el sistema de gamificación
+- **API Call:** `message.answer()` con información formateada de Besitos, rango, badges y streak
+
+#### `/daily` - Reclamar Regalo Diario
+- **Descripción:** Permite al usuario reclamar su recompensa diaria
+- **API Calls:**
+  - `container.gamification.claim_daily_login()` - Procesa el daily login
+  - `container.notifications.send_reward_batch()` - Envía notificación de recompensa
+
+### Integración con Eventos de Gamificación
+
+Los siguientes eventos se disparan automáticamente durante la interacción del usuario:
+
+- **User Started Bot:** Otorga 10 Besitos de bienvenida
+- **User Joined VIP:** Otorga 100 Besitos + verifica badges
+- **Message Reacted:** Otorga 5 Besitos + bonus por primera reacción del día
+- **Daily Login:** Otorga Besitos base + bonus por racha
+- **User Referred:** Otorga 50 Besitos al referidor
+
+### Rate Limiting API
+
+#### Control de Reacciones
+- **Límite diario:** 50 reacciones por usuario
+- **Tiempo entre reacciones:** Mínimo 5 segundos
+- **Validación:** `container.gamification.can_react_to_message()` antes de otorgar Besitos
+
+### Sistema de Rangos y Badges
+
+#### Rangos Disponibles
+- 🌱 **Novato:** 0-499 Besitos
+- 🥉 **Bronce:** 500-1999 Besitos
+- 🥈 **Plata:** 2000+ Besitos
+
+#### Badges Disponibles
+- ❤️ **Reactor:** 100 reacciones totales
+- 🔥 **Hot Streak:** 7 días de login consecutivo
+- 🌟 **Consistent:** 30 días de login consecutivo
+- 💋 **Coleccionista:** 1000 Besitos acumulados
+- 👑 **VIP:** Usuario con VIP activo

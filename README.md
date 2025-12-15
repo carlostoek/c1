@@ -469,6 +469,42 @@ Tareas programadas automáticas que realizan operaciones periódicas para manten
 - **Configuración de intervalos:** Configuración de frecuencias de ejecución mediante variables de entorno
 - **Manejo de errores:** Control de errores en todas las tareas con logging apropiado
 
+### Event Bus (Pub/Sub) (B1)
+Sistema centralizado de eventos pub/sub completamente desacoplado para comunicación entre componentes:
+
+- **Singleton EventBus:** Una única instancia global para manejar eventos
+- **Publicación/Suscripción:** Sistema de eventos tipo pub/sub para comunicación desacoplada
+- **Procesamiento asincrónico:** Ejecución no bloqueante de handlers de eventos
+- **Eventos de usuario:** UserStartedBotEvent, UserRoleChangedEvent, etc.
+- **Eventos de gamificación:** PointsAwardedEvent, BadgeUnlockedEvent, RankUpEvent
+- **Eventos VIP/Free:** UserJoinedVIPEvent, UserJoinedFreeChannelEvent, etc.
+- **Listeners automáticos:** Sistema de listeners que responden a eventos automáticamente
+- **Manejo de errores:** Protección individual de cada handler con logging detallado
+
+### Notification System (B2)
+Sistema completo de notificaciones con templates HTML y RewardBatch para agrupar recompensas:
+
+- **NotificationService:** Servicio centralizado para envío de notificaciones
+- **NotificationTemplates:** Templates HTML predefinidos con placeholders dinámicos
+- **RewardBatch:** Sistema para agrupar múltiples recompensas en una sola notificación
+- **Tipos de notificaciones:** Bienvenida, Besitos, badges, ranks, VIP, daily rewards, etc.
+- **Templates personalizables:** Soporte para templates personalizados en base de datos
+- **Integración con gamificación:** Envío automático de notificaciones por eventos de gamificación
+- **Formato HTML:** Uso de formato HTML para mejor presentación
+- **Error handling:** Validación de variables y fallback seguro
+
+### Gamification System (B3)
+Sistema completo de gamificación con Besitos, badges, rangos, daily login y reacciones:
+
+- **Sistema de Besitos:** Puntos que los usuarios ganan por interactuar (reacciones, login, etc.)
+- **Badges desbloqueables:** Insignias que se obtienen por cumplir requisitos específicos
+- **Rangos progresivos:** Novato → Bronce → Plata basados en Besitos acumulados
+- **Daily login system:** Sistema de login diario con recompensas y rachas
+- **Reacciones con recompensa:** Sistema de reacciones inline que otorgan Besitos
+- **Rate limiting:** Control de reacciones para prevenir abuso
+- **Integración con Event Bus:** Otorgamiento automático de recompensas por eventos
+- **Progreso persistente:** Almacenamiento en base de datos del progreso de usuarios
+
 **Ejemplo de uso de las background tasks:**
 ```python
 from aiogram import Bot

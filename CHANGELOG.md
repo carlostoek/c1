@@ -38,6 +38,9 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Validaciones de seguridad para tokens y activaciones
 - Registro y logging de transiciones de roles
 - Integración entre sistemas de precios, roles y deep links
+- B1: Event Bus (Pub/Sub) - Sistema desacoplado de eventos pub/sub para comunicación entre componentes
+- B2: Notification System - Templates + RewardBatch para agrupar recompensas y notificaciones
+- B3: Gamification System - Sistema completo con Besitos, badges, rangos, daily login, reacciones y commit
 
 ## [1.0.0] - 2025-12-11
 
