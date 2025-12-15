@@ -12,7 +12,7 @@ import logging
 from typing import Optional
 
 from aiogram import F
-from aiogram.types import CallbackQuery, Message, ContentType
+from aiogram.types import CallbackQuery, Message, ContentType, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 

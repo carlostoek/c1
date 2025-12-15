@@ -1567,3 +1567,130 @@ Los siguientes eventos se disparan automáticamente durante la interacción del 
 - 🌟 **Consistent:** 30 días de login consecutivo
 - 💋 **Coleccionista:** 1000 Besitos acumulados
 - 👑 **VIP:** Usuario con VIP activo
+
+## Sistema de Reacciones
+
+### Integración con la API de Telegram
+
+El sistema de reacciones se integra con la API de Telegram a través de los siguientes endpoints:
+
+- `editMessageReplyMarkup` - Para actualizar los botones de reacción con contadores en tiempo real
+- `callback_query_handler` - Para procesar los clicks en los botones de reacción
+- `answerCallbackQuery` - Para responder a las reacciones de usuarios con feedback
+- `sendPhoto`, `sendVideo`, `sendMessage` - Para enviar publicaciones con botones de reacción adjuntos
+
+### Configuración de Reacciones
+
+#### Creación de Reacciones
+- **Endpoint:** `reaction:create`
+- **Descripción:** Permite a los administradores crear nuevas reacciones configurables
+- **API Calls:**
+  - `callback.message.edit_text()` - Edita mensaje para solicitar emoji
+  - `message.answer()` - Envía confirmación de creación
+  - `container.reactions.create_reaction()` - Crea la reacción en la base de datos
+
+#### Gestión de Reacciones
+- **Endpoint:** `reaction:view:{id}`, `reaction:edit_label:{id}`, `reaction:edit_besitos:{id}`
+- **Descripción:** Permite a los administradores ver, editar y gestionar reacciones existentes
+- **API Calls:**
+  - `callback.message.edit_text()` - Actualiza mensajes con información de reacciones
+  - `container.reactions.update_reaction()` - Actualiza la configuración de reacciones
+  - `container.reactions.delete_reaction()` - Elimina o desactiva reacciones
+
+### Publicaciones con Reacciones
+
+#### Adjuntar Reacciones a Publicaciones
+- **Endpoint:** `broadcast:toggle:reactions`
+- **Descripción:** Permite adjuntar botones de reacción a las publicaciones durante el proceso de broadcasting
+- **API Calls:**
+  - `create_reaction_keyboard()` - Genera el teclado de reacciones
+  - `bot.edit_message_reply_markup()` - Actualiza el mensaje con botones de reacción
+  - `container.reactions.get_active_reactions()` - Obtiene reacciones disponibles
+
+#### Callback de Reacciones de Usuarios
+- **Formato:** `react:{emoji}:{channel_id}:{message_id}`
+- **Descripción:** Procesa los clicks de usuarios en los botones de reacción
+- **API Calls:**
+  - `callback.answer()` - Responde con feedback de reacción exitosa
+  - `container.reactions.record_user_reaction()` - Registra la reacción en la base de datos
+  - `container.gamification.award_besitos()` - Otorga Besitos por la reacción
+  - `bot.edit_message_reply_markup()` - Actualiza contadores en tiempo real
+
+### Validaciones de Reacciones
+
+#### Rate Limiting
+- **Límite diario:** 50 reacciones por usuario
+- **Tiempo entre reacciones:** Mínimo 5 segundos
+- **Validación:** `_validate_rate_limiting()` antes de procesar la reacción
+
+#### Contadores en Tiempo Real
+- **Endpoint:** `_update_reaction_counter()`
+- **Descripción:** Actualiza los contadores de reacciones en los botones sin recargar la publicación
+- **API Calls:**
+  - `bot.edit_message_reply_markup()` - Edita el markup del mensaje para actualizar contadores
+  - `container.reactions.get_message_reaction_counts()` - Obtiene contadores actualizados
+
+### Eventos de Reacciones
+
+#### MessageReactedEvent
+- **Descripción:** Emitido cuando un usuario reacciona a un mensaje
+- **Propiedades:**
+  - `user_id`: ID del usuario que reaccionó
+  - `channel_id`: ID del canal donde está el mensaje
+  - `message_id`: ID del mensaje reaccionado
+  - `emoji`: Emoji de la reacción
+  - `besitos_awarded`: Cantidad de besitos otorgados
+  - `timestamp`: Fecha y hora de la reacción
+
+#### Integración con Gamificación
+- Cada reacción otorga Besitos según la configuración de la reacción
+- Actualiza el progreso de reacciones del usuario
+- Puede desencadenar desbloqueo de badges relacionados con reacciones
+- Contribuye al ranking y estadísticas del usuario
+
+### Teclados de Reacciones
+
+#### create_reaction_keyboard
+- **Responsabilidad:** Crea teclados inline con botones de reacción
+- **Características:**
+  - Agrupa botones en filas de máximo 3
+  - Muestra contadores si están disponibles
+  - Formato de callback: `react:{emoji}:{channel_id}:{message_id}`
+- **API Integration:**
+```python
+keyboard = create_reaction_keyboard(
+    reactions=reactions_data,
+    channel_id=channel_id,
+    message_id=message_id,
+    counts=counts  # Contadores opcionales
+)
+
+# Adjuntar al mensaje de publicación
+await bot.send_message(
+    chat_id=channel_id,
+    text=message_text,
+    reply_markup=keyboard
+)
+```
+
+### Modelos de Datos
+
+#### ReactionConfig
+- **Descripción:** Almacena la configuración de reacciones disponibles
+- **Campos:**
+  - `id`: Identificador único
+  - `emoji`: Emoji único para la reacción
+  - `label`: Etiqueta descriptiva
+  - `besitos_reward`: Cantidad de besitos otorgados
+  - `active`: Estado activo/inactivo
+
+#### MessageReaction
+- **Descripción:** Rastrea las reacciones de usuarios a mensajes específicos
+- **Campos:**
+  - `id`: Identificador único
+  - `channel_id`: ID del canal
+  - `message_id`: ID del mensaje
+  - `user_id`: ID del usuario que reaccionó
+  - `emoji`: Emoji de la reacción
+  - `besitos_awarded`: Besitos otorgados
+  - `created_at`: Fecha de la reacción

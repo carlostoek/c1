@@ -884,6 +884,255 @@ def _create_dashboard_keyboard(data: dict) -> "InlineKeyboardMarkup":
 - **Visualización clara:** Uso de emojis y formato HTML para mejor comprensión del estado del sistema
 ```
 
+## Reactions Handlers (Fase 4.1-4.3)
+
+### admin/reactions_config.py - Configuración de Reacciones
+
+**Responsabilidad:** Handlers del panel de configuración de reacciones que permite a los administradores gestionar las reacciones disponibles para las publicaciones en los canales, incluyendo creación, edición, activación/desactivación y eliminación de reacciones.
+
+**Componentes:**
+- `bot/handlers/admin/reactions_config.py` - Handlers principales y callbacks de navegación para el panel de configuración de reacciones
+
+**Características:**
+- **Menú principal de configuración:** Visualización de reacciones existentes con estado (activa/inactiva) y contador de reacciones activas (X/6)
+- **Creación de reacciones:** Flujo FSM de 3 pasos (emoji, label, besitos_reward) con validaciones de unicidad y límites
+- **Edición de reacciones:** Edición de label y besitos_reward de reacciones existentes
+- **Activación/desactivación:** Control de disponibilidad de reacciones sin eliminarlas
+- **Eliminación de reacciones:** Eliminación (o desactivación si tienen histórico) de reacciones
+- **Límite de reacciones:** Validación de límite de 6 reacciones activas simultáneamente (restricción de Telegram)
+- **Validaciones de negocio:** Validación de unicidad de emojis, cantidad mínima de besitos (1), longitud máxima de label (50 caracteres)
+
+**Flujo principal:**
+1. Usuario admin selecciona "⚙️ Configurar Reacciones" en el menú principal
+2. Bot muestra menú de configuración de reacciones con lista de reacciones existentes
+3. Usuario puede navegar entre diferentes opciones de gestión de reacciones
+4. Bot maneja flujos FSM para creación y edición de reacciones
+5. Bot aplica validaciones y actualiza la base de datos
+
+**Estructura de callbacks:**
+- `admin:reactions_config` - Callback para mostrar el menú principal de configuración de reacciones
+- `reaction:view:{id}` - Callback para ver detalles de una reacción específica
+- `reaction:create` - Callback para iniciar el flujo de creación de nueva reacción
+- `reaction:edit_label:{id}` - Callback para editar label de reacción existente
+- `reaction:edit_besitos:{id}` - Callback para editar besitos de reacción existente
+- `reaction:activate:{id}` - Callback para activar una reacción desactivada
+- `reaction:deactivate:{id}` - Callback para desactivar una reacción activa
+- `reaction:delete:{id}` - Callback para iniciar proceso de eliminación de reacción
+- `reaction:delete_confirm:{id}` - Callback para confirmar eliminación de reacción
+
+**Flujo de creación de reacciones:**
+1. Admin selecciona "➕ Crear Nueva Reacción" en menú de configuración
+2. Bot entra en estado FSM `waiting_for_emoji`
+3. Admin envía emoji (validación de unicidad y formato)
+4. Bot entra en estado FSM `waiting_for_label`
+5. Admin envía label (validación de longitud <= 50 caracteres)
+6. Bot entra en estado FSM `waiting_for_besitos`
+7. Admin envía cantidad de besitos (validación >= 1)
+8. Bot crea reacción y la marca como activa
+9. Bot actualiza menú de configuración
+
+**Flujo de edición de reacciones:**
+1. Admin selecciona una reacción en el menú de configuración
+2. Bot muestra opciones de edición disponibles
+3. Admin selecciona "✏️ Editar Label" o "💋 Editar Besitos"
+4. Bot entra en estado FSM correspondiente
+5. Admin envía nueva información
+6. Bot actualiza la reacción en la base de datos
+7. Bot regresa a vista de detalles de reacción
+
+**Uso del ServiceContainer:**
+```python
+# Crear container de servicios con sesión de BD y bot
+container = ServiceContainer(session, callback.bot)
+
+# Acceder al servicio de reacciones
+active_reactions = await container.reactions.get_active_reactions()
+all_reactions = await container.reactions.get_all_reactions(include_inactive=True)
+reaction = await container.reactions.create_reaction(emoji, label, besitos_reward)
+updated_reaction = await container.reactions.update_reaction(reaction_id, label, besitos_reward, active)
+```
+
+**Interacción con teclados inline:**
+```python
+def reactions_config_keyboard(reactions: List[ReactionConfig]) -> "InlineKeyboardMarkup":
+    """
+    Keyboard del menú de configuración de reacciones.
+
+    Args:
+        reactions: Lista de reacciones configuradas
+
+    Returns:
+        InlineKeyboardMarkup con menú de configuración
+    """
+    keyboard_buttons = []
+
+    # Botones para cada reacción existente
+    for reaction in reactions:
+        status_icon = "✅" if reaction.active else "❌"
+        keyboard_buttons.append([{
+            "text": f"{status_icon} {reaction.emoji} {reaction.label}",
+            "callback_data": f"reaction:view:{reaction.id}"
+        }])
+
+    # Botón crear nueva (si no se llegó al límite)
+    active_count = sum(1 for r in reactions if r.active)
+    if active_count < ReactionService.MAX_ACTIVE_REACTIONS:
+        keyboard_buttons.append([{
+            "text": "➕ Crear Nueva Reacción",
+            "callback_data": "reaction:create"
+        }])
+
+    # Botón volver
+    keyboard_buttons.append([{
+        "text": "🔙 Volver al Menú Admin",
+        "callback_data": "admin:main"
+    }])
+
+    return create_inline_keyboard(keyboard_buttons)
+```
+
+### admin/reactions.py - Configuración de Reacciones Automáticas
+
+**Responsabilidad:** Handlers para configurar reacciones automáticas para canales VIP y Free, permitiendo a los administradores definir emojis que se aplican automáticamente a nuevas publicaciones.
+
+**Componentes:**
+- `bot/handlers/admin/reactions.py` - Handlers para configuración de reacciones automáticas
+
+**Características:**
+- **Configuración de reacciones VIP:** Configuración de emojis que se aplican automáticamente a publicaciones en canal VIP
+- **Configuración de reacciones Free:** Configuración de emojis que se aplican automáticamente a publicaciones en canal Free
+- **Validación de emojis:** Validación de formato y cantidad de emojis (1-10)
+- **Integración con BotConfig:** Guardado de reacciones en campo JSON de BotConfig
+
+**Flujo de configuración de reacciones VIP:**
+1. Admin selecciona "⚙️ Configurar Reacciones VIP" en menú de configuración
+2. Bot entra en estado FSM `waiting_for_vip_reactions`
+3. Admin envía emojis separados por espacios
+4. Bot valida formato y cantidad
+5. Bot guarda reacciones en BotConfig
+6. Bot actualiza menú de configuración
+
+**Flujo de configuración de reacciones Free:**
+1. Admin selecciona "⚙️ Configurar Reacciones Free" en menú de configuración
+2. Bot entra en estado FSM `waiting_for_free_reactions`
+3. Admin envía emojis separados por espacios
+4. Bot valida formato y cantidad
+5. Bot guarda reacciones en BotConfig
+6. Bot actualiza menú de configuración
+
+### user/reactions.py - Reacciones de Usuarios
+
+**Responsabilidad:** Handlers para procesar reacciones de usuarios a publicaciones, incluyendo validación de rate limiting, otorgamiento de besitos y actualización de contadores.
+
+**Componentes:**
+- `bot/handlers/user/reactions.py` - Handlers para reacciones de usuarios a publicaciones
+
+**Características:**
+- **Validación de rate limiting:** Máximo 50 reacciones por día y mínimo 5 segundos entre reacciones
+- **Otorgamiento de besitos:** Integración con sistema de gamificación para otorgar besitos por reaccionar
+- **Actualización de contadores:** Actualización en tiempo real de contadores de reacciones en botones
+- **Registro de reacciones:** Almacenamiento de reacciones en base de datos con información de usuario, mensaje y emoji
+- **Emitir eventos:** Emisión de eventos `MessageReactedEvent` para seguimiento y análisis
+
+**Flujo de reacción de usuario:**
+1. Usuario hace click en botón de reacción
+2. Bot recibe callback con formato `react:{emoji}:{channel_id}:{message_id}`
+3. Bot valida rate limiting del usuario
+4. Bot registra reacción en base de datos
+5. Bot otorga besitos según configuración de la reacción
+6. Bot actualiza contadores en tiempo real
+7. Bot responde con feedback al usuario
+
+**Formato de callback:**
+- `react:{emoji}:{channel_id}:{message_id}` - Callback para procesar reacción de usuario a mensaje específico
+
+**Validación de rate limiting:**
+```python
+async def _validate_rate_limiting(
+    user_id: int,
+    session: AsyncSession
+) -> tuple[bool, str]:
+    """
+    Valida rate limiting de reacciones para un usuario.
+
+    Reglas:
+    1. Máximo 50 reacciones por día (últimas 24 horas)
+    2. Mínimo 5 segundos desde la última reacción
+
+    Args:
+        user_id: ID del usuario
+        session: Sesión de BD
+
+    Returns:
+        Tupla (can_react, reason):
+        - can_react: True si puede reaccionar, False si no
+        - reason: Mensaje explicando por qué no puede (vacío si puede)
+    """
+```
+
+**Otorgamiento de besitos:**
+```python
+async def _award_besitos_for_reaction(
+    user_id: int,
+    reaction,
+    session: AsyncSession,
+    bot
+) -> int:
+    """
+    Otorga besitos al usuario por reaccionar y emite evento.
+
+    Args:
+        user_id: ID del usuario
+        reaction: MessageReaction registrada en BD
+        session: Sesión de BD
+        bot: Instancia del bot
+
+    Returns:
+        Cantidad de besitos otorgados (considerando multiplicadores)
+    """
+```
+
+**Actualización de contadores:**
+```python
+async def _update_reaction_counter(
+    callback: CallbackQuery,
+    channel_id: int,
+    message_id: int,
+    session: AsyncSession
+):
+    """
+    Actualiza el contador en el botón de reacción en tiempo real.
+
+    Args:
+        callback: Callback query original
+        channel_id: ID del canal
+        message_id: ID del mensaje
+        session: Sesión de BD
+    """
+```
+
+### admin/broadcast.py - Integración con Broadcasting
+
+**Responsabilidad:** Handlers para broadcasting que incluyen opción de adjuntar botones de reacción a las publicaciones.
+
+**Características:**
+- **Opción de adjuntar reacciones:** Permite adjuntar botones de reacción a las publicaciones durante el proceso de broadcasting
+- **Selección de opciones:** Flujo FSM para seleccionar opciones (reacciones y protección de contenido)
+- **Generación de keyboard de reacciones:** Creación de teclado inline con botones de reacción para publicaciones
+- **Integración con ReactionService:** Uso del servicio de reacciones para obtener reacciones activas
+
+**Flujo de broadcasting con reacciones:**
+1. Admin inicia flujo de broadcasting
+2. Admin envía contenido multimedia
+3. Bot muestra preview
+4. Bot cambia a estado `choosing_options`
+5. Admin selecciona opción de adjuntar reacciones
+6. Bot genera keyboard con reacciones activas
+7. Bot envía publicación con botones de reacción
+
+**Estado FSM:**
+- `choosing_options` - Estado para seleccionar opciones de broadcasting (reacciones y protección)
+
 ## Inyección de Dependencias
 
 Los handlers reciben dependencias inyectadas automáticamente:
@@ -993,6 +1242,6 @@ async def test_start_handler():
 
 ---
 
-**Última actualización:** 2025-12-13
-**Versión:** 1.0.0
-**Estado:** Documentación de handlers planeados (implementación en fases posteriores)
+**Última actualización:** 2025-12-15
+**Versión:** 1.1.0
+**Estado:** Documentación actualizada con Reactions Handlers (Fase 4.1-4.3) - Implementado

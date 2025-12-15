@@ -1,64 +1,117 @@
 """
-Pytest Configuration and Shared Fixtures.
+Pytest configuration and shared fixtures.
 
-Proporciona fixtures comunes para todos los tests:
-- mock_bot: Mock del bot de Telegram
+Fixtures disponibles:
+- db_session: Sesión de BD de prueba
+- reaction_service: Instancia de ReactionService para tests
+- sample_reactions: Lista de reacciones de prueba
 """
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, Mock
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 
-from bot.database import init_db, close_db
+from bot.database.models import Base, ReactionConfig, MessageReaction, User
+from bot.services.reactions import ReactionService
+from bot.database.engine import init_db, close_db
 
 
-@pytest.fixture
+# Event loop fixture para pytest-asyncio
+@pytest.fixture(scope="session")
 def event_loop():
     """
-    Fixture: Event loop para tests async.
+    Create an instance of the default event loop for the test session.
     """
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
-# Hook para inicializar BD antes de cada test async
-@pytest.fixture(autouse=True)
-def db_setup(event_loop):
+# Engine y session fixtures
+@pytest_asyncio.fixture
+async def db_engine():
     """
-    Setup BD antes de cada test.
+    Create test database engine.
+    Uses in-memory SQLite for speed.
     """
-    # Ejecutar init_db antes del test
-    event_loop.run_until_complete(init_db())
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        echo=False
+    )
+    
+    # Create all tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    
+    yield engine
+    
+    # Cleanup
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    
+    await engine.dispose()
 
-    yield
 
-    # Limpiar BD despues del test
-    event_loop.run_until_complete(close_db())
-
-
-@pytest.fixture
-def mock_bot():
+@pytest_asyncio.fixture
+async def db_session(db_engine):
     """
-    Fixture: Mock del bot de Telegram.
-
-    Proporciona mock de métodos Telegram API necesarios:
-    - get_chat
-    - get_chat_member
-    - create_chat_invite_link
-    - ban_chat_member
-    - unban_chat_member
-    - send_message
+    Create test database session.
     """
-    bot = Mock()
-    bot.id = 123456789
+    async_session = sessionmaker(
+        db_engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
+    
+    async with async_session() as session:
+        yield session
+        await session.rollback()
 
-    # Mock de métodos necesarios (retornan AsyncMock)
-    bot.get_chat = AsyncMock()
-    bot.get_chat_member = AsyncMock()
-    bot.create_chat_invite_link = AsyncMock()
-    bot.ban_chat_member = AsyncMock()
-    bot.unban_chat_member = AsyncMock()
-    bot.send_message = AsyncMock()
 
-    return bot
+@pytest_asyncio.fixture
+async def reaction_service(db_session):
+    """
+    Create ReactionService instance for testing.
+    """
+    return ReactionService(db_session)
+
+
+@pytest_asyncio.fixture
+async def sample_user(db_session):
+    """
+    Create a sample user for testing.
+    """
+    user = User(
+        user_id=123456789,
+        username="testuser",
+        is_vip=False
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def sample_reactions(reaction_service):
+    """
+    Create sample reaction configs for testing.
+    """
+    reactions_data = [
+        ("❤️", "Me encanta", 5),
+        ("👍", "Me gusta", 3),
+        ("🔥", "Genial", 4)
+    ]
+    
+    reactions = []
+    for emoji, label, besitos in reactions_data:
+        reaction = await reaction_service.create_reaction(
+            emoji=emoji,
+            label=label,
+            besitos_reward=besitos
+        )
+        if reaction:
+            reactions.append(reaction)
+    
+    return reactions
