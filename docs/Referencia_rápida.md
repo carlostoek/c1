@@ -533,6 +533,174 @@ await container.subscription.generate_vip_token(...)
 - Procesamiento Free
 
 ═══════════════════════════════════════════════════════════════
+# NOTIFICATION SERVICE (B2)
+═══════════════════════════════════════════════════════════════
+
+## Módulo: bot/notifications/
+
+**Propósito:** Sistema centralizado de notificaciones con templates personalizables
+y RewardBatch para agrupar múltiples recompensas.
+
+### Componentes
+
+**1. NotificationType (types.py)**
+```python
+# Enum de tipos de notificaciones
+class NotificationType(str, Enum):
+    WELCOME                  # Bienvenida al usuario
+    POINTS_EARNED           # Besitos ganados
+    BADGE_UNLOCKED          # Insignia desbloqueada
+    RANK_UP                 # Cambio de rango
+    VIP_ACTIVATED           # VIP activado
+    VIP_EXPIRING_SOON       # VIP por expirar
+    VIP_EXPIRED             # VIP expirado
+    DAILY_LOGIN             # Login diario
+    STREAK_MILESTONE        # Hito de racha
+    REFERRAL_SUCCESS        # Referido exitoso
+    INFO / WARNING / ERROR  # Informativos
+```
+
+**2. RewardBatch (batch.py)**
+- **Reward:** Una recompensa individual (puntos, badge, rank)
+- **RewardBatch:** Agrupa múltiples recompensas en una sola notificación
+
+```python
+# Ejemplo de uso:
+batch = RewardBatch(user_id=123, action="Reaccionaste a un mensaje")
+batch.add_besitos(50, "Reacción")
+batch.add_badge("🔥 Hot Streak", "10 días")
+batch.add_rank_up("Novato", "Bronce")
+await notifications.send_reward_batch(batch)  # Una sola notificación
+```
+
+**Ventajas:**
+- Reduce spam de notificaciones
+- Agrupa recompensas relacionadas
+- Mejor UX: información consolidada
+- Soporta emojis y HTML
+
+**3. NotificationTemplates (templates.py)**
+- 13+ templates HTML predefinidos
+- Placeholders: {variable} se reemplazan dinámicamente
+- Soporta emojis y HTML formatting
+- Renderizado con método `.render()`
+
+Ejemplos:
+- `WELCOME_DEFAULT` → Bienvenida personalizada
+- `BESITOS_EARNED` → Notificación de puntos
+- `BADGE_UNLOCKED` → Insignia ganada
+- `RANK_UP` → Cambio de rango
+- `VIP_ACTIVATED` → VIP activado
+
+**4. NotificationService (service.py)**
+- Servicio centralizado de envío de notificaciones
+- Lazy loaded en ServiceContainer
+- Busca templates personalizados en BD primero, luego defaults
+
+Métodos principales:
+```python
+async def send(user_id, notification_type, context, keyboard)
+    # Envía notificación genérica
+
+async def send_reward_batch(batch, keyboard)
+    # Envía lote de recompensas
+
+async def send_welcome(user_id, first_name, role_name, role_emoji)
+    # Envía bienvenida personalizada
+
+async def send_besitos(user_id, amount, reason, total_besitos)
+    # Envía notificación de Besitos
+```
+
+**5. NotificationTemplate (modelo BD)**
+```python
+class NotificationTemplate:
+    id          # ID único
+    type        # NotificationType (unique)
+    name        # Nombre descriptivo
+    content     # HTML del template
+    active      # Si está en uso
+    created_at  # Fecha creación
+    updated_at  # Última actualización
+```
+
+### Admin Interface (handlers/admin/notifications.py)
+
+Menu: **💬 Mensajes** en panel admin
+
+Funcionalidades:
+- Listar templates personalizados
+- Editar templates (mostrar contenido actual)
+- Activar/Desactivar templates
+
+Flujo:
+```
+/admin
+  → ⚙️ Configuración
+    → 💬 Mensajes
+      → ✏️ Editar Template
+        → 🔄 Activar/Desactivar
+```
+
+### Integración
+
+**Uso en handlers:**
+```python
+container = ServiceContainer(session, bot)
+
+# Notificación simple
+await container.notifications.send(
+    user_id=123,
+    notification_type=NotificationType.WELCOME,
+    context={"first_name": "Juan", "role_name": "Free", "role_emoji": "👤"}
+)
+
+# Lote de recompensas
+batch = RewardBatch(user_id=123, action="Acción")
+batch.add_besitos(50)
+await container.notifications.send_reward_batch(batch)
+```
+
+**Uso en listeners de eventos:**
+```python
+@subscribe(MessageReactedEvent)
+async def on_message_reacted(event):
+    batch = RewardBatch(user_id=event.user_id, action="Reaccionaste")
+    batch.add_besitos(10)
+    if user_unlocked_badge:
+        batch.add_badge("Badge name")
+    await notifications.send_reward_batch(batch)
+```
+
+### Características
+
+✅ Templates personalizables sin tocar código
+✅ RewardBatch para unificar notificaciones
+✅ Soporte de emojis y HTML
+✅ Logging automático
+✅ Manejo de errores (no crashea el bot)
+✅ Type hints completos
+✅ 36 tests (batch + templates)
+
+### Testing
+
+```bash
+# Tests de RewardBatch
+pytest tests/test_notification_batch.py -v  # 19 tests
+
+# Tests de Templates
+pytest tests/test_notification_templates.py -v  # 17 tests
+
+# Casos cubiertos:
+# - Agrupación de recompensas
+# - Formateo de mensajes
+# - Renderizado de templates
+# - Manejo de variables
+# - Caracteres especiales
+# - Emojis
+```
+
+═══════════════════════════════════════════════════════════════
 # ESTADÍSTICAS FINALES
 ═══════════════════════════════════════════════════════════════
 
@@ -551,10 +719,12 @@ await container.subscription.generate_vip_token(...)
 - A2: Sistema de Roles de Usuario ✅
 - A3: Tokens con Deep Links + Activación Automática ✅
 - B1: Event Bus (Pub/Sub) ✅
+- B2: Notification Service + RewardBatch ✅
 
 **Total:**
-- Archivos: ~40
-- Líneas código productivo: ~4,000+
-- Tests E2E: 20+
+- Archivos: ~48
+- Líneas código productivo: ~5,300+
+- Módulos: 8 (database, services, handlers, middlewares, states, utils, events, notifications)
+- Tests E2E + Unit: 36 nuevos (batch, templates)
 - Type hints: 100%
 - Docstrings: 100%
