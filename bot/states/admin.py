@@ -140,3 +140,35 @@ class PricingSetupStates(StatesGroup):
 
     # Paso 3: Esperando precio del plan
     waiting_for_price = State()
+
+
+class ReactionConfigStates(StatesGroup):
+    """
+    Estados FSM para configuración de reacciones.
+    
+    Flujos soportados:
+    1. Crear nueva reacción:
+       - waiting_for_emoji → esperando emoji del admin
+       - waiting_for_label → esperando label descriptivo
+       - waiting_for_besitos → esperando cantidad de besitos
+    
+    2. Editar reacción existente:
+       - editing_label → esperando nuevo label
+       - editing_besitos → esperando nuevos besitos
+    
+    Estados:
+    - waiting_for_emoji: Admin envía emoji para nueva reacción (ej: ❤️)
+    - waiting_for_label: Admin envía label descriptivo (ej: "Me encanta")
+    - waiting_for_besitos: Admin envía cantidad de besitos (ej: 5)
+    - editing_label: Admin envía nuevo label para reacción existente
+    - editing_besitos: Admin envía nuevos besitos para reacción existente
+    """
+    
+    # Estados para crear nueva reacción
+    waiting_for_emoji = State()
+    waiting_for_label = State()
+    waiting_for_besitos = State()
+    
+    # Estados para editar reacción existente
+    editing_label = State()
+    editing_besitos = State()

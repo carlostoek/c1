@@ -77,6 +77,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
         [{"text": "📺 Gestión Canal VIP", "callback_data": "admin:vip"}],
         [{"text": "📺 Gestión Canal Free", "callback_data": "admin:free"}],
         [{"text": "⚙️ Configuración", "callback_data": "admin:config"}],
+        [{"text": "⚙️ Configurar Reacciones", "callback_data": "admin:reactions_config"}],
         [{"text": "💰 Tarifas", "callback_data": "admin:pricing"}],
         [{"text": "💬 Mensajes", "callback_data": "admin:messages"}],
         [{"text": "📊 Estadísticas", "callback_data": "admin:stats"}],
