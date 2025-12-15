@@ -15,9 +15,11 @@ from typing import Optional, List
 
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime,
-    BigInteger, JSON, ForeignKey, Index, Float, Enum, Text
+    BigInteger, JSON, ForeignKey, Index, Float, Enum, Text,
+    CheckConstraint, UniqueConstraint
 )
 from sqlalchemy.orm import relationship, Mapped, mapped_column
+from datetime import timezone
 
 from bot.database.base import Base
 from bot.database.enums import UserRole
@@ -103,6 +105,11 @@ class User(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relaciones (se definen después en VIPSubscriber y FreeChannelRequest)
+    reactions = relationship(
+        "MessageReaction",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
 
     @property
     def full_name(self) -> str:
@@ -527,3 +534,112 @@ class NotificationTemplate(Base):
 
     def __repr__(self) -> str:
         return f"<NotificationTemplate(type='{self.type}', name='{self.name}')>"
+
+
+class ReactionConfig(Base):
+    """
+    Configuración de reacciones disponibles para publicaciones.
+
+    Almacena emojis, labels y puntajes de besitos para reacciones inline.
+    Permite a los administradores definir qué reacciones están disponibles
+    en los mensajes broadcasted.
+
+    Attributes:
+        id: ID único de la configuración
+        emoji: Emoji unicode único para la reacción (ej: "❤️", "👍")
+        label: Etiqueta/descripción corta (ej: "Like", "Love")
+        besitos_reward: Cantidad de besitos otorgados al reaccionar
+        active: Si la reacción está activa y disponible para usar
+        created_at: Fecha de creación
+        updated_at: Última actualización
+
+    Constraints:
+        - Emoji debe ser único en el sistema
+        - besitos_reward debe ser >= 1
+    """
+
+    __tablename__ = "reaction_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    emoji = Column(String(10), nullable=False, unique=True, index=True)
+    label = Column(String(50), nullable=False)
+    besitos_reward = Column(Integer, nullable=False)
+    active = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint("emoji", name="uq_reaction_emoji"),
+        CheckConstraint("besitos_reward >= 1", name="ck_besitos_positive"),
+    )
+
+    def __repr__(self) -> str:
+        status = "✅" if self.active else "❌"
+        return (
+            f"<ReactionConfig(id={self.id}, emoji='{self.emoji}', "
+            f"label='{self.label}', besitos={self.besitos_reward}, "
+            f"active={status})>"
+        )
+
+
+class MessageReaction(Base):
+    """
+    Reacciones de usuarios a mensajes de canal.
+
+    Rastrea qué usuario reaccionó a qué mensaje, con qué emoji,
+    y cuántos besitos se otorgaron.
+
+    Constraint: Un usuario solo puede tener UNA reacción activa por mensaje.
+
+    Attributes:
+        id: ID único de la reacción
+        channel_id: ID del canal de Telegram donde está el mensaje
+        message_id: ID del mensaje de Telegram
+        user_id: ID del usuario que reaccionó (FK a users)
+        emoji: Emoji de la reacción (ej: "❤️", "👍")
+        besitos_awarded: Cantidad de besitos otorgados en este momento
+        created_at: Fecha de la reacción
+        user: Relación a User
+    """
+
+    __tablename__ = "message_reactions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Identificación del mensaje
+    channel_id = Column(BigInteger, nullable=False, index=True)
+    message_id = Column(BigInteger, nullable=False, index=True)
+
+    # Usuario que reacciona
+    user_id = Column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    # Reacción seleccionada
+    emoji = Column(String(10), nullable=False)
+    besitos_awarded = Column(Integer, nullable=False)
+
+    # Metadata
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    # Relaciones
+    user = relationship("User", back_populates="reactions")
+
+    # Constraints
+    __table_args__ = (
+        # Un usuario solo puede tener una reacción por mensaje
+        UniqueConstraint("channel_id", "message_id", "user_id", name="uq_message_user_reaction"),
+        # Índice compuesto para queries frecuentes
+        Index("ix_message_reactions_lookup", "channel_id", "message_id"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<MessageReaction(id={self.id}, user={self.user_id}, "
+            f"msg={self.message_id}, emoji='{self.emoji}', "
+            f"besitos={self.besitos_awarded})>"
+        )
