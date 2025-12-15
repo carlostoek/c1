@@ -177,8 +177,9 @@ async def _validate_rate_limiting(
         MAX_REACTIONS_PER_DAY = 50
         MIN_SECONDS_BETWEEN_REACTIONS = 5
 
-        # Tiempo actual
-        now = datetime.now(timezone.utc)
+        # Tiempo actual - usar datetime.utcnow() para consistencia con el modelo de BD
+        # que usa datetime.utcnow() como default
+        now = datetime.utcnow()
 
         # === VALIDACIÓN 1: Mínimo 5 segundos desde última reacción ===
 
@@ -296,20 +297,21 @@ async def _award_besitos_for_reaction(
 
         # Paso 2: Otorgar besitos usando el servicio
         # GamificationService.award_besitos() ya aplica multiplicadores automáticamente
-        awarded = await gamification.award_besitos(
+        amount_awarded, ranked_up, new_rank = await gamification.award_besitos(
             user_id=user_id,
-            amount=reaction.besitos_awarded,
-            reason="Reacción a publicación"
+            action="message_reacted",
+            custom_amount=reaction.besitos_awarded,
+            custom_reason="Reacción a publicación"
         )
 
-        if not awarded:
+        if amount_awarded == 0:
             logger.warning(
                 f"⚠️ No se pudieron otorgar besitos a user {user_id}"
             )
             return 0
 
         logger.info(
-            f"💋 Besitos otorgados: user {user_id} → {reaction.besitos_awarded} besitos "
+            f"💋 Besitos otorgados: user {user_id} → {amount_awarded} besitos "
             f"(puede haber multiplicador aplicado)"
         )
 

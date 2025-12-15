@@ -150,7 +150,7 @@ class GamificationService:
         )
 
         # Emitir evento de puntos
-        await event_bus.publish(PointsAwardedEvent(
+        event_bus.publish(PointsAwardedEvent(
             user_id=user_id,
             points=amount,
             reason=reason,
@@ -159,7 +159,7 @@ class GamificationService:
 
         # Emitir evento de rank up si aplica
         if ranked_up:
-            await event_bus.publish(RankUpEvent(
+            event_bus.publish(RankUpEvent(
                 user_id=user_id,
                 old_rank=old_rank,
                 new_rank=new_rank_obj.name,
@@ -213,7 +213,7 @@ class GamificationService:
                 )
 
                 # Emitir evento
-                await event_bus.publish(BadgeUnlockedEvent(
+                event_bus.publish(BadgeUnlockedEvent(
                     user_id=user_id,
                     badge_id=badge_def.id,
                     badge_name=badge_def.name
