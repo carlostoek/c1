@@ -12,14 +12,14 @@ import logging
 from typing import Optional
 
 from aiogram import F
-from aiogram.types import CallbackQuery, Message, ContentType
+from aiogram.types import CallbackQuery, Message, ContentType, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.handlers.admin.main import admin_router
 from bot.states.admin import BroadcastStates
 from bot.services.container import ServiceContainer
-from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.keyboards import create_inline_keyboard, create_reaction_keyboard
 
 logger = logging.getLogger(__name__)
 
@@ -234,107 +234,71 @@ async def callback_broadcast_confirm(
     session: AsyncSession
 ):
     """
-    Confirma y envía el mensaje al canal(es).
-
+    Handler cuando admin confirma el contenido.
+    
+    CAMBIO: Ahora en lugar de enviar directamente, muestra opciones.
+    
     Args:
         callback: Callback query
         state: FSM context
         session: Sesión de BD
     """
     user_id = callback.from_user.id
-
-    # Obtener data del FSM
+    
+    logger.info(f"✅ Usuario {user_id} confirmó contenido, mostrando opciones")
+    
+    # Cambiar a estado de opciones
+    await state.set_state(BroadcastStates.choosing_options)
+    
+    # Inicializar opciones en FSM data (ambas en False por defecto)
+    await state.update_data(
+        attach_reactions=False,
+        protect_content=False
+    )
+    
+    # Obtener data del contenido
     data = await state.get_data()
-    target_channel = data["target_channel"]
-    content_type = data["content_type"]
-    file_id = data.get("file_id")
-    caption = data.get("caption")
-
-    logger.info(f"📤 Usuario {user_id} confirmó broadcast a {target_channel}")
-
-    # Notificar que se está enviando
-    await callback.answer("📤 Enviando publicación...", show_alert=False)
-
-    container = ServiceContainer(session, callback.bot)
-
-    # Determinar canales destino
-    channels_to_send = []
-
-    if target_channel == "vip":
-        vip_channel = await container.channel.get_vip_channel_id()
-        if vip_channel:
-            channels_to_send.append(("VIP", vip_channel))
-
-    elif target_channel == "free":
-        free_channel = await container.channel.get_free_channel_id()
-        if free_channel:
-            channels_to_send.append(("Free", free_channel))
-
-    # Validar que hay canales configurados
-    if not channels_to_send:
-        await callback.message.edit_text(
-            "❌ <b>Error: Canales No Configurados</b>\n\n"
-            "Debes configurar los canales antes de enviar publicaciones.",
-            reply_markup=create_inline_keyboard([
-                [{"text": "🔙 Volver", "callback_data": "admin:main"}]
-            ]),
-            parse_mode="HTML"
-        )
-        await state.clear()
-        return
-
-    # Enviar a cada canal
-    results = []
-
-    for channel_name, channel_id in channels_to_send:
-        try:
-            if content_type == ContentType.PHOTO:
-                success, msg, _ = await container.channel.send_to_channel(
-                    channel_id=channel_id,
-                    text=caption or "",
-                    photo=file_id
-                )
-
-            elif content_type == ContentType.VIDEO:
-                success, msg, _ = await container.channel.send_to_channel(
-                    channel_id=channel_id,
-                    text=caption or "",
-                    video=file_id
-                )
-
-            else:  # TEXT
-                success, msg, _ = await container.channel.send_to_channel(
-                    channel_id=channel_id,
-                    text=caption or ""
-                )
-
-            if success:
-                results.append(f"✅ Canal {channel_name}")
-                logger.info(f"✅ Publicación enviada a canal {channel_name}")
-            else:
-                results.append(f"❌ Canal {channel_name}: {msg}")
-                logger.error(f"❌ Error enviando a {channel_name}: {msg}")
-
-        except Exception as e:
-            results.append(f"❌ Canal {channel_name}: Error inesperado")
-            logger.error(f"❌ Excepción enviando a {channel_name}: {e}", exc_info=True)
-
-    # Mostrar resultados
-    results_text = "\n".join(results)
-
+    target_channel = data.get("target_channel", "vip")
+    channel_name = {"vip": "VIP", "free": "Free"}.get(target_channel, "VIP")
+    
+    # Construir mensaje de opciones
+    text = (
+        f"📤 <b>Opciones de Publicación - Canal {channel_name}</b>\n\n"
+        f"Selecciona las opciones que deseas aplicar:\n\n"
+        f"<b>Opciones disponibles:</b>\n"
+        f"❌ Adjuntar botones de reacción\n"
+        f"❌ Proteger contenido (sin reenvío/guardado)\n\n"
+        f"Haz click en las opciones para activarlas/desactivarlas.\n"
+        f"Cuando estés listo, confirma para enviar."
+    )
+    
+    # Keyboard con opciones
+    keyboard_buttons = [
+        [{
+            "text": "❌ Adjuntar Reacciones",
+            "callback_data": "broadcast:toggle:reactions"
+        }],
+        [{
+            "text": "❌ Proteger Contenido",
+            "callback_data": "broadcast:toggle:protect"
+        }],
+        [{
+            "text": "✅ Confirmar y Enviar",
+            "callback_data": "broadcast:confirm_options"
+        }],
+        [{
+            "text": "❌ Cancelar",
+            "callback_data": "broadcast:cancel"
+        }]
+    ]
+    
     await callback.message.edit_text(
-        f"📤 <b>Resultado del Envío</b>\n\n{results_text}\n\n"
-        f"La publicación ha sido procesada.",
-        reply_markup=create_inline_keyboard([
-            [{"text": "🔙 Volver al Menú", "callback_data": "admin:main"}]
-        ]),
+        text=text,
+        reply_markup=create_inline_keyboard(keyboard_buttons),
         parse_mode="HTML"
     )
-
-    # Limpiar estado FSM
-    await state.clear()
-
-    logger.info(f"✅ Broadcasting completado para user {user_id}")
+    
+    await callback.answer()
 
 
 @admin_router.callback_query(
@@ -457,3 +421,334 @@ async def _generate_preview_text(
     text += "\n\n⚠️ Verifica que el contenido sea correcto antes de confirmar."
 
     return text
+
+
+@admin_router.callback_query(
+    BroadcastStates.choosing_options,
+    F.data.startswith("broadcast:toggle:")
+)
+async def callback_toggle_option(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Toggle (activar/desactivar) una opción.
+    
+    Opciones:
+    - broadcast:toggle:reactions → Toggle attach_reactions
+    - broadcast:toggle:protect → Toggle protect_content
+    
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    # Extraer qué opción se está toggleando
+    option = callback.data.split(":")[-1]  # "reactions" o "protect"
+    
+    logger.debug(f"🔄 Usuario {callback.from_user.id} toggleando opción: {option}")
+    
+    # Obtener estado actual de opciones
+    data = await state.get_data()
+    attach_reactions = data.get("attach_reactions", False)
+    protect_content = data.get("protect_content", False)
+    target_channel = data.get("target_channel", "vip")
+    
+    # Toggle la opción correspondiente
+    if option == "reactions":
+        attach_reactions = not attach_reactions
+        await state.update_data(attach_reactions=attach_reactions)
+        
+        # Validar que hay reacciones configuradas
+        if attach_reactions:
+            container = ServiceContainer(session, callback.bot)
+            active_reactions = await container.reactions.get_active_reactions()
+            
+            if not active_reactions:
+                # No hay reacciones configuradas, revertir
+                await state.update_data(attach_reactions=False)
+                attach_reactions = False
+                
+                await callback.answer(
+                    "❌ No hay reacciones configuradas.\n"
+                    "Configúralas primero en el menú admin.",
+                    show_alert=True
+                )
+                return
+    
+    elif option == "protect":
+        protect_content = not protect_content
+        await state.update_data(protect_content=protect_content)
+    
+    # Actualizar el mensaje con el nuevo estado
+    channel_name = {"vip": "VIP", "free": "Free"}.get(target_channel, "VIP")
+    
+    reactions_icon = "✅" if attach_reactions else "❌"
+    protect_icon = "✅" if protect_content else "❌"
+    
+    text = (
+        f"📤 <b>Opciones de Publicación - Canal {channel_name}</b>\n\n"
+        f"Selecciona las opciones que deseas aplicar:\n\n"
+        f"<b>Opciones disponibles:</b>\n"
+        f"{reactions_icon} Adjuntar botones de reacción\n"
+        f"{protect_icon} Proteger contenido (sin reenvío/guardado)\n\n"
+        f"Haz click en las opciones para activarlas/desactivarlas.\n"
+        f"Cuando estés listo, confirma para enviar."
+    )
+    
+    # Actualizar keyboard con iconos actualizados
+    keyboard_buttons = [
+        [{
+            "text": f"{reactions_icon} Adjuntar Reacciones",
+            "callback_data": "broadcast:toggle:reactions"
+        }],
+        [{
+            "text": f"{protect_icon} Proteger Contenido",
+            "callback_data": "broadcast:toggle:protect"
+        }],
+        [{
+            "text": "✅ Confirmar y Enviar",
+            "callback_data": "broadcast:confirm_options"
+        }],
+        [{
+            "text": "❌ Cancelar",
+            "callback_data": "broadcast:cancel"
+        }]
+    ]
+    
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=create_inline_keyboard(keyboard_buttons),
+        parse_mode="HTML"
+    )
+    
+    # Feedback al usuario
+    option_name = "Reacciones" if option == "reactions" else "Protección"
+    status = "activada" if (attach_reactions if option == "reactions" else protect_content) else "desactivada"
+    
+    await callback.answer(f"✅ {option_name} {status}", show_alert=False)
+
+
+@admin_router.callback_query(
+    BroadcastStates.choosing_options,
+    F.data == "broadcast:confirm_options"
+)
+async def callback_confirm_options(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Confirma opciones y envía el mensaje al canal.
+    
+    Este handler contiene el código de envío que antes estaba
+    en callback_broadcast_confirm.
+    
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    user_id = callback.from_user.id
+    
+    # Obtener data del FSM (contenido + opciones)
+    data = await state.get_data()
+    target_channel = data["target_channel"]
+    content_type = data["content_type"]
+    file_id = data.get("file_id")
+    caption = data.get("caption")
+    attach_reactions = data.get("attach_reactions", False)
+    protect_content = data.get("protect_content", False)
+    
+    logger.info(
+        f"📤 Usuario {user_id} confirmó envío a {target_channel} "
+        f"[reacciones: {attach_reactions}, protección: {protect_content}]"
+    )
+    
+    # Notificar que se está enviando
+    await callback.answer("📤 Enviando publicación...", show_alert=False)
+    
+    container = ServiceContainer(session, callback.bot)
+    
+    # Determinar canales destino (CÓDIGO EXISTENTE)
+    channels_to_send = []
+    
+    if target_channel == "vip":
+        vip_channel = await container.channel.get_vip_channel_id()
+        if vip_channel:
+            channels_to_send.append(("VIP", vip_channel))
+    
+    elif target_channel == "free":
+        free_channel = await container.channel.get_free_channel_id()
+        if free_channel:
+            channels_to_send.append(("Free", free_channel))
+    
+    # Validar que hay canales configurados
+    if not channels_to_send:
+        await callback.message.edit_text(
+            "❌ <b>Error: Canales No Configurados</b>\n\n"
+            "Debes configurar los canales antes de enviar publicaciones.",
+            reply_markup=create_inline_keyboard([
+                [{"text": "🔙 Volver", "callback_data": "admin:main"}]
+            ]),
+            parse_mode="HTML"
+        )
+        await state.clear()
+        return
+    
+    # Generar keyboard de reacciones si se activó la opción
+    reaction_keyboard = None
+    if attach_reactions:
+        # Obtener reacciones activas
+        active_reactions = await container.reactions.get_active_reactions()
+        
+        if active_reactions:
+            # Generar keyboard (se implementará en Prompt 4.3)
+            # Por ahora, placeholder
+            reaction_keyboard = await _generate_reaction_keyboard(
+                active_reactions,
+                channel_id=channels_to_send[0][1],  # ID del canal
+                message_id=0  # Se actualizará después de enviar
+            )
+    
+    # Enviar a cada canal (CÓDIGO EXISTENTE CON MODIFICACIONES)
+    results = []
+    
+    for channel_name, channel_id in channels_to_send:
+        try:
+            # Preparar kwargs para envío
+            send_kwargs = {
+                "protect_content": protect_content  # NUEVO: aplicar protección
+            }
+            
+            # Enviar según tipo de contenido
+            if content_type == "photo":
+                success, msg, sent_message = await container.channel.send_to_channel(
+                    channel_id=channel_id,
+                    text=caption or "",
+                    photo=file_id,
+                    **send_kwargs
+                )
+            
+            elif content_type == "video":
+                success, msg, sent_message = await container.channel.send_to_channel(
+                    channel_id=channel_id,
+                    text=caption or "",
+                    video=file_id,
+                    **send_kwargs
+                )
+            
+            else:  # TEXT
+                success, msg, sent_message = await container.channel.send_to_channel(
+                    channel_id=channel_id,
+                    text=caption or "",
+                    **send_kwargs
+                )
+            
+            if success:
+                results.append(f"✅ Canal {channel_name}")
+                logger.info(f"✅ Publicación enviada a canal {channel_name}")
+                
+                # AGREGAR: Si se activaron reacciones, editar mensaje con keyboard
+                if attach_reactions and sent_message:
+                    try:
+                        # Generar keyboard con el message_id real
+                        reaction_keyboard = await _generate_reaction_keyboard(
+                            reactions=active_reactions,
+                            channel_id=channel_id,
+                            message_id=sent_message.message_id
+                        )
+                        
+                        if reaction_keyboard:
+                            # Editar mensaje para agregar keyboard
+                            await callback.bot.edit_message_reply_markup(
+                                chat_id=channel_id,
+                                message_id=sent_message.message_id,
+                                reply_markup=reaction_keyboard
+                            )
+                            
+                            logger.info(
+                                f"✅ Keyboard de reacciones agregado a mensaje {sent_message.message_id}"
+                            )
+                    except Exception as e:
+                        logger.error(
+                            f"⚠️ Error agregando keyboard a mensaje {sent_message.message_id}: {e}"
+                        )
+                        # No fallar el flujo completo, solo loguear
+            else:
+                results.append(f"❌ Canal {channel_name}: {msg}")
+                logger.error(f"❌ Error enviando a {channel_name}: {msg}")
+        
+        except Exception as e:
+            results.append(f"❌ Canal {channel_name}: Error inesperado")
+            logger.error(f"❌ Excepción enviando a {channel_name}: {e}", exc_info=True)
+    
+    # Mostrar resultados
+    results_text = "\n".join(results)
+    
+    # Construir resumen de opciones aplicadas
+    options_summary = ""
+    if attach_reactions:
+        options_summary += "✅ Reacciones adjuntadas\n"
+    if protect_content:
+        options_summary += "✅ Contenido protegido\n"
+    
+    if options_summary:
+        options_summary = f"\n<b>Opciones aplicadas:</b>\n{options_summary}"
+    
+    await callback.message.edit_text(
+        f"📤 <b>Resultado del Envío</b>\n\n{results_text}\n"
+        f"{options_summary}\n"
+        f"La publicación ha sido procesada.",
+        reply_markup=create_inline_keyboard([
+            [{"text": "🔙 Volver al Menú", "callback_data": "admin:main"}]
+        ]),
+        parse_mode="HTML"
+    )
+    
+    # Limpiar estado FSM
+    await state.clear()
+    
+    logger.info(f"✅ Broadcasting completado para user {user_id}")
+
+
+async def _generate_reaction_keyboard(
+    reactions: list,
+    channel_id: int,
+    message_id: int
+) -> Optional[InlineKeyboardMarkup]:
+    """
+    Genera keyboard con botones de reacción para una publicación.
+    
+    Args:
+        reactions: Lista de ReactionConfig activas
+        channel_id: ID del canal de Telegram
+        message_id: ID del mensaje de Telegram
+        
+    Returns:
+        InlineKeyboardMarkup o None si no hay reacciones
+    """
+    if not reactions:
+        return None
+    
+    # Convertir ReactionConfig a tuplas (id, emoji, label)
+    reactions_data = [
+        (r.id, r.emoji, r.label)
+        for r in reactions
+    ]
+    
+    # Crear keyboard sin contadores (es mensaje nuevo)
+    keyboard = create_reaction_keyboard(
+        reactions=reactions_data,
+        channel_id=channel_id,
+        message_id=message_id,
+        counts=None  # Sin contadores inicialmente
+    )
+    
+    logger.debug(
+        f"📊 Keyboard de reacciones generado: {len(reactions)} reacciones, "
+        f"mensaje {message_id} en canal {channel_id}"
+    )
+    
+    return keyboard

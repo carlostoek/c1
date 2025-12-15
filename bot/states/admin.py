@@ -51,35 +51,22 @@ class WaitTimeSetupStates(StatesGroup):
 
 class BroadcastStates(StatesGroup):
     """
-    Estados para envío de publicaciones a canales (BROADCASTING AVANZADO).
-
+    Estados FSM para broadcasting de contenido a canales.
+    
     Flujo completo:
-    1. Admin selecciona canal destino (VIP, Free, o Ambos)
-    2. Bot entra en waiting_for_content
-    3. Admin envía contenido (texto, foto, o video)
-    4. Bot muestra preview y entra en waiting_for_confirmation
-    5. Admin confirma o cancela
-    6. Si confirma: Bot envía al canal(es) y sale del estado
-    7. Si cancela: Bot vuelve a waiting_for_content o sale
-
-    Estados adicionales para reacciones (ONDA 2):
-    - selecting_reactions: Admin selecciona reacciones a aplicar
-
-    Tipos de Contenido:
-    - Soportar: texto, foto, video
-    - Estado waiting_for_content acepta cualquiera
-    - Estado waiting_for_confirmation maneja confirmación
-    - Estado selecting_reactions permite cambiar reacciones (opcional)
+    1. waiting_for_content: Admin envía contenido (texto, foto, video)
+    2. waiting_for_confirmation: Admin ve preview y confirma si enviar
+    3. choosing_options: Admin elige opciones (reacciones, protección) [NUEVO]
+    
+    Estados:
+    - waiting_for_content: Esperando contenido del admin
+    - waiting_for_confirmation: Esperando confirmación de envío
+    - choosing_options: Esperando selección de opciones (reacciones + protección)
     """
-
-    # Estado 1: Esperando contenido del mensaje a enviar
+    
     waiting_for_content = State()
-
-    # Estado 2: Esperando confirmación de envío (después de preview)
     waiting_for_confirmation = State()
-
-    # Estado 3: Seleccionando reacciones a aplicar (NUEVO - T23)
-    selecting_reactions = State()
+    choosing_options = State()  # AGREGAR esta línea
 
 
 class ReactionSetupStates(StatesGroup):
@@ -140,3 +127,35 @@ class PricingSetupStates(StatesGroup):
 
     # Paso 3: Esperando precio del plan
     waiting_for_price = State()
+
+
+class ReactionConfigStates(StatesGroup):
+    """
+    Estados FSM para configuración de reacciones.
+    
+    Flujos soportados:
+    1. Crear nueva reacción:
+       - waiting_for_emoji → esperando emoji del admin
+       - waiting_for_label → esperando label descriptivo
+       - waiting_for_besitos → esperando cantidad de besitos
+    
+    2. Editar reacción existente:
+       - editing_label → esperando nuevo label
+       - editing_besitos → esperando nuevos besitos
+    
+    Estados:
+    - waiting_for_emoji: Admin envía emoji para nueva reacción (ej: ❤️)
+    - waiting_for_label: Admin envía label descriptivo (ej: "Me encanta")
+    - waiting_for_besitos: Admin envía cantidad de besitos (ej: 5)
+    - editing_label: Admin envía nuevo label para reacción existente
+    - editing_besitos: Admin envía nuevos besitos para reacción existente
+    """
+    
+    # Estados para crear nueva reacción
+    waiting_for_emoji = State()
+    waiting_for_label = State()
+    waiting_for_besitos = State()
+    
+    # Estados para editar reacción existente
+    editing_label = State()
+    editing_besitos = State()

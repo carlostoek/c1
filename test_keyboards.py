@@ -56,24 +56,28 @@ def test_admin_main_menu_keyboard():
     menu = admin_main_menu_keyboard()
 
     assert menu is not None
-    assert len(menu.inline_keyboard) == 3  # VIP, Free, Config
-    assert len(menu.inline_keyboard[0]) == 1  # VIP row
-    assert len(menu.inline_keyboard[1]) == 1  # Free row
-    assert len(menu.inline_keyboard[2]) == 1  # Config row
-    print("✅ Estructura OK (3 filas, 1 botón cada una)")
+    assert len(menu.inline_keyboard) == 8  # Número actual de opciones
+    # Cada fila tiene un botón
+    for i in range(8):
+        assert len(menu.inline_keyboard[i]) == 1
+    print(f"✅ Estructura OK ({len(menu.inline_keyboard)} filas, 1 botón cada una)")
 
     print("\n🧪 Test 2: Textos y callbacks")
-    assert menu.inline_keyboard[0][0].text == "📺 Gestión Canal VIP"
-    assert menu.inline_keyboard[0][0].callback_data == "admin:vip"
-    print(f"   VIP: {menu.inline_keyboard[0][0].text} → {menu.inline_keyboard[0][0].callback_data}")
+    expected_options = [
+        ("📊 Dashboard Completo", "admin:dashboard"),
+        ("📺 Gestión Canal VIP", "admin:vip"),
+        ("📺 Gestión Canal Free", "admin:free"),
+        ("⚙️ Configuración", "admin:config"),
+        ("⚙️ Configurar Reacciones", "admin:reactions_config"),
+        ("💰 Tarifas", "admin:pricing"),
+        ("💬 Mensajes", "admin:messages"),
+        ("📊 Estadísticas", "admin:stats"),
+    ]
 
-    assert menu.inline_keyboard[1][0].text == "📺 Gestión Canal Free"
-    assert menu.inline_keyboard[1][0].callback_data == "admin:free"
-    print(f"   Free: {menu.inline_keyboard[1][0].text} → {menu.inline_keyboard[1][0].callback_data}")
-
-    assert menu.inline_keyboard[2][0].text == "⚙️ Configuración"
-    assert menu.inline_keyboard[2][0].callback_data == "admin:config"
-    print(f"   Config: {menu.inline_keyboard[2][0].text} → {menu.inline_keyboard[2][0].callback_data}")
+    for i, (expected_text, expected_callback) in enumerate(expected_options):
+        assert menu.inline_keyboard[i][0].text == expected_text
+        assert menu.inline_keyboard[i][0].callback_data == expected_callback
+        print(f"   Opción {i+1}: {menu.inline_keyboard[i][0].text} → {menu.inline_keyboard[i][0].callback_data}")
 
     print("✅ Textos y callbacks OK")
 

@@ -412,3 +412,7 @@ async def callback_generate_token_with_plan(
             ]),
             parse_mode="HTML"
         )
+
+
+# Alias para mantener compatibilidad con tests
+callback_generate_vip_token = callback_generate_token_select_plan

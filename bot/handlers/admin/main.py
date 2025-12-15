@@ -16,11 +16,13 @@ from bot.utils.keyboards import (
     config_menu_keyboard
 )
 from bot.services.container import ServiceContainer
+from bot.handlers.admin.reactions_config import reactions_config_router
 
 logger = logging.getLogger(__name__)
 
 # Router para handlers de admin
 admin_router = Router(name="admin")
+admin_router.include_router(reactions_config_router)
 
 # Aplicar middlewares (orden correcto: Database primero, AdminAuth después)
 admin_router.message.middleware(DatabaseMiddleware())

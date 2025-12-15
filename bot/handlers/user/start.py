@@ -131,7 +131,9 @@ async def _activate_token_from_deeplink(
             return
 
         # Obtener info del plan (si existe)
-        plan = token.plan if hasattr(token, 'plan') else None
+        plan = None
+        if token.plan_id:  # Verificar si hay plan_id asociado
+            plan = await container.pricing.get_plan_by_id(token.plan_id)
 
         if not plan:
             # Token antiguo sin plan asociado (compatibilidad)

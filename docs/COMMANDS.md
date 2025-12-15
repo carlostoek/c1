@@ -82,6 +82,7 @@ Días consecutivos: 7 🔥
    - Gestión Canal VIP
    - Gestión Canal Free
    - Configuración
+   - Configurar Reacciones
    - Estadísticas
    - Gestión Avanzada
 
@@ -94,10 +95,162 @@ Días consecutivos: 7 🔥
 Selecciona una opción:
 - 📺 Gestión Canal VIP
 - 📺 Gestión Canal Free
-- 📊 Estadísticas
 - ⚙️ Configuración
+- ⚙️ Configurar Reacciones
+- 📊 Estadísticas
 - 👥 Gestión Avanzada
 ```
+
+### `Configurar Reacciones` - Panel de Configuración de Reacciones
+
+**Descripción:** Accede al panel de configuración de reacciones que permite gestionar las reacciones disponibles para las publicaciones en los canales.
+
+**Permisos:** Solo administradores
+
+**Funcionalidades:**
+- Visualización de reacciones existentes con estado (activa/inactiva)
+- Creación de nuevas reacciones con emoji, label y besitos
+- Edición de reacciones existentes
+- Activación/desactivación de reacciones
+- Eliminación de reacciones (desactivación si tienen histórico)
+- Contador de reacciones activas (máximo 6 permitidas)
+
+**Flujo de uso:**
+1. El administrador selecciona "⚙️ Configurar Reacciones" en el menú principal
+2. El bot muestra el menú de configuración de reacciones con lista de reacciones existentes
+3. El administrador puede navegar entre diferentes opciones de gestión de reacciones
+
+**Características:**
+- Límite de 6 reacciones activas simultáneamente (restricción de Telegram)
+- Validación de unicidad de emojis
+- Validación de cantidad mínima de besitos (1)
+- Visualización de estado de cada reacción
+- Contador de reacciones activas vs máximo permitido
+
+### `Crear Nueva Reacción` - Creación de reacciones personalizadas
+
+**Descripción:** Inicia el flujo de creación de una nueva reacción configurable con emoji, label y cantidad de besitos otorgados.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona "➕ Crear Nueva Reacción" en el menú de configuración de reacciones
+2. El bot entra en estado FSM `waiting_for_emoji`
+3. El administrador envía el emoji deseado
+4. El bot entra en estado FSM `waiting_for_label`
+5. El administrador envía el label descriptivo
+6. El bot entra en estado FSM `waiting_for_besitos`
+7. El administrador envía la cantidad de besitos a otorgar
+8. El bot crea la reacción y la marca como activa
+
+**Validaciones:**
+- El emoji debe ser único en el sistema
+- El label debe tener máximo 50 caracteres
+- Los besitos deben ser al menos 1
+- No se pueden crear más de 6 reacciones activas
+
+**Ejemplo de interacción:**
+```
+➕ Crear Nueva Reacción
+
+Paso 1 de 3: Emoji
+
+Envía el emoji que quieres usar para esta reacción.
+
+Ejemplos: ❤️ 👍 🔥 😍 💯 ⭐
+
+⚠️ El emoji debe ser único (no puede estar ya configurado).
+
+(Administrador envía: ❤️)
+✅ Emoji Guardado: ❤️
+
+Paso 2 de 3: Label
+
+Envía un label descriptivo para esta reacción.
+
+Ejemplos:
+• "Me encanta"
+• "Me gusta"
+• "Genial"
+
+⚠️ Máximo 50 caracteres.
+
+(Administrador envía: Me encanta)
+✅ Label Guardado: Me encanta
+
+Paso 3 de 3: Besitos
+
+¿Cuántos besitos 💋 se otorgarán al usar ❤️?
+
+Envía un número entero positivo (mínimo 1).
+
+Ejemplos: 5, 10, 3
+
+(Administrador envía: 5)
+✅ Reacción Creada
+
+Emoji: ❤️
+Label: Me encanta
+Besitos: 5 💋
+Estado: ✅ Activa
+
+Los usuarios ahora podrán usar esta reacción en publicaciones.
+```
+
+### `Editar Reacción` - Modificación de reacciones existentes
+
+**Descripción:** Permite editar el label o la cantidad de besitos de una reacción existente.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona una reacción en el menú de configuración
+2. El bot muestra las opciones de edición disponibles
+3. El administrador selecciona "✏️ Editar Label" o "💋 Editar Besitos"
+4. El bot entra en el estado FSM correspondiente
+5. El administrador envía la nueva información
+6. El bot actualiza la reacción en la base de datos
+
+**Validaciones:**
+- El label debe tener máximo 50 caracteres
+- Los besitos deben ser al menos 1
+- No se permite cambiar el emoji (es único e inmutable)
+
+### `Activar/Desactivar Reacción` - Control de disponibilidad de reacciones
+
+**Descripción:** Permite activar o desactivar una reacción existente sin eliminarla.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona una reacción en el menú de configuración
+2. El bot muestra el estado actual de la reacción
+3. Si está activa, el administrador puede seleccionar "❌ Desactivar"
+4. Si está inactiva y hay espacio (menos de 6 activas), puede seleccionar "✅ Activar"
+5. El bot actualiza el estado de la reacción en la base de datos
+
+**Validaciones:**
+- No se pueden tener más de 6 reacciones activas simultáneamente
+- Las reacciones desactivadas no están disponibles para los usuarios
+- Las reacciones con histórico no se eliminan, solo se desactivan
+
+### `Eliminar Reacción` - Remoción de reacciones
+
+**Descripción:** Elimina una reacción del sistema (o la desactiva si tiene histórico de uso).
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona una reacción en el menú de configuración
+2. El bot muestra la opción "🗑️ Eliminar"
+3. El administrador confirma la eliminación
+4. Si la reacción no tiene histórico, se elimina completamente
+5. Si la reacción tiene histórico, se desactiva para mantener integridad de datos
+
+**Características:**
+- Las reacciones sin histórico se eliminan completamente
+- Las reacciones con histórico se desactivan para mantener integridad de datos
+- Confirmación requerida antes de eliminar
 
 ## Gestión Avanzada
 

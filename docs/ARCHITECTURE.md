@@ -139,6 +139,27 @@ asyncio.run(main())
   - `minutes_since_request()` - Minutos desde solicitud
   - `is_ready(wait_time_minutes)` - Verifica si cumplió tiempo espera
 
+**ReactionConfig**
+- `id` - ID único de la configuración
+- `emoji` - Emoji unicode único para la reacción (ej: "❤️", "👍")
+- `label` - Etiqueta/descripción corta (ej: "Like", "Love")
+- `besitos_reward` - Cantidad de besitos otorgados al reaccionar
+- `active` - Si la reacción está activa y disponible para usar
+- `created_at`, `updated_at` - Timestamps
+- **Métodos:**
+  - No hay métodos específicos
+
+**MessageReaction**
+- `id` - ID único de la reacción
+- `channel_id` - ID del canal de Telegram donde está el mensaje
+- `message_id` - ID del mensaje de Telegram
+- `user_id` - ID del usuario que reaccionó (FK a users)
+- `emoji` - Emoji de la reacción (ej: "❤️", "👍")
+- `besitos_awarded` - Cantidad de besitos otorgados en este momento
+- `created_at` - Fecha de la reacción
+- **Métodos:**
+  - No hay métodos específicos
+
 #### Engine y Sesiones (engine.py)
 
 **Inicialización:**
@@ -3377,6 +3398,30 @@ Sequence: Usuario → Bot → Database → Queue → Timer → Invite
 │ request_date: datetime             │
 │ processed: bool                    │
 │ processed_at: datetime (null)      │
+└────────────────────────────────────┘
+
+┌────────────────────────────────────┐
+│     ReactionConfig                 │
+│────────────────────────────────────│
+│ id: int (PK)                       │
+│ emoji: str (UNIQUE)                │
+│ label: str                         │
+│ besitos_reward: int                │
+│ active: bool                       │
+│ created_at: datetime               │
+│ updated_at: datetime               │
+└────────────────────────────────────┘
+
+┌────────────────────────────────────┐       N:1       ┌────────────────────┐
+│    MessageReaction                 │───────────────►│    ReactionConfig    │
+│────────────────────────────────────│                 │────────────────────│
+│ id: int (PK)                       │                 │ id: int (PK)       │
+│ channel_id: int                    │                 │ emoji: str (UQ)    │
+│ message_id: int                    │                 │ label: str         │
+│ user_id: int (FK)                  │                 │ besitos_reward: int│
+│ emoji: str                         │                 │ active: bool       │
+│ besitos_awarded: int               │                 └────────────────────┘
+│ created_at: datetime               │
 └────────────────────────────────────┘
 ```
 

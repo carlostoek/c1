@@ -53,6 +53,7 @@ class ServiceContainer:
         self._user_service = None
         self._notification_service = None
         self._gamification_service = None
+        self._reactions_service = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -208,6 +209,35 @@ class ServiceContainer:
 
         return self._gamification_service
 
+    # ===== REACTIONS SERVICE =====
+
+    @property
+    def reactions(self):
+        """
+        Service de gestión de reacciones inline a mensajes.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            ReactionService: Instancia del service
+
+        Example:
+            >>> container = ServiceContainer(session, bot)
+            >>> active = await container.reactions.get_active_reactions()
+            >>> await container.reactions.record_user_reaction(
+            ...     channel_id=-1001234567890,
+            ...     message_id=12345,
+            ...     user_id=987654321,
+            ...     emoji="❤️"
+            ... )
+        """
+        if self._reactions_service is None:
+            from bot.services.reactions import ReactionService
+            logger.debug("🔄 Lazy loading: ReactionService")
+            self._reactions_service = ReactionService(self._session)
+
+        return self._reactions_service
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -237,6 +267,8 @@ class ServiceContainer:
             loaded.append("notifications")
         if self._gamification_service is not None:
             loaded.append("gamification")
+        if self._reactions_service is not None:
+            loaded.append("reactions")
 
         return loaded
 
