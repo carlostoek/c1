@@ -66,6 +66,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
     - Gestión Free
     - Configuración
     - Tarifas
+    - Mensajes
     - Estadísticas
 
     Returns:
@@ -77,6 +78,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
         [{"text": "📺 Gestión Canal Free", "callback_data": "admin:free"}],
         [{"text": "⚙️ Configuración", "callback_data": "admin:config"}],
         [{"text": "💰 Tarifas", "callback_data": "admin:pricing"}],
+        [{"text": "💬 Mensajes", "callback_data": "admin:messages"}],
         [{"text": "📊 Estadísticas", "callback_data": "admin:stats"}],
     ])
 

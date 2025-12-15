@@ -15,7 +15,7 @@ from typing import Optional, List
 
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime,
-    BigInteger, JSON, ForeignKey, Index, Float, Enum
+    BigInteger, JSON, ForeignKey, Index, Float, Enum, Text
 )
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
@@ -334,3 +334,34 @@ class FreeChannelRequest(Base):
     def __repr__(self):
         status = "PROCESADA" if self.processed else f"PENDIENTE ({self.minutes_since_request()}min)"
         return f"<FreeRequest(user={self.user_id}, {status})>"
+
+
+class NotificationTemplate(Base):
+    """
+    Modelo de templates de notificaciones personalizados.
+
+    Permite a los admins personalizar los mensajes del bot
+    sin tocar código.
+
+    Attributes:
+        id: ID único
+        type: Tipo de notificación (NotificationType)
+        name: Nombre descriptivo
+        content: Contenido HTML del template
+        active: Si el template está activo
+        created_at: Fecha de creación
+        updated_at: Última actualización
+    """
+
+    __tablename__ = "notification_templates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    type = Column(String(50), nullable=False, unique=True, index=True)
+    name = Column(String(100), nullable=False)
+    content = Column(Text, nullable=False)
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<NotificationTemplate(type='{self.type}', name='{self.name}')>"

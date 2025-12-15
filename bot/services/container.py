@@ -51,6 +51,7 @@ class ServiceContainer:
         self._stats_service = None
         self._pricing_service = None
         self._user_service = None
+        self._notification_service = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -168,6 +169,25 @@ class ServiceContainer:
 
         return self._user_service
 
+    # ===== NOTIFICATION SERVICE =====
+
+    @property
+    def notifications(self):
+        """
+        Service de notificaciones.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            NotificationService: Instancia del service
+        """
+        if self._notification_service is None:
+            from bot.notifications.service import NotificationService
+            logger.debug("🔄 Lazy loading: NotificationService")
+            self._notification_service = NotificationService(self._session, self._bot)
+
+        return self._notification_service
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -193,6 +213,8 @@ class ServiceContainer:
             loaded.append("pricing")
         if self._user_service is not None:
             loaded.append("user")
+        if self._notification_service is not None:
+            loaded.append("notifications")
 
         return loaded
 
