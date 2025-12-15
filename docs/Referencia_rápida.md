@@ -184,6 +184,35 @@ Librerías Clave:
 - `joined_date`: Timestamp
 - `updated_at`: Timestamp actualización
 
+## UserProgress (B3)
+- `user_id`: ID usuario (PK)
+- `total_besitos`: Total acumulado
+- `current_rank`: Rango actual ('Novato' | 'Bronce' | 'Plata')
+- `total_reactions`: Total de reacciones (lifetime)
+- `reactions_today`: Reacciones hoy (reset diario)
+- `last_reaction_at`: Última reacción
+- `created_at`, `updated_at`: Timestamps
+
+## UserBadge (B3)
+- `id`: Auto PK
+- `user_id`: FK a UserProgress
+- `badge_id`: Identificador del badge
+- `unlocked_at`: Timestamp de desbloqueo
+
+## DailyStreak (B3)
+- `user_id`: FK a UserProgress (PK)
+- `current_streak`: Días consecutivos actuales
+- `longest_streak`: Récord personal
+- `last_login_date`: Última fecha de login
+- `total_logins`: Total lifetime
+
+## BesitosTransaction (B3)
+- `id`: Auto PK
+- `user_id`: ID usuario
+- `amount`: Cantidad (+/-)
+- `reason`: Razón de la transacción
+- `created_at`: Timestamp
+
 ═══════════════════════════════════════════════════════════════
 # SERVICIOS CORE
 ═══════════════════════════════════════════════════════════════
@@ -313,6 +342,22 @@ container.stats          # StatsService
 
 ---
 
+## GamificationService (B3)
+**Besitos y Puntos:**
+- `award_besitos(user_id, action, custom_amount=None, custom_reason=None)` → (int, bool, Optional[str])
+- `get_or_create_progress(user_id)` → UserProgress
+- `can_react_to_message(user_id)` → bool
+- `record_reaction(user_id)` → None
+
+**Badges:**
+- `check_and_unlock_badges(user_id)` → List[str]
+- `_check_badge_requirement(user_id, progress, badge_def)` → bool
+
+**Daily Login:**
+- `claim_daily_login(user_id)` → (int, int, bool) - (besitos, streak, is_record)
+
+---
+
 ## EventBus (B1 - Pub/Sub)
 **Tipos de Eventos:**
 - `UserStartedBotEvent`
@@ -406,6 +451,20 @@ container.stats          # StatsService
 **free_flow.py:**
 - `callback_request_free`: Crea solicitud Free
 
+**daily.py (B3):**
+- `callback_claim_daily`: Reclamación de regalo diario
+  - Valida que no haya reclamado hoy
+  - Actualiza racha de login
+  - Otorga Besitos base + bonus por racha
+  - Verifica badges (ej: streak_7, streak_30)
+  - Envía RewardBatch unificado
+
+**reactions.py (B3):**
+- `callback_reaction`: Manejo de reacciones inline
+  - Parsea callback: react:TYPE:MESSAGE_ID:CHANNEL_ID
+  - Publica MessageReactedEvent
+  - Listener otorga Besitos automáticamente
+
 ═══════════════════════════════════════════════════════════════
 # KEYBOARDS
 ═══════════════════════════════════════════════════════════════
@@ -417,6 +476,16 @@ container.stats          # StatsService
 - `yes_no_keyboard()` → Confirmación Sí/No
 - `vip_menu_keyboard(is_configured)` → Menú VIP dinámico
 - `free_menu_keyboard(is_configured)` → Menú Free dinámico
+
+**Reaction System (B3):**
+- `ReactionButton`: Clase para botón de reacción
+  - Propiedades: emoji, type, callback_prefix
+  - Métodos: `to_callback_data()`, `to_inline_button()`
+- `ReactionSystem`: Sistema completo de reacciones
+  - `create_reaction_keyboard()`: Crea keyboard con botones
+  - `parse_reaction_callback()`: Parsea formato "react:TYPE:MESSAGE_ID:CHANNEL_ID"
+  - `get_reactions_from_config()`: Convierte lista de emojis a ReactionButton
+  - Default reactions: 👍❤️🔥😂😮
 
 ═══════════════════════════════════════════════════════════════
 # TAREAS DE BACKGROUND (APScheduler)
@@ -472,6 +541,50 @@ container.stats          # StatsService
 pytest tests/ -v
 bash scripts/run_tests.sh
 ```
+
+═══════════════════════════════════════════════════════════════
+# GAMIFICACIÓN (B3)
+═══════════════════════════════════════════════════════════════
+
+## Configuración
+**Recompensas de Besitos:**
+- `user_started`: 10 Besitos (bienvenida)
+- `joined_vip`: 100 Besitos (activación VIP)
+- `joined_free_channel`: 25 Besitos (ingreso canal Free)
+- `message_reacted`: 5 Besitos (reacción a mensaje)
+- `first_reaction_of_day`: 10 Besitos (bonus primer reacción)
+- `daily_login_base`: 20 Besitos (gift diario)
+- `daily_login_streak_bonus`: 5 Besitos por día (racha)
+- `referral_success`: 50 Besitos (referido)
+
+**Rangos (por Besitos acumulados):**
+- 🌱 **Novato**: 0-499 Besitos
+- 🥉 **Bronce**: 500-1999 Besitos
+- 🥈 **Plata**: 2000+ Besitos
+
+**Badges (5 totales):**
+- 🔥 **Constante**: 7 días de login consecutivos
+- 💪 **Dedicado**: 30 días de login consecutivos
+- ❤️ **Reactor**: 100 reacciones totales
+- ⭐ **VIP**: Suscripción VIP activa
+- 💋 **Coleccionista**: 1000 Besitos acumulados
+
+## Rate Limiting
+- Max 50 reacciones/día
+- Mínimo 5 segundos entre reacciones
+- Daily login: 1 vez por día (reset a medianoche UTC)
+
+## Event Listeners (5)
+Automáticamente otorgan Besitos:
+1. `on_user_started_bot`: Usuario nuevo → 10 Besitos
+2. `on_user_joined_vip`: VIP activado → 100 Besitos + badges
+3. `on_user_joined_free_channel`: Free ingreso → 25 Besitos
+4. `on_message_reacted`: Reacción a mensaje → 5-15 Besitos
+5. `on_user_referred`: Referido exitoso → 50 Besitos
+
+## Endpoints
+- **Daily Login**: `callback_claim_daily` (Button)
+- **Reactions**: `callback_reaction` (Inline buttons)
 
 ═══════════════════════════════════════════════════════════════
 # FLUJOS PRINCIPALES
