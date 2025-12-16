@@ -10,6 +10,7 @@ Tablas:
 - subscription_plans: Planes de suscripción/tarifas configurables
 """
 import logging
+import enum
 from datetime import datetime
 from typing import Optional, List
 
@@ -18,13 +19,26 @@ from sqlalchemy import (
     BigInteger, JSON, ForeignKey, Index, Float, Enum, Text,
     CheckConstraint, UniqueConstraint
 )
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy.orm import relationship, Mapped, mapped_column, foreign
 from datetime import timezone
 
 from bot.database.base import Base
 from bot.database.enums import UserRole
 
 logger = logging.getLogger(__name__)
+
+
+class TransactionType(str, enum.Enum):
+    """
+    Tipos de transacciones de puntos.
+
+    - EARNED: Puntos ganados (positivo)
+    - SPENT: Puntos gastados (negativo)
+    - ADJUSTED: Ajuste manual por admin (puede ser + o -)
+    """
+    EARNED = "earned"
+    SPENT = "spent"
+    ADJUSTED = "adjusted"
 
 
 class BotConfig(Base):
@@ -105,6 +119,13 @@ class User(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relaciones (se definen después en VIPSubscriber y FreeChannelRequest)
+    progress = relationship(
+        "UserProgress",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
+
     reactions = relationship(
         "MessageReaction",
         back_populates="user",
@@ -147,57 +168,234 @@ class User(Base):
 
 class UserProgress(Base):
     """
-    Progreso de gamificación de un usuario.
+    Estado de progreso de gamificación del usuario.
 
-    Almacena el progreso general: Besitos totales, rango actual, estadísticas.
+    Almacena:
+    - Saldo actual de besitos
+    - Nivel actual
+    - Totales acumulados (ganados/gastados)
+    - Timestamps de creación y actualización
 
-    Attributes:
-        user_id: ID del usuario (FK a users)
-        total_besitos: Total de Besitos acumulados (lifetime)
-        current_rank: Rango actual
-        total_reactions: Total de reacciones dadas
-        reactions_today: Reacciones dadas hoy (reset diario)
-        last_reaction_at: Última vez que reaccionó
-        created_at: Fecha de creación del progreso
-        updated_at: Última actualización
+    Relación 1:1 con User.
     """
-
     __tablename__ = "user_progress"
 
+    # Primary Key
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Foreign Key a User (relación 1:1)
     user_id = Column(
         BigInteger,
-        ForeignKey("users.user_id"),
-        primary_key=True
-    )
-    total_besitos = Column(Integer, nullable=False, default=0)
-    current_rank = Column(String(50), nullable=False, default="Novato")
-    total_reactions = Column(Integer, nullable=False, default=0)
-    reactions_today = Column(Integer, nullable=False, default=0)
-    last_reaction_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relaciones
-    user = relationship("User", uselist=False, lazy="selectin")
-    badges = relationship(
-        "UserBadge",
-        back_populates="user_progress",
-        cascade="all, delete-orphan",
-        lazy="selectin"
-    )
-    daily_streak = relationship(
-        "DailyStreak",
-        back_populates="user_progress",
-        uselist=False,
-        cascade="all, delete-orphan",
-        lazy="selectin"
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True
     )
 
-    def __repr__(self) -> str:
+    # Saldo actual de besitos
+    besitos_balance = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        doc="Saldo actual de besitos del usuario"
+    )
+
+    # Nivel actual (empieza en 1)
+    current_level = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        doc="Nivel actual del usuario (mínimo 1)"
+    )
+
+    # Total de puntos ganados (histórico)
+    total_points_earned = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        doc="Total acumulado de puntos ganados (histórico)"
+    )
+
+    # Total de puntos gastados (histórico)
+    total_points_spent = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        doc="Total acumulado de puntos gastados (histórico)"
+    )
+
+    # Timestamps
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        doc="Fecha de creación del registro"
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        doc="Fecha de última actualización"
+    )
+
+    # Relación con User (1:1)
+    user = relationship("User", back_populates="progress", uselist=False)
+
+    # Relación con transacciones (1:N)
+    # Nota: PointTransaction tiene FK a users.user_id, no a user_progress
+    transactions = relationship(
+        "PointTransaction",
+        primaryjoin="UserProgress.user_id == foreign(PointTransaction.user_id)",
+        back_populates="user_progress",
+        lazy="dynamic"
+    )
+
+    def __repr__(self):
         return (
-            f"<UserProgress(user_id={self.user_id}, "
-            f"besitos={self.total_besitos}, rank='{self.current_rank}')>"
+            f"<UserProgress(id={self.id}, user_id={self.user_id}, "
+            f"balance={self.besitos_balance}, level={self.current_level})>"
         )
+
+    @property
+    def net_points(self) -> int:
+        """
+        Calcula puntos netos (ganados - gastados).
+
+        Returns:
+            Total de puntos netos
+        """
+        return self.total_points_earned - self.total_points_spent
+
+    def can_afford(self, amount: int) -> bool:
+        """
+        Verifica si el usuario tiene suficientes puntos.
+
+        Args:
+            amount: Cantidad de puntos requeridos
+
+        Returns:
+            True si tiene suficientes puntos, False si no
+        """
+        return self.besitos_balance >= amount
+
+
+class PointTransaction(Base):
+    """
+    Registro de transacciones de puntos.
+
+    Cada fila representa una transacción única e inmutable:
+    - Puntos ganados por acción
+    - Puntos gastados en canje
+    - Ajustes manuales de admin
+
+    Características:
+    - Histórico completo e inmutable
+    - Rastreabilidad de cada operación
+    - Balance after para auditoría
+    - Metadata flexible en JSON
+    """
+    __tablename__ = "point_transactions"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Foreign Key a User (no a UserProgress, para auditoría)
+    user_id = Column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID del usuario (FK a users)"
+    )
+
+    # Cantidad de puntos (puede ser negativo para gastos)
+    amount = Column(
+        Integer,
+        nullable=False,
+        doc="Cantidad de puntos (positivo=ganado, negativo=gastado)"
+    )
+
+    # Tipo de transacción
+    transaction_type = Column(
+        Enum(TransactionType),
+        nullable=False,
+        index=True,
+        doc="Tipo: earned, spent, adjusted"
+    )
+
+    # Razón de la transacción
+    reason = Column(
+        String(255),
+        nullable=False,
+        doc="Descripción de por qué se otorgaron/restaron puntos"
+    )
+
+    # Metadata adicional (JSON flexible)
+    transaction_metadata = Column(
+        JSON,
+        nullable=True,
+        doc="Metadata adicional de la transacción (multiplicadores, contexto, etc)"
+    )
+
+    # Balance después de la transacción (para auditoría)
+    balance_after = Column(
+        Integer,
+        nullable=False,
+        doc="Saldo del usuario después de aplicar esta transacción"
+    )
+
+    # Timestamp (inmutable)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        doc="Fecha de la transacción (inmutable)"
+    )
+
+    # Relación con UserProgress
+    user_progress = relationship(
+        "UserProgress",
+        primaryjoin="UserProgress.user_id == foreign(PointTransaction.user_id)",
+        back_populates="transactions"
+    )
+
+    def __repr__(self):
+        return (
+            f"<PointTransaction(id={self.id}, user_id={self.user_id}, "
+            f"amount={self.amount}, type={self.transaction_type.value})>"
+        )
+
+    @property
+    def is_credit(self) -> bool:
+        """
+        Verifica si es una transacción de crédito (puntos ganados).
+
+        Returns:
+            True si amount > 0, False si no
+        """
+        return self.amount > 0
+
+    @property
+    def is_debit(self) -> bool:
+        """
+        Verifica si es una transacción de débito (puntos gastados).
+
+        Returns:
+            True si amount < 0, False si no
+        """
+        return self.amount < 0
+
+    @property
+    def absolute_amount(self) -> int:
+        """
+        Retorna el valor absoluto de la cantidad.
+
+        Returns:
+            Valor absoluto de amount
+        """
+        return abs(self.amount)
 
 
 class UserBadge(Base):
@@ -222,11 +420,11 @@ class UserBadge(Base):
     badge_id = Column(String(50), nullable=False)
     unlocked_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    # Relación
-    user_progress = relationship(
-        "UserProgress",
-        back_populates="badges"
-    )
+    # Relación (comentada - UserProgress se redefinió para Servicio de Puntos)
+    # user_progress = relationship(
+    #     "UserProgress",
+    #     back_populates="badges"
+    # )
 
     __table_args__ = (
         Index('idx_user_badges_user_id', 'user_id'),
@@ -260,11 +458,11 @@ class DailyStreak(Base):
     last_login_date = Column(DateTime, nullable=True)
     total_logins = Column(Integer, nullable=False, default=0)
 
-    # Relación
-    user_progress = relationship(
-        "UserProgress",
-        back_populates="daily_streak"
-    )
+    # Relación (comentada - UserProgress se redefinió para Servicio de Puntos)
+    # user_progress = relationship(
+    #     "UserProgress",
+    #     back_populates="daily_streak"
+    # )
 
     def __repr__(self) -> str:
         return (
