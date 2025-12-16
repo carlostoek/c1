@@ -8,6 +8,8 @@ from typing import Optional
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bot.services.points import PointsService
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,6 +56,7 @@ class ServiceContainer:
         self._notification_service = None
         self._gamification_service = None
         self._reactions_service = None
+        self._points = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -237,6 +240,37 @@ class ServiceContainer:
             self._reactions_service = ReactionService(self._session)
 
         return self._reactions_service
+
+    # ===== POINTS SERVICE =====
+
+    @property
+    def points(self) -> PointsService:
+        """
+        Servicio de gestión de puntos (besitos).
+
+        Proporciona:
+        - Otorgamiento de puntos con multiplicadores
+        - Deducción de puntos para canjes
+        - Consulta de saldo y estadísticas
+        - Histórico de transacciones
+        - Analytics del sistema
+
+        Returns:
+            Instancia de PointsService
+
+        Example:
+            >>> # En un handler
+            >>> container = ServiceContainer(session, bot)
+            >>> await container.points.award_points(
+            ...     user_id=123,
+            ...     amount=10,
+            ...     reason="Reacción a publicación"
+            ... )
+        """
+        if self._points is None:
+            logger.debug("🔄 Lazy loading: PointsService")
+            self._points = PointsService(self._session, self._bot)
+        return self._points
 
     # ===== UTILIDADES =====
 
