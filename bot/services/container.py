@@ -62,6 +62,7 @@ class ServiceContainer:
         self._badges = None
         self._rewards = None
         self._missions = None
+        self._configuration = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -413,6 +414,47 @@ class ServiceContainer:
 
         return self._missions
 
+    # ===== CONFIGURATION SERVICE =====
+
+    @property
+    def configuration(self):
+        """
+        Servicio de configuración unificada de recursos complejos.
+
+        Proporciona:
+        - Creación de misiones con recompensas y badges
+        - Creación de recompensas con badges
+        - Transacciones atómicas (todo o nada)
+        - Vinculación automática de recursos relacionados
+
+        Returns:
+            Instancia de ConfigurationService
+
+        Example:
+            >>> container = ServiceContainer(session, bot)
+            >>> # Crear misión completa
+            >>> result = await container.configuration.create_mission_complete(
+            ...     mission_data={
+            ...         "name": "Primera Centena",
+            ...         "description": "Alcanza 100 besitos",
+            ...         "mission_type": "permanent",
+            ...         "objective_type": "points",
+            ...         "objective_value": 100
+            ...     },
+            ...     badge_data={
+            ...         "name": "Centena",
+            ...         "emoji": "🏆",
+            ...         "rarity": "rare"
+            ...     }
+            ... )
+        """
+        if self._configuration is None:
+            from bot.services.configuration import ConfigurationService
+            logger.debug("🔄 Lazy loading: ConfigurationService")
+            self._configuration = ConfigurationService(self._session, self)
+
+        return self._configuration
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -454,6 +496,8 @@ class ServiceContainer:
             loaded.append("rewards")
         if self._missions is not None:
             loaded.append("missions")
+        if self._configuration is not None:
+            loaded.append("configuration")
 
         return loaded
 
