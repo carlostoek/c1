@@ -9,6 +9,7 @@ from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.services.points import PointsService
+from bot.services.levels import LevelsService
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class ServiceContainer:
         self._gamification_service = None
         self._reactions_service = None
         self._points = None
+        self._levels = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -272,6 +274,38 @@ class ServiceContainer:
             self._points = PointsService(self._session, self._bot)
         return self._points
 
+    # ===== LEVELS SERVICE =====
+
+    @property
+    def levels(self) -> LevelsService:
+        """
+        Servicio de gestión de niveles (gamificación).
+
+        Proporciona:
+        - Verificación y aplicación de level-ups
+        - Consulta de información de niveles
+        - Cálculo de progreso hacia siguiente nivel
+        - Obtención de multiplicadores por nivel
+        - Información de perks por nivel
+
+        Returns:
+            Instancia de LevelsService
+
+        Example:
+            >>> container = ServiceContainer(session, bot)
+            >>> # Verificar level-up
+            >>> should_up, old, new = await container.levels.check_level_up(
+            ...     user_id=123,
+            ...     current_points=150
+            ... )
+            >>> # Obtener información de progreso
+            >>> info = await container.levels.get_user_level_info(123)
+        """
+        if self._levels is None:
+            logger.debug("🔄 Lazy loading: LevelsService")
+            self._levels = LevelsService(self._session, self._bot)
+        return self._levels
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -303,6 +337,10 @@ class ServiceContainer:
             loaded.append("gamification")
         if self._reactions_service is not None:
             loaded.append("reactions")
+        if self._points is not None:
+            loaded.append("points")
+        if self._levels is not None:
+            loaded.append("levels")
 
         return loaded
 

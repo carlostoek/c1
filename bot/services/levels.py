@@ -10,7 +10,7 @@ Gestiona:
 - Cache de definiciones de niveles
 """
 import logging
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -297,6 +297,195 @@ class LevelsService:
             )
             await self._session.rollback()
             return False
+
+    # ===== MÉTODOS DE PROGRESO =====
+
+    async def get_user_level_info(
+        self,
+        user_id: int
+    ) -> Optional[Dict]:
+        """
+        Obtiene información completa del nivel actual de un usuario.
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            Dict con información de nivel o None si no existe
+
+        Example:
+            >>> info = await service.get_user_level_info(123)
+            >>> print(info)
+            {
+                'current_level': 3,
+                'level_name': 'Competente',
+                'level_icon': '💪',
+                'display_name': '💪 Competente',
+                'multiplier': 1.2,
+                'min_points': 250,
+                'max_points': 499,
+                'perks': ['...'],
+                'is_max_level': False
+            }
+        """
+        try:
+            result = await self._session.execute(
+                select(UserProgress).where(UserProgress.user_id == user_id)
+            )
+            progress = result.scalar_one_or_none()
+
+            if not progress:
+                return None
+
+            level_def = await self.get_level_by_number(progress.current_level)
+
+            if not level_def:
+                return None
+
+            return {
+                "current_level": level_def.level,
+                "level_name": level_def.name,
+                "level_icon": level_def.icon,
+                "display_name": level_def.display_name,
+                "multiplier": level_def.multiplier,
+                "min_points": level_def.min_points,
+                "max_points": level_def.max_points,
+                "perks": level_def.perks or [],
+                "is_max_level": level_def.max_points is None
+            }
+
+        except Exception as e:
+            self._logger.error(f"❌ Error obteniendo info de nivel: {e}", exc_info=True)
+            return None
+
+    async def calculate_progress_to_next_level(
+        self,
+        user_id: int,
+        total_points: int
+    ) -> Optional[Dict]:
+        """
+        Calcula el progreso hacia el siguiente nivel.
+
+        Args:
+            user_id: ID del usuario
+            total_points: Total de puntos acumulados
+
+        Returns:
+            Dict con progreso o None si hay error
+
+        Example:
+            >>> progress = await service.calculate_progress_to_next_level(123, 350)
+            >>> print(progress)
+            {
+                'current_level': 3,
+                'next_level': 4,
+                'current_points': 350,
+                'points_in_current_level': 100,
+                'points_needed_for_next': 150,
+                'total_points_in_level': 250,
+                'progress_percentage': 40.0,
+                'is_max_level': False
+            }
+        """
+        try:
+            current_level_def = await self.get_level_for_points(total_points)
+
+            if not current_level_def:
+                return None
+
+            # Si es nivel máximo
+            if current_level_def.max_points is None:
+                return {
+                    "current_level": current_level_def.level,
+                    "next_level": None,
+                    "current_points": total_points,
+                    "points_in_current_level": total_points - current_level_def.min_points,
+                    "points_needed_for_next": 0,
+                    "total_points_in_level": 0,
+                    "progress_percentage": 100.0,
+                    "is_max_level": True
+                }
+
+            # Obtener siguiente nivel
+            next_level_def = await self.get_level_by_number(
+                current_level_def.level + 1
+            )
+
+            if not next_level_def:
+                return None
+
+            # Calcular progreso
+            points_in_current = total_points - current_level_def.min_points
+            points_needed = next_level_def.min_points - total_points
+            total_points_in_level = (
+                current_level_def.max_points - current_level_def.min_points + 1
+            )
+
+            progress_percentage = (points_in_current / total_points_in_level) * 100
+
+            return {
+                "current_level": current_level_def.level,
+                "next_level": next_level_def.level,
+                "current_points": total_points,
+                "points_in_current_level": points_in_current,
+                "points_needed_for_next": points_needed,
+                "total_points_in_level": total_points_in_level,
+                "progress_percentage": round(progress_percentage, 1),
+                "is_max_level": False
+            }
+
+        except Exception as e:
+            self._logger.error(f"❌ Error calculando progreso: {e}", exc_info=True)
+            return None
+
+    async def get_next_level_info(
+        self,
+        current_level_number: int
+    ) -> Optional[Dict]:
+        """
+        Obtiene información del siguiente nivel.
+
+        Args:
+            current_level_number: Número del nivel actual
+
+        Returns:
+            Dict con info del siguiente nivel o None si es nivel máximo
+
+        Example:
+            >>> next_info = await service.get_next_level_info(3)
+            >>> print(next_info)
+            {
+                'level': 4,
+                'name': 'Avanzado',
+                'icon': '🎯',
+                'display_name': '🎯 Avanzado',
+                'min_points': 500,
+                'multiplier': 1.3,
+                'perks': ['...']
+            }
+        """
+        try:
+            if current_level_number >= 7:
+                return None  # Ya es nivel máximo
+
+            next_level = await self.get_level_by_number(current_level_number + 1)
+
+            if not next_level:
+                return None
+
+            return {
+                "level": next_level.level,
+                "name": next_level.name,
+                "icon": next_level.icon,
+                "display_name": next_level.display_name,
+                "min_points": next_level.min_points,
+                "multiplier": next_level.multiplier,
+                "perks": next_level.perks or []
+            }
+
+        except Exception as e:
+            self._logger.error(f"❌ Error obteniendo siguiente nivel: {e}", exc_info=True)
+            return None
 
     async def clear_cache(self) -> None:
         """
