@@ -213,6 +213,33 @@ Librerías Clave:
 - `reason`: Razón de la transacción
 - `created_at`: Timestamp
 
+## Reward (Prompt 1-3)
+- `id`: Auto PK
+- `name`: Nombre de la recompensa
+- `description`: Descripción detallada
+- `icon`: Emoji representativo
+- `reward_type`: Tipo (badge, content, points, role, custom)
+- `cost`: Costo en besitos
+- `limit_type`: Límite de canje (once, daily, weekly, unlimited)
+- `required_level`: Nivel mínimo requerido
+- `is_vip_only`: Solo para VIPs
+- `badge_id`: FK a Badge (si aplica)
+- `content_id`: ID de contenido (flexible)
+- `points_amount`: Puntos extra si es tipo POINTS
+- `is_active`: Si está disponible
+- `stock`: Cantidad disponible (null = ilimitado)
+- `reward_metadata`: JSON flexible
+- `created_at`, `updated_at`: Timestamps
+
+## UserReward (Prompt 1-3)
+- `id`: Auto PK
+- `user_id`: FK a User
+- `reward_id`: FK a Reward
+- `cost_paid`: Puntos pagados en el canje
+- `redeemed_at`: Fecha/hora del canje
+- `is_delivered`: Si fue entregada
+- `delivered_at`: Fecha/hora de entrega (nullable)
+
 ═══════════════════════════════════════════════════════════════
 # SERVICIOS CORE
 ═══════════════════════════════════════════════════════════════
@@ -220,12 +247,16 @@ Librerías Clave:
 ## ServiceContainer (DI + Lazy Loading)
 ```python
 container = ServiceContainer(session, bot)
-container.subscription    # SubscriptionService
-container.channel        # ChannelService
-container.config         # ConfigService
-container.pricing        # PricingService
-container.user_service   # UserService
-container.stats          # StatsService
+container.subscription     # SubscriptionService
+container.channel          # ChannelService
+container.config           # ConfigService
+container.pricing          # PricingService
+container.user             # UserService
+container.stats            # StatsService
+container.badges           # BadgesService
+container.rewards          # RewardsService
+container.points           # PointsService
+container.levels           # LevelsService
 ```
 
 **Métodos:**
@@ -402,6 +433,27 @@ container.stats          # StatsService
 - `create_badge(name, description, emoji, rarity, is_secret, metadata)` → Optional[Badge]
 - `toggle_badge_active(badge_id, active)` → Optional[Badge]
 
+---
+
+## RewardsService (Prompt 1-3)
+**Catálogo:**
+- `get_available_rewards(user_id, reward_type=None)` → List[Reward]
+
+**Validación:**
+- `can_redeem(user_id, reward_id)` → (bool, Optional[str])
+- `_check_redeem_limit(user_id, reward_id, limit_type)` → bool
+
+**Canje:**
+- `redeem_reward(user_id, reward_id)` → (bool, Optional[str], Optional[UserReward])
+- `_deliver_reward_content(user_id, reward, user_reward)` → None
+
+**Histórico:**
+- `get_user_rewards(user_id, limit=20)` → List[UserReward]
+
+**Admin:**
+- `create_reward(name, description, icon, reward_type, cost, ...)` → Optional[Reward]
+- `toggle_reward(reward_id, active)` → Optional[Reward]
+
 ═══════════════════════════════════════════════════════════════
 # MIDDLEWARES
 ═══════════════════════════════════════════════════════════════
@@ -492,6 +544,21 @@ container.stats          # StatsService
 - `show_badges_catalog`: Comando `/catalogo_badges`
   - Catálogo completo de badges disponibles
   - Marca badges adquiridos (✅) vs bloqueados (🔒)
+
+**rewards.py (Prompt 1-3):**
+- `show_rewards_catalog`: Comando `/tienda`
+  - Muestra catálogo de recompensas disponibles
+  - Filtra por nivel, VIP status, saldo
+  - Botones deshabilitados si no hay saldo
+- `process_reward_redemption`: Callback `reward:redeem:ID`
+  - Ejecuta validación y canje atómico
+  - Entrega recompensa según tipo
+  - Muestra detalles en confirmación
+- `show_user_rewards_history`: Comando `/mis_canjes`
+  - Muestra histórico de canjes del usuario
+  - Total gastado y conteo de canjes
+- `show_history_from_store`: Callback `reward:history`
+  - Histórico desde la tienda (10 últimos)
 
 ═══════════════════════════════════════════════════════════════
 # KEYBOARDS
@@ -870,10 +937,25 @@ pytest tests/test_notification_templates.py -v  # 17 tests
 - Migration: phase3_001 - badges & user_badges tables
 - Seeds: 9 predefined badges
 
+**Prompt 1-3 (Rewards Service):**
+- Models: Reward, UserReward, RewardType enum, RewardLimit enum
+- Service: RewardsService (~550 líneas, 12 public methods)
+  * Catálogo con filtros (nivel, VIP, saldo)
+  * Validación atómica de canjes
+  * Límites configurables (once, daily, weekly, unlimited)
+  * Soporte múltiples tipos de recompensa
+  * Histórico de canjes
+- Handlers: 4 handlers + 1 comando (/tienda, /mis_canjes)
+  * Tienda con validación de saldo
+  * Canje interactivo con confirmación
+  * Histórico visualizable desde tienda
+- Migration: Alembic schema rewards & user_rewards
+- Tests: 15 test cases
+
 **Total:**
-- Archivos: ~51
-- Líneas código productivo: ~5,750+
+- Archivos: ~55
+- Líneas código productivo: ~6,800+
 - Módulos: 9 (database, services, handlers, middlewares, states, utils, events, notifications, seeds)
-- Services: 10+ (subscription, channel, config, stats, pricing, user, notifications, gamification, reactions, badges)
+- Services: 11 (subscription, channel, config, stats, pricing, user, notifications, gamification, reactions, badges, rewards)
 - Type hints: 100%
 - Docstrings: 100%
