@@ -1,24 +1,27 @@
-# Gamification System - Besitos, Badges, Ranks, Daily Login, Reacciones y Commit
+# Gamification System - Besitos, Badges, Levels, Daily Login, Reacciones y Commit
 
 ## Descripción General
 
-El sistema de gamificación es un componente integral que motiva a los usuarios a interactuar con el bot mediante un sistema de puntos (Besitos), insignias (badges), rangos, login diario y reacciones. Utiliza el Event Bus para otorgar recompensas automáticamente cuando ocurren ciertas acciones.
+El sistema de gamificación es un componente integral que motiva a los usuarios a interactuar con el bot mediante un sistema de puntos (Besitos), insignias (badges), niveles, login diario y reacciones. Utiliza el Event Bus para otorgar recompensas automáticamente cuando ocurren ciertas acciones.
 
 ## Componentes del Sistema
 
 ### GamificationService
 Servicio principal que maneja:
-- Otorgamiento de Besitos
+- Otorgamiento de Besitos (en el sistema legacy)
 - Verificación y desbloqueo de badges
-- Actualización de rangos
 - Sistema de login diario
 - Rate limiting de reacciones
+
+**Nota:** El sistema de niveles ahora está manejado por servicios separados:
+- `PointsService` - Gestión de puntos y balances
+- `LevelsService` - Gestión de niveles y progresión
 
 ### GamificationConfig
 Configuración centralizada con:
 - Recompensas por acción
 - Definiciones de badges
-- Rangos y requisitos
+- Niveles y requisitos
 - Límites de reacciones
 
 ### GamificationListeners
@@ -42,31 +45,41 @@ Los "Besitos" son puntos que los usuarios ganan por interactuar con el bot. Repr
 ### Otorgamiento de Besitos
 ```python
 # Otorgar Besitos por acción específica
-amount, ranked_up, new_rank = await container.gamification.award_besitos(
+success, new_balance = await container.points.award_points(
     user_id=123,
-    action="message_reacted"
+    amount=10,
+    reason="Reacción a mensaje",
+    multiplier=1.0  # Este puede ser modificado por nivel o VIP status
 )
 
-# Otorgar Besitos personalizados
-amount, ranked_up, new_rank = await container.gamification.award_besitos(
+# El sistema de niveles verifica automáticamente level-ups
+should_level_up, old_level, new_level = await container.levels.check_level_up(
     user_id=123,
-    action="custom_action",
-    custom_amount=100,
-    custom_reason="Recompensa especial"
+    current_points=await container.points.get_user_balance(123)
 )
+
+if should_level_up:
+    await container.levels.apply_level_up(123, new_level.level)
 ```
 
-## Sistema de Rangos
+## Sistema de Niveles
 
-### Definición de Rangos
-- 🌱 **Novato**: 0-499 Besitos
-- 🥉 **Bronce**: 500-1999 Besitos
-- 🥈 **Plata**: 2000+ Besitos
+### Definición de Niveles
+El sistema consta de 7 niveles progresivos con multiplicadores de puntos y beneficios exclusivos:
 
-### Cambio de Rango
-- El sistema verifica automáticamente si un usuario sube de rango al ganar Besitos
-- Se emite un evento `RankUpEvent` cuando ocurre un cambio
-- Se envía notificación de cambio de rango
+- 🌱 **Novato**: 0-99 Besitos (1.0x)
+- 📚 **Aprendiz**: 100-249 Besitos (1.1x)
+- 💪 **Competente**: 250-499 Besitos (1.2x)
+- 🎯 **Avanzado**: 500-999 Besitos (1.3x)
+- 🌟 **Experto**: 1000-2499 Besitos (1.5x)
+- 👑 **Maestro**: 2500-4999 Besitos (1.8x)
+- 🏆 **Leyenda**: 5000+ Besitos (2.0x)
+
+### Cambio de Nivel
+- El sistema verifica automáticamente si un usuario sube de nivel al ganar Besitos
+- Se emite un evento `RankUpEvent` cuando ocorga un cambio
+- Se envía notificación de cambio de nivel
+- Los multiplicadores aumentan progresivamente con cada nivel
 
 ## Sistema de Badges
 
@@ -172,12 +185,12 @@ async def on_message_reacted(event: MessageReactedEvent):
 
 ### Modelos Relacionados
 - `UserProgress`: Progreso individual de cada usuario
-  - `total_besitos`: Total acumulado
-  - `current_rank`: Rango actual
-  - `total_reactions`: Total de reacciones
-  - `reactions_today`: Reacciones hoy
-  - `last_reaction_at`: Última reacción
-  - `daily_streak_id`: Relación con streak diario
+  - `besitos_balance`: Saldo actual de besitos
+  - `current_level`: Nivel actual (1-7)
+  - `total_points_earned`: Total de puntos ganados (histórico)
+  - `total_points_spent`: Total de puntos gastados (histórico)
+  - `created_at`: Fecha de creación del registro
+  - `updated_at`: Fecha de última actualización
 
 - `UserBadge`: Insignias desbloqueadas por usuarios
   - `user_id`: ID del usuario
@@ -216,10 +229,14 @@ class GamificationConfig:
         # ... más badges
     ]
     
-    RANKS = [
-        RankConfig("Novato", 0, 499),
-        RankConfig("Bronce", 500, 1999),
-        RankConfig("Plata", 2000, float('inf'))
+    LEVELS = [
+        LevelConfig("Novato", 0, 99, 1.0),
+        LevelConfig("Aprendiz", 100, 249, 1.1),
+        LevelConfig("Competente", 250, 499, 1.2),
+        LevelConfig("Avanzado", 500, 999, 1.3),
+        LevelConfig("Experto", 1000, 2499, 1.5),
+        LevelConfig("Maestro", 2500, 4999, 1.8),
+        LevelConfig("Leyenda", 5000, None, 2.0)  # No upper limit
     ]
 ```
 
@@ -232,9 +249,10 @@ progress = await container.gamification.get_or_create_progress(user_id=123)
 
 ### Otorgar Besitos
 ```python
-amount, ranked_up, new_rank = await container.gamification.award_besitos(
+success, new_balance = await container.points.award_points(
     user_id=123,
-    action="message_reacted"
+    amount=10,
+    reason="Reacción a mensaje"
 )
 ```
 
@@ -315,18 +333,26 @@ if not puede_reaccionar:
 await container.gamification.record_reaction(user_id)
 
 # 4. Otorgar Besitos base
-amount, ranked_up, new_rank = await container.gamification.award_besitos(
+# Obtener nivel actual para calcular multiplicador
+current_level = await container.points.get_user_level(user_id)
+level_multiplier = await container.levels.get_level_multiplier(current_level)
+
+# Otorgar puntos con multiplicador
+success, new_balance = await container.points.award_points(
     user_id=user_id,
-    action="message_reacted"
+    amount=5,  # Puntos base por reacción
+    reason="Reacción a mensaje",
+    multiplier=level_multiplier
 )
 
-# 5. Otorgar bonus si es primera reacción del día
-progress = await container.gamification.get_or_create_progress(user_id)
-if progress.reactions_today == 1:
-    bonus_amount, _, _ = await container.gamification.award_besitos(
+# 5. Verificar si hay level-up
+if success:
+    should_level_up, old_level, new_level = await container.levels.check_level_up(
         user_id=user_id,
-        action="first_reaction_of_day"
+        current_points=new_balance
     )
+    if should_level_up:
+        await container.levels.apply_level_up(user_id, new_level.level)
 
 # 6. Verificar badges
 new_badges = await container.gamification.check_and_unlock_badges(user_id)

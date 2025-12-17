@@ -841,3 +841,136 @@ class MessageReaction(Base):
             f"msg={self.message_id}, emoji='{self.emoji}', "
             f"besitos={self.besitos_awarded})>"
         )
+
+
+class Level(Base):
+    """
+    Definición de niveles del sistema de gamificación.
+
+    Cada nivel define:
+    - Rango de puntos requeridos (min_points - max_points)
+    - Multiplicador de puntos progresivo
+    - Nombre y emoji representativo
+    - Beneficios/perks asociados
+
+    Niveles predefinidos:
+    1. Novato (0-99 pts, 1.0x)
+    2. Aprendiz (100-249 pts, 1.1x)
+    3. Competente (250-499 pts, 1.2x)
+    4. Avanzado (500-999 pts, 1.3x)
+    5. Experto (1000-2499 pts, 1.5x)
+    6. Maestro (2500-4999 pts, 1.8x)
+    7. Leyenda (5000+ pts, 2.0x)
+
+    Attributes:
+        id: ID único del nivel
+        level: Número de nivel (1-7, único)
+        name: Nombre del nivel
+        icon: Emoji representativo
+        min_points: Puntos mínimos para alcanzar este nivel
+        max_points: Puntos máximos (None = sin límite superior)
+        multiplier: Multiplicador de puntos en este nivel
+        perks: Lista JSON de beneficios/ventajas
+        created_at: Fecha de creación del registro
+    """
+    __tablename__ = "levels"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Número de nivel (1-7)
+    level = Column(
+        Integer,
+        nullable=False,
+        unique=True,
+        index=True,
+        doc="Número de nivel (1-7)"
+    )
+
+    # Nombre del nivel
+    name = Column(
+        String(50),
+        nullable=False,
+        doc="Nombre del nivel (ej: Experto)"
+    )
+
+    # Emoji representativo
+    icon = Column(
+        String(10),
+        nullable=False,
+        doc="Emoji del nivel (ej: 🌟)"
+    )
+
+    # Puntos mínimos requeridos
+    min_points = Column(
+        Integer,
+        nullable=False,
+        doc="Puntos mínimos para alcanzar este nivel"
+    )
+
+    # Puntos máximos del nivel (None = sin límite)
+    max_points = Column(
+        Integer,
+        nullable=True,
+        doc="Puntos máximos del nivel (None = sin límite superior)"
+    )
+
+    # Multiplicador de puntos
+    multiplier = Column(
+        Float,
+        nullable=False,
+        default=1.0,
+        doc="Multiplicador de puntos para este nivel"
+    )
+
+    # Beneficios (JSON)
+    perks = Column(
+        JSON,
+        nullable=True,
+        doc="Lista de beneficios del nivel"
+    )
+
+    # Timestamps
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    def __repr__(self):
+        return (
+            f"<Level(level={self.level}, name={self.name}, "
+            f"points={self.min_points}-{self.max_points}, mult={self.multiplier})>"
+        )
+
+    @property
+    def display_name(self) -> str:
+        """
+        Retorna nombre con emoji.
+
+        Returns:
+            Nombre formateado con emoji
+
+        Example:
+            >>> level.display_name
+            "🌟 Experto"
+        """
+        return f"{self.icon} {self.name}"
+
+    def is_in_range(self, points: int) -> bool:
+        """
+        Verifica si una cantidad de puntos está en el rango de este nivel.
+
+        Args:
+            points: Cantidad de puntos a verificar
+
+        Returns:
+            True si está en rango, False si no
+        """
+        if points < self.min_points:
+            return False
+
+        if self.max_points is None:
+            return True  # Nivel máximo, sin límite superior
+
+        return points <= self.max_points
