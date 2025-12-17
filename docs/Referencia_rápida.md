@@ -240,6 +240,31 @@ Librerías Clave:
 - `is_delivered`: Si fue entregada
 - `delivered_at`: Fecha/hora de entrega (nullable)
 
+## Mission (Prompt 1-3)
+- `id`: Auto PK
+- `name`: Nombre de la misión
+- `description`: Descripción detallada
+- `icon`: Emoji representativo
+- `mission_type`: Tipo (daily, weekly, permanent)
+- `objective_type`: Tipo de objetivo (points, reactions, level, custom)
+- `objective_value`: Valor objetivo (ej: 100 puntos)
+- `reward_id`: FK a Reward (opcional)
+- `is_active`: Si está disponible
+- `required_level`: Nivel mínimo requerido
+- `is_vip_only`: Solo para VIPs
+- `mission_metadata`: JSON flexible
+- `created_at`, `updated_at`: Timestamps
+
+## UserMission (Prompt 1-3)
+- `id`: Auto PK
+- `user_id`: FK a User
+- `mission_id`: FK a Mission
+- `current_progress`: Progreso actual
+- `is_completed`: Si se completó
+- `started_at`: Fecha de inicio
+- `completed_at`: Fecha de completado (nullable)
+- `last_reset_at`: Última vez que se reseteó (nullable)
+
 ═══════════════════════════════════════════════════════════════
 # SERVICIOS CORE
 ═══════════════════════════════════════════════════════════════
@@ -255,6 +280,7 @@ container.user             # UserService
 container.stats            # StatsService
 container.badges           # BadgesService
 container.rewards          # RewardsService
+container.missions         # MissionsService
 container.points           # PointsService
 container.levels           # LevelsService
 ```
@@ -454,6 +480,24 @@ container.levels           # LevelsService
 - `create_reward(name, description, icon, reward_type, cost, ...)` → Optional[Reward]
 - `toggle_reward(reward_id, active)` → Optional[Reward]
 
+---
+
+## MissionsService (Prompt 1-3)
+**Catálogo:**
+- `get_active_missions(user_id, mission_type=None)` → List[Mission]
+
+**Tracking:**
+- `get_user_missions(user_id, include_completed=False)` → List[UserMission]
+- `get_or_create_user_mission(user_id, mission_id)` → Optional[UserMission]
+- `update_progress(user_id, objective_type, amount)` → List[UserMission]
+
+**Reset:**
+- `reset_expired_missions()` → int (background task)
+
+**Admin:**
+- `create_mission(name, description, icon, mission_type, ...)` → Optional[Mission]
+- `toggle_mission(mission_id, active)` → Optional[Mission]
+
 ═══════════════════════════════════════════════════════════════
 # MIDDLEWARES
 ═══════════════════════════════════════════════════════════════
@@ -559,6 +603,19 @@ container.levels           # LevelsService
   - Total gastado y conteo de canjes
 - `show_history_from_store`: Callback `reward:history`
   - Histórico desde la tienda (10 últimos)
+
+**missions.py (Prompt 1-3):**
+- `show_missions`: Comando `/misiones`
+  - Muestra misiones activas con progreso
+  - Filtra por nivel, VIP status
+  - Muestra recompensas si existen
+- Event listeners (tracking automático):
+  * `on_points_earned`: Se dispara al ganar puntos
+  * `on_reaction_made`: Se dispara al hacer reacción
+  * `on_level_up`: Se dispara al subir nivel
+- `reset_missions_cron`: Cron job para reset
+  - Resetea misiones daily/weekly expiradas
+  - Ejecutar cada hora o medianoche
 
 ═══════════════════════════════════════════════════════════════
 # KEYBOARDS
@@ -952,10 +1009,27 @@ pytest tests/test_notification_templates.py -v  # 17 tests
 - Migration: Alembic schema rewards & user_rewards
 - Tests: 15 test cases
 
+**Prompt 1-3 (Missions Service):**
+- Models: Mission, UserMission, MissionType enum, ObjectiveType enum
+- Service: MissionsService (~400 líneas, 10 public methods)
+  * Catálogo con filtros (nivel, VIP, tipo)
+  * Tracking automático de progreso
+  * Reset inteligente (daily, weekly, permanent)
+  * Soporte múltiples tipos de objetivo (points, reactions, level, custom)
+  * Validación de requisitos y recompensas
+- Handlers: 1 comando + 3 event listeners
+  * /misiones: Mostrar misiones activas con progreso
+  * on_points_earned: Trigger al ganar puntos
+  * on_reaction_made: Trigger al hacer reacción
+  * on_level_up: Trigger al subir nivel
+  * reset_missions_cron: Cron job para reset automático
+- Migration: Alembic schema missions & user_missions
+- Tests: 13 test cases (reset, progreso, límites)
+
 **Total:**
-- Archivos: ~55
-- Líneas código productivo: ~6,800+
+- Archivos: ~58
+- Líneas código productivo: ~8,200+
 - Módulos: 9 (database, services, handlers, middlewares, states, utils, events, notifications, seeds)
-- Services: 11 (subscription, channel, config, stats, pricing, user, notifications, gamification, reactions, badges, rewards)
+- Services: 12 (subscription, channel, config, stats, pricing, user, notifications, gamification, reactions, badges, rewards, missions)
 - Type hints: 100%
 - Docstrings: 100%
