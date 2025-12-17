@@ -287,10 +287,46 @@ class MissionsService:
         # Entregar recompensa si existe
         if user_mission.mission.reward_id and self.container:
             try:
-                # TODO: Implementar entrega de recompensa cuando sea necesario
+                reward = user_mission.mission.reward
+                if not reward or not reward.is_active:
+                    self._logger.warning(
+                        f"Reward {user_mission.mission.reward_id} not available"
+                    )
+                    return
+
+                # Entregar según tipo de recompensa
+                if reward.reward_type == "badge":
+                    if reward.badge_id:
+                        await self.container.badges.assign_badge(
+                            user_id=user_mission.user_id,
+                            badge_id=reward.badge_id,
+                            source="mission"
+                        )
+                        self._logger.info(
+                            f"Badge reward delivered: user={user_mission.user_id}, "
+                            f"badge={reward.badge_id}, mission={user_mission.mission.name}"
+                        )
+
+                elif reward.reward_type == "points":
+                    if reward.points_amount > 0:
+                        await self.container.points.add_points(
+                            user_id=user_mission.user_id,
+                            points=reward.points_amount,
+                            reason=f"Mission reward: {user_mission.mission.name}"
+                        )
+                        self._logger.info(
+                            f"Points reward delivered: user={user_mission.user_id}, "
+                            f"points={reward.points_amount}, mission={user_mission.mission.name}"
+                        )
+
+                else:
+                    self._logger.debug(
+                        f"Reward type {reward.reward_type} not yet implemented"
+                    )
+
                 self._logger.info(
                     f"Mission completed: user={user_mission.user_id}, "
-                    f"mission={user_mission.mission.name}"
+                    f"mission={user_mission.mission.name}, reward={reward.name}"
                 )
             except Exception as e:
                 self._logger.error(f"Error delivering reward: {e}", exc_info=True)

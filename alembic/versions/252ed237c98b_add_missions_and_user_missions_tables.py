@@ -60,9 +60,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.Index('idx_user_active', 'user_id', 'is_completed'),
         sa.Index('idx_user_mission', 'user_id', 'mission_id'),
-        sa.Index('ix_user_missions_is_completed', 'is_completed'),
-        sa.Index('ix_user_missions_mission_id', 'mission_id'),
-        sa.Index('ix_user_missions_user_id', 'user_id'),
     )
 
 
