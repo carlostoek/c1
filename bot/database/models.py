@@ -1304,3 +1304,236 @@ class UserReward(Base):
             f"reward={self.reward.name if self.reward else 'N/A'}, "
             f"cost={self.cost_paid})>"
         )
+
+
+class MissionType(str, enum.Enum):
+    """
+    Tipos de misiones.
+
+    - DAILY: Se resetean cada 24 horas
+    - WEEKLY: Se resetean cada lunes
+    - PERMANENT: Una sola vez (achievements)
+    """
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    PERMANENT = "permanent"
+
+
+class ObjectiveType(str, enum.Enum):
+    """
+    Tipos de objetivos de misiones.
+
+    - POINTS: Acumular X puntos (besitos)
+    - REACTIONS: Hacer X reacciones
+    - LEVEL: Alcanzar nivel X
+    - CUSTOM: Objetivo personalizado (futuro)
+    """
+    POINTS = "points"
+    REACTIONS = "reactions"
+    LEVEL = "level"
+    CUSTOM = "custom"
+
+
+class Mission(Base):
+    """
+    Definición de misiones canjeables.
+
+    Tipos:
+    - daily: Se resetean cada 24 horas
+    - weekly: Se resetean cada lunes (siempre)
+    - permanent: Una sola vez (achievements)
+
+    Attributes:
+        id: ID único de la misión
+        name: Nombre de la misión
+        description: Descripción detallada
+        icon: Emoji representativo
+        mission_type: Tipo (daily, weekly, permanent)
+        objective_type: Tipo de objetivo (points, reactions, level, custom)
+        objective_value: Valor objetivo (ej: 100 puntos)
+        reward_id: FK a Reward (opcional)
+        is_active: Si está disponible
+        required_level: Nivel mínimo para acceder
+        is_vip_only: Si solo VIPs pueden hacerla
+        metadata: JSON flexible para datos adicionales
+        created_at: Fecha de creación
+        updated_at: Última actualización
+    """
+    __tablename__ = "missions"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Información básica
+    name = Column(String(100), nullable=False, index=True)
+    description = Column(String(500), nullable=False)
+    icon = Column(String(10), nullable=False, default="🎯")
+
+    # Tipo de misión
+    mission_type = Column(
+        Enum(MissionType),
+        nullable=False,
+        default=MissionType.PERMANENT,
+        index=True
+    )
+
+    # Objetivo
+    objective_type = Column(
+        Enum(ObjectiveType),
+        nullable=False,
+        default=ObjectiveType.POINTS,
+        index=True
+    )
+    objective_value = Column(Integer, nullable=False)
+
+    # Recompensa (opcional)
+    reward_id = Column(Integer, ForeignKey("rewards.id"), nullable=True)
+    reward = relationship("Reward", lazy="joined")
+
+    # Configuración
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    required_level = Column(Integer, nullable=False, default=1)
+    is_vip_only = Column(Boolean, nullable=False, default=False)
+
+    # Metadata flexible
+    mission_metadata = Column(JSON, nullable=True)
+
+    # Timestamps
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    def __repr__(self):
+        return f"<Mission(id={self.id}, name={self.name}, type={self.mission_type.value})>"
+
+    @property
+    def display_name(self) -> str:
+        """Nombre con emoji."""
+        return f"{self.icon} {self.name}"
+
+
+class UserMission(Base):
+    """
+    Progreso de usuarios en misiones.
+
+    Cada usuario tiene un registro por misión activa.
+    Se resetea automáticamente según el tipo de misión.
+
+    Attributes:
+        id: ID único del registro
+        user_id: FK a User
+        mission_id: FK a Mission
+        current_progress: Progreso actual hacia el objetivo
+        is_completed: Si la misión fue completada
+        started_at: Cuándo comenzó a trackearse
+        completed_at: Cuándo se completó (nullable)
+        last_reset_at: Última vez que se reseteó (nullable)
+    """
+    __tablename__ = "user_missions"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Foreign Keys
+    user_id = Column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    mission_id = Column(
+        Integer,
+        ForeignKey("missions.id"),
+        nullable=False,
+        index=True
+    )
+
+    # Progreso
+    current_progress = Column(Integer, nullable=False, default=0)
+    is_completed = Column(Boolean, nullable=False, default=False, index=True)
+
+    # Fechas importantes
+    started_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    last_reset_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relaciones
+    user = relationship("User", lazy="joined")
+    mission = relationship("Mission", lazy="joined")
+
+    # Índices compuestos
+    __table_args__ = (
+        Index("idx_user_mission", "user_id", "mission_id"),
+        Index("idx_user_active", "user_id", "is_completed"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<UserMission(user_id={self.user_id}, mission_id={self.mission_id}, "
+            f"progress={self.current_progress}, completed={self.is_completed})>"
+        )
+
+    @property
+    def progress_percentage(self) -> float:
+        """Calcula porcentaje de progreso."""
+        if not self.mission:
+            return 0.0
+
+        if self.mission.objective_value == 0:
+            return 0.0
+
+        percentage = (self.current_progress / self.mission.objective_value) * 100
+        return min(percentage, 100.0)
+
+    def should_reset(self, now: datetime) -> bool:
+        """
+        Determina si la misión debe resetearse.
+
+        Daily: Si last_reset_at es de otro día
+        Weekly: Si last_reset_at es de otra semana
+        Permanent: Nunca se resetea
+
+        Args:
+            now: Datetime actual en UTC
+
+        Returns:
+            True si debe resetearse, False si no
+        """
+        if not self.mission:
+            return False
+
+        # Permanentes nunca se resetean
+        if self.mission.mission_type == MissionType.PERMANENT:
+            return False
+
+        # Si no tiene last_reset_at, no necesita reset
+        if not self.last_reset_at:
+            return False
+
+        # Daily: diferentes días
+        if self.mission.mission_type == MissionType.DAILY:
+            return now.date() > self.last_reset_at.date()
+
+        # Weekly: diferentes semanas (lunes es día 0)
+        if self.mission.mission_type == MissionType.WEEKLY:
+            # Lunes de la semana de last_reset_at
+            last_monday = self.last_reset_at.date() - timedelta(
+                days=self.last_reset_at.weekday()
+            )
+            # Lunes de la semana actual
+            current_monday = now.date() - timedelta(days=now.weekday())
+            return current_monday > last_monday
+
+        return False

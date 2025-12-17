@@ -61,6 +61,7 @@ class ServiceContainer:
         self._levels = None
         self._badges = None
         self._rewards = None
+        self._missions = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -377,6 +378,41 @@ class ServiceContainer:
 
         return self._rewards
 
+    # ===== MISSIONS SERVICE =====
+
+    @property
+    def missions(self):
+        """
+        Servicio de gestión de misiones.
+
+        Proporciona:
+        - Obtener misiones disponibles para usuario
+        - Tracking automático de progreso
+        - Reset de misiones temporales (daily, weekly)
+        - Verificación de completado
+        - Entrega de recompensas
+
+        Returns:
+            Instancia de MissionsService
+
+        Example:
+            >>> container = ServiceContainer(session, bot)
+            >>> # Obtener misiones activas
+            >>> missions = await container.missions.get_active_missions(user_id=123)
+            >>> # Actualizar progreso
+            >>> updated = await container.missions.update_progress(
+            ...     user_id=123,
+            ...     objective_type=ObjectiveType.POINTS,
+            ...     amount=10
+            ... )
+        """
+        if self._missions is None:
+            from bot.services.missions import MissionsService
+            logger.debug("🔄 Lazy loading: MissionsService")
+            self._missions = MissionsService(self._session, self)
+
+        return self._missions
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -416,6 +452,8 @@ class ServiceContainer:
             loaded.append("badges")
         if self._rewards is not None:
             loaded.append("rewards")
+        if self._missions is not None:
+            loaded.append("missions")
 
         return loaded
 
