@@ -382,6 +382,26 @@ container.stats          # StatsService
 - `get_subscribers_count(event_type)` → int
 - `clear_subscribers()` → None
 
+---
+
+## BadgesService (Phase 3)
+**Asignación:**
+- `assign_badge(user_id, badge_id, source=None)` → Optional[UserBadge]
+- `revoke_badge(user_id, badge_id)` → bool
+
+**Consultas:**
+- `has_badge(user_id, badge_id)` → bool
+- `get_user_badges(user_id, rarity=None)` → List[UserBadge]
+- `get_badge_by_id(badge_id)` → Optional[Badge]
+- `get_badge_by_name(name)` → Optional[Badge]
+- `get_all_badges(include_secret=False, include_inactive=False)` → List[Badge]
+- `count_user_badges(user_id, rarity=None)` → int
+- `get_badges_by_rarity(user_id, rarity)` → List[UserBadge]
+
+**Admin:**
+- `create_badge(name, description, emoji, rarity, is_secret, metadata)` → Optional[Badge]
+- `toggle_badge_active(badge_id, active)` → Optional[Badge]
+
 ═══════════════════════════════════════════════════════════════
 # MIDDLEWARES
 ═══════════════════════════════════════════════════════════════
@@ -464,6 +484,14 @@ container.stats          # StatsService
   - Parsea callback: react:TYPE:MESSAGE_ID:CHANNEL_ID
   - Publica MessageReactedEvent
   - Listener otorga Besitos automáticamente
+
+**badges.py (Phase 3):**
+- `show_user_badges`: Comando `/mis_badges`
+  - Muestra colección personal con conteo por rareza
+  - Agrupa y ordena badges por rareza y fecha
+- `show_badges_catalog`: Comando `/catalogo_badges`
+  - Catálogo completo de badges disponibles
+  - Marca badges adquiridos (✅) vs bloqueados (🔒)
 
 ═══════════════════════════════════════════════════════════════
 # KEYBOARDS
@@ -833,11 +861,19 @@ pytest tests/test_notification_templates.py -v  # 17 tests
 - A3: Tokens con Deep Links + Activación Automática ✅
 - B1: Event Bus (Pub/Sub) ✅
 - B2: Notification Service + RewardBatch ✅
+- B3: Gamification (Levels, Points, Badges) ✅
+
+**Phase 3 (Badges System):**
+- Models: BadgeRarity enum, Badge, updated UserBadge
+- Service: BadgesService (~250 líneas, 10 public methods)
+- Handlers: 2 commands (/mis_badges, /catalogo_badges)
+- Migration: phase3_001 - badges & user_badges tables
+- Seeds: 9 predefined badges
 
 **Total:**
-- Archivos: ~48
-- Líneas código productivo: ~5,300+
-- Módulos: 8 (database, services, handlers, middlewares, states, utils, events, notifications)
-- Tests E2E + Unit: 36 nuevos (batch, templates)
+- Archivos: ~51
+- Líneas código productivo: ~5,750+
+- Módulos: 9 (database, services, handlers, middlewares, states, utils, events, notifications, seeds)
+- Services: 10+ (subscription, channel, config, stats, pricing, user, notifications, gamification, reactions, badges)
 - Type hints: 100%
 - Docstrings: 100%
