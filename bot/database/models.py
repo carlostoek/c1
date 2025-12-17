@@ -11,7 +11,7 @@ Tablas:
 """
 import logging
 import enum
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List
 
 from sqlalchemy import (
@@ -1518,19 +1518,22 @@ class UserMission(Base):
         if self.mission.mission_type == MissionType.PERMANENT:
             return False
 
-        # Si no tiene last_reset_at, no necesita reset
-        if not self.last_reset_at:
+        # Usar last_reset_at si existe, sino usar completed_at como referencia
+        reference_time = self.last_reset_at or self.completed_at
+
+        # Si no tiene ninguna referencia temporal, no reseteamos
+        if not reference_time:
             return False
 
         # Daily: diferentes días
         if self.mission.mission_type == MissionType.DAILY:
-            return now.date() > self.last_reset_at.date()
+            return now.date() > reference_time.date()
 
         # Weekly: diferentes semanas (lunes es día 0)
         if self.mission.mission_type == MissionType.WEEKLY:
-            # Lunes de la semana de last_reset_at
-            last_monday = self.last_reset_at.date() - timedelta(
-                days=self.last_reset_at.weekday()
+            # Lunes de la semana de reference_time
+            last_monday = reference_time.date() - timedelta(
+                days=reference_time.weekday()
             )
             # Lunes de la semana actual
             current_monday = now.date() - timedelta(days=now.weekday())

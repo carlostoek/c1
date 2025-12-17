@@ -9,6 +9,7 @@ Casos cubiertos:
 - Límites temporales (daily, weekly, permanent)
 """
 import pytest
+import pytest_asyncio
 from datetime import datetime, timezone, timedelta
 
 from bot.database.models import (
@@ -17,18 +18,18 @@ from bot.database.models import (
 from bot.services.missions import MissionsService
 
 
-@pytest.fixture
-async def missions_service(session):
+@pytest_asyncio.fixture
+async def missions_service(db_session):
     """Crea una instancia de MissionsService."""
-    return MissionsService(session)
+    return MissionsService(db_session)
 
 
-@pytest.fixture
-async def sample_user(session):
+@pytest_asyncio.fixture
+async def sample_user(db_session):
     """Crea un usuario de prueba."""
     from sqlalchemy import select
 
-    result = await session.execute(select(User).where(User.user_id == 54321))
+    result = await db_session.execute(select(User).where(User.user_id == 54321))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -38,14 +39,14 @@ async def sample_user(session):
             last_name="Mission",
             role="FREE"
         )
-        session.add(user)
-        await session.flush()
+        db_session.add(user)
+        await db_session.flush()
 
     return user
 
 
-@pytest.fixture
-async def sample_mission(session):
+@pytest_asyncio.fixture
+async def sample_mission(db_session):
     """Crea una misión de prueba."""
     mission = Mission(
         name="Test Mission",
@@ -58,8 +59,8 @@ async def sample_mission(session):
         is_vip_only=False,
         is_active=True
     )
-    session.add(mission)
-    await session.flush()
+    db_session.add(mission)
+    await db_session.flush()
     return mission
 
 
@@ -67,7 +68,7 @@ class TestMissionsServiceGetActive:
     """Tests para get_active_missions()."""
 
     async def test_get_active_missions_returns_list(
-        self, missions_service, sample_user, sample_mission, session
+        self, missions_service, sample_user, sample_mission, db_session
     ):
         """Verifica que retorna una lista de misiones."""
         missions = await missions_service.get_active_missions(sample_user.user_id)
@@ -75,7 +76,7 @@ class TestMissionsServiceGetActive:
         assert isinstance(missions, list)
 
     async def test_get_active_missions_filters_inactive(
-        self, missions_service, sample_user, session
+        self, missions_service, sample_user, db_session
     ):
         """Verifica que filtra misiones inactivas."""
         # Crear misión inactiva
@@ -88,8 +89,8 @@ class TestMissionsServiceGetActive:
             objective_value=50,
             is_active=False
         )
-        session.add(inactive)
-        await session.flush()
+        db_session.add(inactive)
+        await db_session.flush()
 
         missions = await missions_service.get_active_missions(sample_user.user_id)
 
@@ -97,7 +98,7 @@ class TestMissionsServiceGetActive:
         assert all(m.is_active for m in missions)
 
     async def test_get_active_missions_filters_by_type(
-        self, missions_service, sample_user, session
+        self, missions_service, sample_user, db_session
     ):
         """Verifica que filtra por tipo de misión."""
         # Crear misión daily
@@ -110,8 +111,8 @@ class TestMissionsServiceGetActive:
             objective_value=100,
             is_active=True
         )
-        session.add(daily)
-        await session.flush()
+        db_session.add(daily)
+        await db_session.flush()
 
         missions = await missions_service.get_active_missions(
             sample_user.user_id,
@@ -141,7 +142,7 @@ class TestMissionsServiceGetOrCreate:
         assert um.is_completed == False
 
     async def test_get_or_create_returns_existing(
-        self, missions_service, sample_user, sample_mission, session
+        self, missions_service, sample_user, sample_mission, db_session
     ):
         """Verifica que retorna UserMission existente."""
         # Crear uno
@@ -163,7 +164,7 @@ class TestMissionsServiceShouldReset:
     """Tests para UserMission.should_reset()."""
 
     async def test_should_reset_permanent_never(
-        self, missions_service, sample_user, session
+        self, missions_service, sample_user, db_session
     ):
         """Verifica que misiones permanentes nunca se resetean."""
         perm_mission = Mission(
@@ -174,8 +175,8 @@ class TestMissionsServiceShouldReset:
             objective_type=ObjectiveType.POINTS,
             objective_value=100
         )
-        session.add(perm_mission)
-        await session.flush()
+        db_session.add(perm_mission)
+        await db_session.flush()
 
         um = await missions_service.get_or_create_user_mission(
             sample_user.user_id,
@@ -186,7 +187,7 @@ class TestMissionsServiceShouldReset:
         assert not um.should_reset(now)
 
     async def test_should_reset_daily_after_day(
-        self, missions_service, sample_user, session
+        self, missions_service, sample_user, db_session
     ):
         """Verifica que daily se resetea después de 24 hrs."""
         daily_mission = Mission(
@@ -197,8 +198,8 @@ class TestMissionsServiceShouldReset:
             objective_type=ObjectiveType.POINTS,
             objective_value=100
         )
-        session.add(daily_mission)
-        await session.flush()
+        db_session.add(daily_mission)
+        await db_session.flush()
 
         um = await missions_service.get_or_create_user_mission(
             sample_user.user_id,
@@ -213,7 +214,7 @@ class TestMissionsServiceShouldReset:
         assert um.should_reset(now)
 
     async def test_should_reset_daily_same_day_false(
-        self, missions_service, sample_user, session
+        self, missions_service, sample_user, db_session
     ):
         """Verifica que daily NO se resetea el mismo día."""
         daily_mission = Mission(
@@ -224,8 +225,8 @@ class TestMissionsServiceShouldReset:
             objective_type=ObjectiveType.POINTS,
             objective_value=100
         )
-        session.add(daily_mission)
-        await session.flush()
+        db_session.add(daily_mission)
+        await db_session.flush()
 
         um = await missions_service.get_or_create_user_mission(
             sample_user.user_id,
@@ -240,7 +241,7 @@ class TestMissionsServiceShouldReset:
         assert not um.should_reset(now)
 
     async def test_should_reset_weekly_after_week(
-        self, missions_service, sample_user, session
+        self, missions_service, sample_user, db_session
     ):
         """Verifica que weekly se resetea después de una semana."""
         weekly_mission = Mission(
@@ -251,8 +252,8 @@ class TestMissionsServiceShouldReset:
             objective_type=ObjectiveType.REACTIONS,
             objective_value=10
         )
-        session.add(weekly_mission)
-        await session.flush()
+        db_session.add(weekly_mission)
+        await db_session.flush()
 
         um = await missions_service.get_or_create_user_mission(
             sample_user.user_id,
@@ -271,7 +272,7 @@ class TestMissionsServiceUpdateProgress:
     """Tests para update_progress()."""
 
     async def test_update_progress_increments(
-        self, missions_service, sample_user, sample_mission, session
+        self, missions_service, sample_user, sample_mission, db_session
     ):
         """Verifica que incrementa el progreso."""
         updated = await missions_service.update_progress(
@@ -284,7 +285,7 @@ class TestMissionsServiceUpdateProgress:
         assert updated[0].current_progress == 10
 
     async def test_update_progress_detects_completion(
-        self, missions_service, sample_user, sample_mission, session
+        self, missions_service, sample_user, sample_mission, db_session
     ):
         """Verifica que detecta cuando se completa."""
         # Actualizar exactamente hasta el objetivo
@@ -299,7 +300,7 @@ class TestMissionsServiceUpdateProgress:
         assert updated[0].completed_at is not None
 
     async def test_update_progress_respects_limits(
-        self, missions_service, sample_user, session
+        self, missions_service, sample_user, db_session
     ):
         """Verifica que respeta límites de tipo de objetivo."""
         # Crear misión de reacciones
@@ -311,8 +312,8 @@ class TestMissionsServiceUpdateProgress:
             objective_type=ObjectiveType.REACTIONS,
             objective_value=5
         )
-        session.add(reaction_mission)
-        await session.flush()
+        db_session.add(reaction_mission)
+        await db_session.flush()
 
         # Actualizar con tipo diferente (POINTS en misión de REACTIONS)
         updated = await missions_service.update_progress(
@@ -341,7 +342,7 @@ class TestMissionsServiceGetUser:
         assert len(missions) == 0
 
     async def test_get_user_missions_excludes_completed(
-        self, missions_service, sample_user, sample_mission, session
+        self, missions_service, sample_user, sample_mission, db_session
     ):
         """Verifica que excluye completadas por default."""
         um = await missions_service.get_or_create_user_mission(
@@ -349,14 +350,14 @@ class TestMissionsServiceGetUser:
             sample_mission.id
         )
         um.is_completed = True
-        await session.commit()
+        await db_session.commit()
 
         missions = await missions_service.get_user_missions(sample_user.user_id)
 
         assert len(missions) == 0
 
     async def test_get_user_missions_includes_completed(
-        self, missions_service, sample_user, sample_mission, session
+        self, missions_service, sample_user, sample_mission, db_session
     ):
         """Verifica que incluye completadas si se solicita."""
         um = await missions_service.get_or_create_user_mission(
@@ -364,7 +365,7 @@ class TestMissionsServiceGetUser:
             sample_mission.id
         )
         um.is_completed = True
-        await session.commit()
+        await db_session.commit()
 
         missions = await missions_service.get_user_missions(
             sample_user.user_id,
