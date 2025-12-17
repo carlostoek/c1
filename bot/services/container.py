@@ -60,6 +60,7 @@ class ServiceContainer:
         self._points = None
         self._levels = None
         self._badges = None
+        self._rewards = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -342,6 +343,40 @@ class ServiceContainer:
 
         return self._badges
 
+    # ===== REWARDS SERVICE =====
+
+    @property
+    def rewards(self):
+        """
+        Servicio de gestión de recompensas canjeables.
+
+        Proporciona:
+        - Obtener catálogo de recompensas disponibles
+        - Validar si usuario puede canjear
+        - Ejecutar canje (deducir puntos, entregar recompensa)
+        - Consultar histórico de canjes
+        - Operaciones administrativas
+
+        Returns:
+            Instancia de RewardsService
+
+        Example:
+            >>> container = ServiceContainer(session, bot)
+            >>> # Obtener recompensas disponibles
+            >>> rewards = await container.rewards.get_available_rewards(user_id=123)
+            >>> # Canjear recompensa
+            >>> success, msg, reward = await container.rewards.redeem_reward(
+            ...     user_id=123,
+            ...     reward_id=1
+            ... )
+        """
+        if self._rewards is None:
+            from bot.services.rewards import RewardsService
+            logger.debug("🔄 Lazy loading: RewardsService")
+            self._rewards = RewardsService(self._session, self)
+
+        return self._rewards
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -379,6 +414,8 @@ class ServiceContainer:
             loaded.append("levels")
         if self._badges is not None:
             loaded.append("badges")
+        if self._rewards is not None:
+            loaded.append("rewards")
 
         return loaded
 

@@ -56,6 +56,38 @@ class BadgeRarity(str, enum.Enum):
     LEGENDARY = "legendary"
 
 
+class RewardType(str, enum.Enum):
+    """
+    Tipos de recompensas canjeables.
+
+    - BADGE: Insignia coleccionable
+    - CONTENT: Contenido exclusivo
+    - POINTS: Puntos extra (besitos)
+    - ROLE: Rol especial (futuro)
+    - CUSTOM: Recompensa personalizada
+    """
+    BADGE = "badge"
+    CONTENT = "content"
+    POINTS = "points"
+    ROLE = "role"
+    CUSTOM = "custom"
+
+
+class RewardLimit(str, enum.Enum):
+    """
+    Límites de canje de recompensas.
+
+    - ONCE: Solo una sola vez
+    - DAILY: Una vez al día
+    - WEEKLY: Una vez a la semana
+    - UNLIMITED: Ilimitado
+    """
+    ONCE = "once"
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    UNLIMITED = "unlimited"
+
+
 class BotConfig(Base):
     """
     Configuración global del bot (tabla singleton - solo 1 registro).
@@ -1098,3 +1130,177 @@ class Badge(Base):
     def full_display(self) -> str:
         """Display completo con rareza."""
         return f"{self.rarity_icon} {self.display_name}"
+
+
+class Reward(Base):
+    """
+    Catálogo de recompensas canjeables por puntos (besitos).
+
+    Almacena recompensas disponibles que los usuarios pueden canjear
+    gastando sus besitos. Cada recompensa puede ser:
+    - Una insignia coleccionable
+    - Contenido exclusivo
+    - Puntos extra
+    - Un rol especial
+    - Recompensa personalizada
+
+    Attributes:
+        id: ID único de la recompensa
+        name: Nombre de la recompensa (ej: "Badge Especial")
+        description: Descripción detallada
+        icon: Emoji representativo
+        reward_type: Tipo de recompensa (badge, content, points, etc.)
+        cost: Costo en besitos
+        limit_type: Límite de canje (once, daily, weekly, unlimited)
+        required_level: Nivel mínimo requerido
+        is_vip_only: Si solo VIPs pueden canjearla
+        badge_id: FK a Badge si es tipo BADGE
+        content_id: FK a Content si es tipo CONTENT
+        points_amount: Cantidad de puntos si es tipo POINTS
+        is_active: Si está disponible
+        stock: Cantidad disponible (null = ilimitado)
+        metadata: JSON flexible para datos adicionales
+        created_at: Fecha de creación
+        updated_at: Última actualización
+    """
+    __tablename__ = "rewards"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Información básica
+    name = Column(String(100), nullable=False, index=True)
+    description = Column(String(500), nullable=False)
+    icon = Column(String(10), nullable=False, default="🎁")
+
+    # Tipo y costo
+    reward_type = Column(
+        Enum(RewardType),
+        nullable=False,
+        default=RewardType.BADGE,
+        index=True
+    )
+    cost = Column(Integer, nullable=False, index=True)
+
+    # Límite de canje
+    limit_type = Column(
+        Enum(RewardLimit),
+        nullable=False,
+        default=RewardLimit.ONCE,
+        index=True
+    )
+
+    # Requisitos
+    required_level = Column(Integer, nullable=False, default=1)
+    is_vip_only = Column(Boolean, nullable=False, default=False)
+
+    # Contenido según tipo
+    badge_id = Column(Integer, ForeignKey("badges.id"), nullable=True)
+    content_id = Column(String(100), nullable=True)  # Flexible para extensión
+    points_amount = Column(Integer, nullable=False, default=0)
+
+    # Relaciones
+    badge = relationship("Badge", lazy="joined")
+
+    # Configuración
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    stock = Column(Integer, nullable=True)  # Null = ilimitado
+
+    # Metadata flexible
+    reward_metadata = Column(JSON, nullable=True)
+
+    # Timestamps
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    def __repr__(self):
+        return f"<Reward(id={self.id}, name={self.name}, cost={self.cost})>"
+
+    @property
+    def display_name(self) -> str:
+        """Nombre con emoji."""
+        return f"{self.icon} {self.name}"
+
+    @property
+    def is_available(self) -> bool:
+        """Verifica si está disponible (activa y con stock)."""
+        if not self.is_active:
+            return False
+        if self.stock is not None and self.stock <= 0:
+            return False
+        return True
+
+
+class UserReward(Base):
+    """
+    Histórico de canjes de usuarios.
+
+    Registra cada recompensa canjeada por un usuario,
+    incluyendo cuándo se canjeó, cuánto costó y si fue entregada.
+
+    Attributes:
+        id: ID único del registro de canje
+        user_id: FK a usuario
+        reward_id: FK a recompensa
+        cost_paid: Puntos que pagó por la recompensa
+        redeemed_at: Fecha/hora del canje
+        is_delivered: Si la recompensa fue entregada
+        delivered_at: Fecha/hora de entrega (nullable)
+    """
+    __tablename__ = "user_rewards"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Foreign Keys
+    user_id = Column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    reward_id = Column(
+        Integer,
+        ForeignKey("rewards.id"),
+        nullable=False,
+        index=True
+    )
+
+    # Info del canje
+    cost_paid = Column(Integer, nullable=False)
+    redeemed_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True
+    )
+
+    # Estado
+    is_delivered = Column(Boolean, nullable=False, default=False)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relaciones
+    user = relationship("User", lazy="joined")
+    reward = relationship("Reward", lazy="joined")
+
+    # Índices
+    __table_args__ = (
+        Index("idx_user_reward", "user_id", "reward_id"),
+        Index("idx_user_redeemed", "user_id", "redeemed_at"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<UserReward(user_id={self.user_id}, "
+            f"reward={self.reward.name if self.reward else 'N/A'}, "
+            f"cost={self.cost_paid})>"
+        )
