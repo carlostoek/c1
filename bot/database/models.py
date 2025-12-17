@@ -41,6 +41,21 @@ class TransactionType(str, enum.Enum):
     ADJUSTED = "adjusted"
 
 
+class BadgeRarity(str, enum.Enum):
+    """
+    Rareza de insignias coleccionables.
+
+    - COMMON: Común 🥉
+    - RARE: Raro 🥈
+    - EPIC: Épico 🥇
+    - LEGENDARY: Legendario 💎
+    """
+    COMMON = "common"
+    RARE = "rare"
+    EPIC = "epic"
+    LEGENDARY = "legendary"
+
+
 class BotConfig(Base):
     """
     Configuración global del bot (tabla singleton - solo 1 registro).
@@ -400,38 +415,63 @@ class PointTransaction(Base):
 
 class UserBadge(Base):
     """
-    Insignia desbloqueada por un usuario.
+    Insignias desbloqueadas por usuarios.
+
+    Representa la colección personal de insignias de cada usuario.
 
     Attributes:
         id: ID único
-        user_id: ID del usuario
-        badge_id: ID de la insignia (del config)
-        unlocked_at: Fecha de desbloqueo
+        user_id: ID del usuario (FK a users)
+        badge_id: ID de la insignia (FK a badges)
+        earned_at: Fecha de desbloqueo
+        source: Origen de la insignia ("mission", "reward", "achievement")
     """
 
     __tablename__ = "user_badges"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    # Primary Key
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Foreign Keys
     user_id = Column(
         BigInteger,
-        ForeignKey("user_progress.user_id"),
-        nullable=False
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
     )
-    badge_id = Column(String(50), nullable=False)
-    unlocked_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    # Relación (comentada - UserProgress se redefinió para Servicio de Puntos)
-    # user_progress = relationship(
-    #     "UserProgress",
-    #     back_populates="badges"
-    # )
+    badge_id = Column(
+        Integer,
+        ForeignKey("badges.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
 
+    # Info
+    earned_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    source = Column(
+        String(100),
+        nullable=True,
+        doc="Origen de la insignia (mission, reward, achievement, etc)"
+    )
+
+    # Relaciones
+    user = relationship("User", lazy="joined")
+    badge = relationship("Badge", back_populates="user_badges", lazy="joined")
+
+    # Índices
     __table_args__ = (
-        Index('idx_user_badges_user_id', 'user_id'),
+        Index('idx_user_badge', 'user_id', 'badge_id', unique=True),
+        Index('idx_user_earned', 'user_id', 'earned_at'),
     )
 
     def __repr__(self) -> str:
-        return f"<UserBadge(user_id={self.user_id}, badge_id='{self.badge_id}')>"
+        return f"<UserBadge(user_id={self.user_id}, badge_id={self.badge_id}, earned_at={self.earned_at})>"
 
 
 class DailyStreak(Base):
@@ -974,3 +1014,87 @@ class Level(Base):
             return True  # Nivel máximo, sin límite superior
 
         return points <= self.max_points
+
+
+class Badge(Base):
+    """
+    Insignias coleccionables del sistema de gamificación.
+
+    Otorgadas por:
+    - Completar misiones
+    - Canjear recompensas
+    - Logros especiales
+
+    Attributes:
+        id: ID único de la insignia
+        name: Nombre único de la insignia (ej: "Constante", "Dedicado")
+        description: Descripción completa de la insignia
+        emoji: Emoji representativo de la insignia
+        rarity: Rareza (common, rare, epic, legendary)
+        is_active: Si la insignia está activa para otorgarse
+        is_secret: Si está oculta hasta que se obtenga
+        metadata: JSON flexible para información adicional
+        created_at: Fecha de creación del registro
+    """
+    __tablename__ = "badges"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Información
+    name = Column(String(100), nullable=False, unique=True, index=True)
+    description = Column(String(500), nullable=False)
+    emoji = Column(String(10), nullable=False)
+
+    # Rareza
+    rarity = Column(
+        Enum(BadgeRarity),
+        nullable=False,
+        default=BadgeRarity.COMMON,
+        index=True
+    )
+
+    # Configuración
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    is_secret = Column(Boolean, nullable=False, default=False)
+
+    # Metadata flexible
+    badge_metadata = Column(JSON, nullable=True)
+
+    # Timestamps
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    # Relación con user_badges
+    user_badges = relationship(
+        "UserBadge",
+        back_populates="badge",
+        cascade="all, delete-orphan"
+    )
+
+    def __repr__(self):
+        return f"<Badge(id={self.id}, name={self.name}, rarity={self.rarity.value})>"
+
+    @property
+    def display_name(self) -> str:
+        """Nombre con emoji."""
+        return f"{self.emoji} {self.name}"
+
+    @property
+    def rarity_icon(self) -> str:
+        """Emoji según rareza."""
+        icons = {
+            BadgeRarity.COMMON: "🥉",
+            BadgeRarity.RARE: "🥈",
+            BadgeRarity.EPIC: "🥇",
+            BadgeRarity.LEGENDARY: "💎"
+        }
+        return icons.get(self.rarity, "⭐")
+
+    @property
+    def full_display(self) -> str:
+        """Display completo con rareza."""
+        return f"{self.rarity_icon} {self.display_name}"

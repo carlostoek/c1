@@ -9,6 +9,7 @@ import logging
 from aiogram import Dispatcher
 
 from bot.handlers.admin import admin_router
+from bot.handlers.badges import router as badges_router
 from bot.handlers.user import user_router, user_reactions_router
 
 logger = logging.getLogger(__name__)
@@ -27,8 +28,15 @@ def register_all_handlers(dispatcher: Dispatcher) -> None:
     dispatcher.include_router(admin_router)
     dispatcher.include_router(user_router)
     dispatcher.include_router(user_reactions_router)
+    dispatcher.include_router(badges_router)
 
     logger.info("Handlers registrados correctamente")
 
 
-__all__ = ["register_all_handlers", "admin_router", "user_router", "user_reactions_router"]
+__all__ = [
+    "register_all_handlers",
+    "admin_router",
+    "user_router",
+    "user_reactions_router",
+    "badges_router"
+]

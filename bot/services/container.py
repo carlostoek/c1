@@ -59,6 +59,7 @@ class ServiceContainer:
         self._reactions_service = None
         self._points = None
         self._levels = None
+        self._badges = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -306,6 +307,41 @@ class ServiceContainer:
             self._levels = LevelsService(self._session, self._bot)
         return self._levels
 
+    # ===== BADGES SERVICE =====
+
+    @property
+    def badges(self):
+        """
+        Servicio de gestión de insignias coleccionables.
+
+        Proporciona:
+        - Asignación de badges a usuarios
+        - Consulta de colecciones personales
+        - Catálogo completo de badges
+        - Verificación de posesión
+        - Operaciones administrativas
+
+        Returns:
+            Instancia de BadgesService
+
+        Example:
+            >>> container = ServiceContainer(session, bot)
+            >>> # Asignar badge
+            >>> badge = await container.badges.assign_badge(
+            ...     user_id=123,
+            ...     badge_id=1,
+            ...     source="mission"
+            ... )
+            >>> # Obtener colección del usuario
+            >>> user_badges = await container.badges.get_user_badges(123)
+        """
+        if self._badges is None:
+            from bot.services.badges import BadgesService
+            logger.debug("🔄 Lazy loading: BadgesService")
+            self._badges = BadgesService(self._session, self)
+
+        return self._badges
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -341,6 +377,8 @@ class ServiceContainer:
             loaded.append("points")
         if self._levels is not None:
             loaded.append("levels")
+        if self._badges is not None:
+            loaded.append("badges")
 
         return loaded
 
