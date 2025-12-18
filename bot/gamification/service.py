@@ -20,7 +20,7 @@ from bot.database.models import (
     DailyStreak,
     BesitosTransaction
 )
-from bot.gamification.config import GamificationConfig
+from bot.services.configuration.service import ConfigurationService
 from bot.events import event_bus, PointsAwardedEvent, BadgeUnlockedEvent, RankUpEvent
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class GamificationService:
     def __init__(self, session: AsyncSession):
         """Inicializa el servicio."""
         self.session = session
-        self.config = GamificationConfig
+        self.config_service = ConfigurationService(session)
 
     async def get_or_create_progress(self, user_id: int) -> UserProgress:
         """
@@ -102,17 +102,19 @@ class GamificationService:
         # Obtener progreso
         progress = await self.get_or_create_progress(user_id)
 
-        # Obtener reward del config
+        # Obtener reward del config service
         if custom_amount is not None:
             amount = custom_amount
             reason = custom_reason or action
         else:
-            reward = self.config.get_reward(action)
-            if not reward:
+            amount = await self.config_service.get_points_for_action(action)
+
+            if amount == 0:
                 logger.warning(f"⚠️ Acción sin recompensa: {action}")
                 return 0, False, None
-            amount = reward.amount
-            reason = reward.description
+
+            action_config = await self.config_service.get_action(action)
+            reason = action_config.description if action_config else action
 
         # Guardar rango anterior
         old_rank = progress.current_rank
@@ -123,8 +125,8 @@ class GamificationService:
         progress.updated_at = datetime.utcnow()
 
         # Verificar cambio de rango
-        new_rank_obj = self.config.get_rank_for_besitos(progress.total_besitos)
-        ranked_up = new_rank_obj.name != old_rank
+        new_rank_obj = await self.config_service.get_level_for_points(progress.total_besitos)
+        ranked_up = new_rank_obj.name != old_rank if new_rank_obj else False
 
         if ranked_up:
             progress.current_rank = new_rank_obj.name
@@ -183,10 +185,11 @@ class GamificationService:
         # Obtener badges ya desbloqueados
         unlocked_badge_ids = {badge.badge_id for badge in progress.badges}
 
-        # Verificar cada badge del config
+        # Verificar cada badge de la configuración
         new_badges = []
 
-        for badge_def in self.config.BADGES:
+        badges_config = await self.config_service.list_badges()
+        for badge_def in badges_config:
             # Si ya lo tiene, skip
             if badge_def.id in unlocked_badge_ids:
                 continue
@@ -310,8 +313,8 @@ class GamificationService:
             streak.longest_streak = streak.current_streak
 
         # Calcular Besitos
-        base_reward = self.config.get_reward("daily_login_base").amount
-        streak_bonus = self.config.get_reward("daily_login_streak_bonus").amount
+        base_reward = await self.config_service.get_points_for_action("daily_login_base")
+        streak_bonus = await self.config_service.get_points_for_action("daily_login_streak_bonus")
         streak_bonus_total = (streak.current_streak - 1) * streak_bonus
 
         total_besitos = base_reward + streak_bonus_total
@@ -346,13 +349,23 @@ class GamificationService:
         progress = await self.get_or_create_progress(user_id)
 
         # Verificar límite diario
-        if progress.reactions_today >= self.config.MAX_REACTIONS_PER_DAY:
+        # Para este caso, usamos una acción de configuración para el límite diario
+        # Si no existe, usamos el valor por defecto
+        max_reactions = await self.config_service.get_points_for_action("max_reactions_per_day")
+        if max_reactions == 0:  # Si no está configurado, usar valor por defecto
+            max_reactions = 20
+
+        if progress.reactions_today >= max_reactions:
             return False
 
         # Verificar tiempo mínimo entre reacciones
+        min_seconds = await self.config_service.get_points_for_action("min_seconds_between_reactions")
+        if min_seconds == 0:  # Si no está configurado, usar valor por defecto
+            min_seconds = 30
+
         if progress.last_reaction_at:
             seconds_since_last = (datetime.utcnow() - progress.last_reaction_at).total_seconds()
-            if seconds_since_last < self.config.MIN_SECONDS_BETWEEN_REACTIONS:
+            if seconds_since_last < min_seconds:
                 return False
 
         return True
