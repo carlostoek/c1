@@ -19,6 +19,26 @@ El **Configuration Service** es un componente esencial del bot que gestiona la c
 - **Operaciones anidadas:** Creación de recursos relacionados en transacciones atómicas
 - **Métricas de rendimiento:** Estadísticas del sistema de cache
 
+## Integración en ServiceContainer
+
+El ConfigurationService está integrado en el ServiceContainer como un servicio más, disponible bajo la propiedad `configuration`. Se carga de forma lazy (solo cuando se accede por primera vez) para optimizar el uso de memoria en entornos como Termux:
+
+```python
+# Acceso al servicio a través del container
+container = ServiceContainer(session, bot)
+config_service = container.configuration
+
+# El servicio se carga lazy en el primer acceso
+actions = await container.configuration.list_actions()
+```
+
+La integración en ServiceContainer permite:
+- Acceso consistente con otros servicios del sistema
+- Lazy loading para optimizar memoria
+- Gestión centralizada de dependencias
+- Integración con el sistema de logging
+- Recursos compartidos (sesión de base de datos)
+
 ## Arquitectura
 
 ### Estructura de Configuración

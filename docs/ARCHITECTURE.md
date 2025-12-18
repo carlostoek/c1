@@ -4265,6 +4265,203 @@ back_to_config_keyboard = create_inline_keyboard([
 ])
 ```
 
+### 8.3 Configuration Handler (Fase 4.2)
+
+**Responsabilidad:** Handlers del sistema de configuración de gamificación que permiten a los administradores gestionar todas las entidades relacionadas con el sistema de puntos, niveles, badges, recompensas y misiones.
+
+**Componentes:**
+- `bot/handlers/admin/configuration.py` - Handlers principales y callbacks de navegación para el sistema de configuración de gamificación
+
+**Características:**
+- **Gestión de acciones de gamificación:** Configuración de puntos otorgados por diferentes acciones
+- **Gestión de niveles de gamificación:** Configuración de rangos basados en puntos acumulados
+- **Gestión de badges:** Configuración de insignias con requisitos específicos
+- **Gestión de recompensas:** Configuración de premios por logros y desbloqueos
+- **Gestión de misiones:** Configuración de desafíos con objetivos específicos
+- **Sistema de cache:** Implementación de cache en memoria con TTL configurable para mejorar rendimiento
+- **Operaciones anidadas:** Creación de recursos relacionados en transacciones atómicas
+- **Validaciones de negocio:** Verificación de consistencia y validación de datos
+
+**Flujo principal:**
+1. Usuario admin selecciona "⚙️ Configuración de Gamificación" o envía `/config`
+2. Bot muestra menú principal de configuración de gamificación
+3. Usuario selecciona tipo de configuración (acciones, niveles, badges, recompensas, misiones)
+4. Bot navega al submenú correspondiente usando estados FSM específicos
+5. Usuario puede crear, editar, eliminar o reordenar configuraciones
+6. Usuario puede volver al menú principal de configuración o salir
+
+**Estructura de callbacks:**
+- `config:main` - Callback para mostrar menú principal de configuración
+- `config:actions` - Callback para gestionar acciones de gamificación
+- `config:levels` - Callback para gestionar niveles de gamificación
+- `config:badges` - Callback para gestionar badges
+- `config:rewards` - Callback para gestionar recompensas
+- `config:missions` - Callback para gestionar misiones
+- `config:action:create` - Callback para crear nueva acción
+- `config:action:edit` - Callback para editar acción existente
+- `config:action:delete` - Callback para eliminar acción
+- `config:level:create` - Callback para crear nuevo nivel
+- `config:level:edit` - Callback para editar nivel existente
+- `config:level:delete` - Callback para eliminar nivel
+- `config:level:reorder` - Callback para reordenar niveles
+- `config:badge:create` - Callback para crear nuevo badge
+- `config:badge:edit` - Callback para editar badge existente
+- `config:badge:delete` - Callback para eliminar badge
+- `config:reward:create` - Callback para crear nueva recompensa
+- `config:reward:edit` - Callback para editar recompensa existente
+- `config:reward:delete` - Callback para eliminar recompensa
+- `config:mission:create` - Callback para crear nueva misión
+- `config:mission:edit` - Callback para editar misión existente
+- `config:mission:delete` - Callback para eliminar misión
+
+**Aplicación de FSM:**
+```python
+# Aplicar estados FSM para configuración de gamificación
+from bot.states.config import ConfigMainStates, ActionConfigStates, LevelConfigStates, BadgeConfigStates, RewardConfigStates, MissionConfigStates
+
+# Configuración principal
+@admin_router.callback_query(F.data == "config:main")
+async def callback_config_main(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+):
+    """
+    Muestra menú principal de configuración de gamificación.
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+        state: FSM context
+    """
+    logger.info(f"⚙️ Usuario {callback.from_user.id} abriendo configuración de gamificación")
+
+    container = ServiceContainer(session, callback.bot)
+
+    # Obtener estadísticas básicas
+    action_count = await container.configuration.count_actions()
+    level_count = await container.configuration.count_levels()
+    badge_count = await container.configuration.count_badges()
+    reward_count = await container.configuration.count_rewards()
+    mission_count = await container.configuration.count_missions()
+
+    text = (
+        "⚙️ <b>Panel de Configuración de Gamificación</b>\n\n"
+        "Selecciona la categoría que deseas configurar:\n\n"
+
+        f"1️⃣ <b>Acciones</b> - Configurar acciones que otorgan puntos\n"
+        f"   • Reacciones a mensajes\n"
+        f"   • Login diario\n"
+        f"   • Referidos\n"
+        f"   • etc.\n"
+        f"   <i>({action_count} configuradas)</i>\n\n"
+
+        f"2️⃣ <b>Niveles</b> - Configurar rangos basados en puntos\n"
+        f"   • Novato, Bronce, Plata, Oro\n"
+        f"   • Puntos mínimos/máximos\n"
+        f"   • Multiplicadores\n"
+        f"   <i>({level_count} configurados)</i>\n\n"
+
+        f"3️⃣ <b>Badges</b> - Configurar insignias\n"
+        f"   • Requisitos para desbloquear\n"
+        f"   • Iconos y descripciones\n"
+        f"   <i>({badge_count} configurados)</i>\n\n"
+
+        f"4️⃣ <b>Recompensas</b> - Configurar premios\n"
+        f"   • Puntos, badges, beneficios\n"
+        f"   • Recompensas personalizadas\n"
+        f"   <i>({reward_count} configuradas)</i>\n\n"
+
+        f"5️⃣ <b>Misiones</b> - Configurar desafíos\n"
+        f"   • Objetivos y recompensas\n"
+        f"   • Tipos de misiones\n"
+        f"   <i>({mission_count} configuradas)</i>\n\n"
+
+        "👉 Selecciona una opción:"
+    )
+
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=configuration_main_menu_keyboard(),
+        parse_mode="HTML"
+    )
+
+    await state.set_state(ConfigMainStates.main_menu)
+    await callback.answer()
+```
+
+**Flujo de configuración de gamificación:**
+1. Admin selecciona "⚙️ Configuración de Gamificación" o envía `/config`
+2. Bot entra en estado FSM `ConfigMainStates.main_menu`
+3. Bot muestra menú principal con estadísticas de cada categoría
+4. Admin selecciona categoría específica (acciones, niveles, badges, etc.)
+5. Bot entra en estado FSM correspondiente a la categoría
+6. Admin puede realizar operaciones CRUD (crear, leer, actualizar, eliminar)
+7. Bot maneja validaciones, cache y persistencia
+8. Admin puede navegar entre categorías o volver al menú principal
+
+**Uso del ServiceContainer en los handlers de configuración:**
+```python
+# Crear container de servicios con sesión de BD y bot
+container = ServiceContainer(session, callback.bot)
+
+# Acceder a servicios específicos
+actions = await container.configuration.list_actions()
+action = await container.configuration.get_action("message_reacted")
+new_action = await container.configuration.create_action(...)
+updated_action = await container.configuration.update_action(...)
+deleted = await container.configuration.delete_action(...)
+
+levels = await container.configuration.list_levels()
+badges = await container.configuration.list_badges()
+rewards = await container.configuration.list_rewards()
+missions = await container.configuration.list_missions()
+
+# Operaciones anidadas
+mission, reward, badge = await container.configuration.create_mission_complete(...)
+reward, badge = await container.configuration.create_reward_with_new_badge(...)
+```
+
+**Interacción con teclados inline de configuración:**
+```python
+# Teclado para menú principal de configuración
+def configuration_main_menu_keyboard() -> "InlineKeyboardMarkup":
+    """
+    Keyboard del menú principal de configuración de gamificación.
+
+    Returns:
+        InlineKeyboardMarkup con opciones de configuración
+    """
+    return create_inline_keyboard([
+        [{"text": "1️⃣ Acciones", "callback_data": "config:actions"}],
+        [{"text": "2️⃣ Niveles", "callback_data": "config:levels"}],
+        [{"text": "3️⃣ Badges", "callback_data": "config:badges"}],
+        [{"text": "4️⃣ Recompensas", "callback_data": "config:rewards"}],
+        [{"text": "5️⃣ Misiones", "callback_data": "config:missions"}],
+        [{"text": "🔙 Volver", "callback_data": "admin:main"}]
+    ])
+
+# Teclado para submenú de acciones
+def configuration_actions_menu_keyboard() -> "InlineKeyboardMarkup":
+    """
+    Keyboard del submenú de configuración de acciones.
+
+    Returns:
+        InlineKeyboardMarkup con opciones de gestión de acciones
+    """
+    return create_inline_keyboard([
+        [{"text": "➕ Crear Acción", "callback_data": "config:action:create"}],
+        [{"text": "📝 Listar Acciones", "callback_data": "config:action:list"}],
+        [{"text": "🔙 Volver", "callback_data": "config:main"}]
+    ])
+```
+
+**Sistema de cache:**
+- TTL configurables por tipo de entidad (acciones, niveles, badges, etc.)
+- Invalidación automática al crear/actualizar/eliminar configuraciones
+- Estadísticas de rendimiento (hits, misses, ratio de cache)
+- Recuperación automática de datos desde cache o BD según disponibilidad
+
 ### 9. Pagination System (T24)
 
 **Responsabilidad:** Sistema de paginación reutilizable para listas largas de elementos con navegación y formateo de contenido
@@ -4954,6 +5151,7 @@ async def _show_free_queue_page(
 
 **Módulos Disponibles:**
 - `keyboards.py` - Factory de inline/reply keyboards
+- `config_keyboards.py` - Utilidades específicas para teclados de configuración de gamificación (T42)
 - `pagination.py` - Sistema de paginación reutilizable (T24)
 - `validators.py` - Funciones de validación (token format, user_id, etc.)
 

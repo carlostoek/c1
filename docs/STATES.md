@@ -717,8 +717,263 @@ from redis.asyncio import Redis
 storage = RedisStorage(Redis(host="localhost", port=6379))
 ```
 
+### ConfigMainStates (Fase 4.2)
+
+Máquina de estado para el menú principal de configuración de gamificación.
+
+```python
+class ConfigMainStates(StatesGroup):
+    """
+    Estados para el menú principal de configuración de gamificación.
+
+    Flujo:
+    1. Admin selecciona "⚙️ Configuración de Gamificación"
+    2. Bot muestra menú principal de configuración
+    3. Admin selecciona tipo de configuración (acciones, niveles, badges, recompensas, misiones)
+    4. Bot navega al submenú correspondiente
+    5. Admin puede volver al menú principal o salir
+
+    NUEVO EN ONDA 4 - T42
+    """
+
+    # En menú principal de configuración
+    main_menu = State()
+```
+
+#### ActionConfigStates (Fase 4.2)
+
+Máquina de estado para configuración de acciones de gamificación.
+
+```python
+class ActionConfigStates(StatesGroup):
+    """
+    Estados para configuración de acciones de gamificación.
+
+    Flujo:
+    1. Admin selecciona "acciones" en menú de configuración
+    2. Bot muestra lista de acciones existentes
+    3. Admin selecciona opción (crear, editar, eliminar)
+    4. Bot entra en estado correspondiente para manejar la operación
+    5. Admin completa la operación y vuelve al menú de acciones o configuración principal
+
+    NUEVO EN ONDA 4 - T42
+    """
+
+    # En menú de acciones
+    action_menu = State()
+
+    # Esperando key de acción nueva
+    waiting_for_action_key = State()
+
+    # Esperando nombre para mostrar de acción
+    waiting_for_action_display_name = State()
+
+    # Esperando cantidad de puntos para acción
+    waiting_for_action_points = State()
+
+    # Esperando descripción de acción
+    waiting_for_action_description = State()
+
+    # Seleccionando acción para editar/eliminar
+    selecting_action = State()
+
+    # Editando campo específico de acción
+    editing_action_field = State()
+```
+
+#### LevelConfigStates (Fase 4.2)
+
+Máquina de estado para configuración de niveles de gamificación.
+
+```python
+class LevelConfigStates(StatesGroup):
+    """
+    Estados para configuración de niveles de gamificación.
+
+    Flujo:
+    1. Admin selecciona "niveles" en menú de configuración
+    2. Bot muestra lista de niveles existentes
+    3. Admin selecciona opción (crear, editar, eliminar, reordenar)
+    4. Bot entra en estado correspondiente para manejar la operación
+    5. Admin completa la operación y vuelve al menú de niveles o configuración principal
+
+    NUEVO EN ONDA 4 - T42
+    """
+
+    # En menú de niveles
+    level_menu = State()
+
+    # Esperando nombre de nivel nuevo
+    waiting_for_level_name = State()
+
+    # Esperando puntos mínimos para nivel
+    waiting_for_level_min_points = State()
+
+    # Esperando puntos máximos para nivel
+    waiting_for_level_max_points = State()
+
+    # Esperando multiplicador para nivel
+    waiting_for_level_multiplier = State()
+
+    # Esperando icono para nivel
+    waiting_for_level_icon = State()
+
+    # Seleccionando nivel para editar/eliminar
+    selecting_level = State()
+
+    # Editando campo específico de nivel
+    editing_level_field = State()
+
+    # Reordenando niveles
+    reordering_levels = State()
+```
+
+#### BadgeConfigStates (Fase 4.2)
+
+Máquina de estado para configuración de badges de gamificación.
+
+```python
+class BadgeConfigStates(StatesGroup):
+    """
+    Estados para configuración de badges de gamificación.
+
+    Flujo:
+    1. Admin selecciona "badges" en menú de configuración
+    2. Bot muestra lista de badges existentes
+    3. Admin selecciona opción (crear, editar, eliminar)
+    4. Bot entra en estado correspondiente para manejar la operación
+    5. Admin completa la operación y vuelve al menú de badges o configuración principal
+
+    NUEVO EN ONDA 4 - T42
+    """
+
+    # En menú de badges
+    badge_menu = State()
+
+    # Esperando key de badge nuevo
+    waiting_for_badge_key = State()
+
+    # Esperando nombre para mostrar de badge
+    waiting_for_badge_name = State()
+
+    # Esperando icono para badge
+    waiting_for_badge_icon = State()
+
+    # Esperando tipo de requisito para badge
+    waiting_for_badge_requirement_type = State()
+
+    # Esperando valor de requisito para badge
+    waiting_for_badge_requirement_value = State()
+
+    # Esperando descripción para badge
+    waiting_for_badge_description = State()
+
+    # Seleccionando badge para editar/eliminar
+    selecting_badge = State()
+
+    # Editando campo específico de badge
+    editing_badge_field = State()
+```
+
+#### RewardConfigStates (Fase 4.2)
+
+Máquina de estado para configuración de recompensas de gamificación.
+
+```python
+class RewardConfigStates(StatesGroup):
+    """
+    Estados para configuración de recompensas de gamificación.
+
+    Flujo:
+    1. Admin selecciona "recompensas" en menú de configuración
+    2. Bot muestra lista de recompensas existentes
+    3. Admin selecciona opción (crear, editar, eliminar)
+    4. Bot entra en estado correspondiente para manejar la operación
+    5. Admin completa la operación y vuelve al menú de recompensas o configuración principal
+
+    NUEVO EN ONDA 4 - T42
+    """
+
+    # En menú de recompensas
+    reward_menu = State()
+
+    # Esperando nombre de recompensa nueva
+    waiting_for_reward_name = State()
+
+    # Esperando tipo de recompensa
+    waiting_for_reward_type = State()
+
+    # Esperando cantidad de puntos para recompensa
+    waiting_for_reward_points = State()
+
+    # Seleccionando badge para recompensa
+    waiting_for_reward_badge = State()
+
+    # Esperando descripción para recompensa
+    waiting_for_reward_description = State()
+
+    # Seleccionando recompensa para editar/eliminar
+    selecting_reward = State()
+
+    # Editando campo específico de recompensa
+    editing_reward_field = State()
+
+    # Creando recompensa con badge nuevo (operación anidada)
+    creating_reward_with_badge = State()
+```
+
+#### MissionConfigStates (Fase 4.2)
+
+Máquina de estado para configuración de misiones de gamificación.
+
+```python
+class MissionConfigStates(StatesGroup):
+    """
+    Estados para configuración de misiones de gamificación.
+
+    Flujo:
+    1. Admin selecciona "misiones" en menú de configuración
+    2. Bot muestra lista de misiones existentes
+    3. Admin selecciona opción (crear, editar, eliminar)
+    4. Bot entra en estado correspondiente para manejar la operación
+    5. Admin completa la operación y vuelve al menú de misiones o configuración principal
+
+    NUEVO EN ONDA 4 - T42
+    """
+
+    # En menú de misiones
+    mission_menu = State()
+
+    # Esperando nombre de misión nueva
+    waiting_for_mission_name = State()
+
+    # Esperando tipo de misión
+    waiting_for_mission_type = State()
+
+    # Esperando valor objetivo de misión
+    waiting_for_mission_target_value = State()
+
+    # Seleccionando acción objetivo para misión
+    waiting_for_mission_target_action = State()
+
+    # Seleccionando recompensa para misión
+    waiting_for_mission_reward = State()
+
+    # Esperando descripción para misión
+    waiting_for_mission_description = State()
+
+    # Seleccionando misión para editar/eliminar
+    selecting_mission = State()
+
+    # Editando campo específico de misión
+    editing_mission_field = State()
+
+    # Creando misión completa (misión + recompensa + badge)
+    creating_mission_complete = State()
+```
+
 ---
 
-**Última actualización:** 2025-12-11
-**Versión:** 1.0.0
-**Estado:** Documentación de states planeados (implementación en fases posteriores)
+**Última actualización:** 2025-12-18
+**Versión:** 1.1.0
+**Estado:** Documentación actualizada con FSM states para configuración de gamificación

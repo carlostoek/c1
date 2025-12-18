@@ -21,6 +21,7 @@ bot/services/
 ├── subscription.py         # VIP/Free/Token logic
 ├── channel.py              # Gestión de canales Telegram
 ├── config.py               # Configuración del bot
+├── configuration.py        # Configuración de gamificación (T42)
 ├── stats.py                # Estadísticas y métricas (T18)
 └── container.py            # Dependency Injection container (ONDA 2+)
 ```
@@ -2010,6 +2011,7 @@ class ServiceContainer:
         self._subscription_service = None
         self._channel_service = None
         self._config_service = None
+        self._configuration_service = None
         self._stats_service = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
@@ -2071,6 +2073,25 @@ class ServiceContainer:
 
         return self._config_service
 
+    # ===== CONFIGURATION SERVICE =====
+
+    @property
+    def configuration(self):
+        """
+        Service de configuración de gamificación.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            ConfigurationService: Instancia del service
+        """
+        if self._configuration_service is None:
+            from bot.services.configuration import ConfigurationService
+            logger.debug("🔄 Lazy loading: ConfigurationService")
+            self._configuration_service = ConfigurationService(self._session)
+
+        return self._configuration_service
+
     # ===== STATS SERVICE =====
 
     @property
@@ -2109,6 +2130,8 @@ class ServiceContainer:
             loaded.append("channel")
         if self._config_service is not None:
             loaded.append("config")
+        if self._configuration_service is not None:
+            loaded.append("configuration")
         if self._stats_service is not None:
             loaded.append("stats")
 
@@ -2129,6 +2152,7 @@ class ServiceContainer:
         # Trigger lazy load accediendo a las properties
         _ = self.subscription
         _ = self.config
+        _ = self.configuration
 
         logger.info(f"✅ Services precargados: {self.get_loaded_services()}")
 ```

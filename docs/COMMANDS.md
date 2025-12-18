@@ -803,6 +803,68 @@ Total: 3 emojis
 Estas reacciones se aplicarán automáticamente a nuevas publicaciones en el canal Free.
 ```
 
+### `/config` - Panel de Configuración de Gamificación
+
+**Descripción:** Accede al panel de configuración avanzada de gamificación que permite gestionar todas las entidades relacionadas con el sistema de puntos, niveles, badges, recompensas y misiones.
+
+**Permisos:** Solo administradores
+
+**Funcionalidades:**
+- Gestión de acciones de gamificación (acciones que otorgan puntos)
+- Gestión de niveles/rangos (configuración de rangos basados en puntos)
+- Gestión de badges (insignias con requisitos específicos)
+- Gestión de recompensas (premios por logros)
+- Gestión de misiones (desafíos con objetivos específicos)
+- Sistema de cache con TTL configurable para mejorar rendimiento
+- Operaciones anidadas para creación de recursos relacionados
+- Validaciones de negocio para mantener consistencia
+
+**Flujo de uso:**
+1. El administrador envía `/config`
+2. El bot muestra el menú principal de configuración de gamificación
+3. El administrador puede navegar entre las diferentes categorías de configuración
+4. El bot maneja la navegación con estados FSM específicos para cada tipo de configuración
+
+**Submenús disponibles:**
+- `acciones` - Configuración de acciones que otorgan puntos
+- `niveles` - Configuración de niveles/rangos basados en puntos
+- `badges` - Configuración de insignias con requisitos
+- `recompensas` - Configuración de recompensas por logros
+- `misiones` - Configuración de desafíos con objetivos
+
+**Ejemplo de interacción:**
+```
+/config
+⚙️ <b>Panel de Configuración de Gamificación</b>
+
+Selecciona la categoría que deseas configurar:
+
+1️⃣ <b>Acciones</b> - Configurar acciones que otorgan puntos
+   • Reacciones a mensajes
+   • Login diario
+   • Referidos
+   • etc.
+
+2️⃣ <b>Niveles</b> - Configurar rangos basados en puntos
+   • Novato, Bronce, Plata, Oro
+   • Puntos mínimos/máximos
+   • Multiplicadores
+
+3️⃣ <b>Badges</b> - Configurar insignias
+   • Requisitos para desbloquear
+   • Iconos y descripciones
+
+4️⃣ <b>Recompensas</b> - Configurar premios
+   • Puntos, badges, beneficios
+   • Recompensas personalizadas
+
+5️⃣ <b>Misiones</b> - Configurar desafíos
+   • Objetivos y recompensas
+   • Tipos de misiones
+
+👉 Selecciona una opción:
+```
+
 ## Broadcasting
 
 ### `Enviar a Canal VIP` - Envío de publicaciones al canal VIP
