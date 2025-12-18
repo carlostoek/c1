@@ -44,10 +44,12 @@ Testing: pytest 7.4+ + pytest-asyncio 0.21+
 │   │   └── config.py            # Config global
 │   ├── handlers/                # Handlers de eventos
 │   │   ├── admin/               # Rutas admin
+│   │   │   ├── configuration.py # Wizard de configuración de gamificación
 │   │   └── user/                # Rutas usuario
 │   ├── middlewares/             # Middlewares (Auth, DB)
 │   ├── states/                  # FSM states
 │   ├── utils/                   # Utilidades
+│   │   ├── config_keyboards.py  # Keyboards para wizard de configuración
 │   ├── background/              # Tareas programadas
 │   └── events/                  # Event Bus
 │
@@ -92,6 +94,7 @@ Testing: pytest 7.4+ + pytest-asyncio 0.21+
 - `container.subscription` → SubscriptionService
 - `container.channel` → ChannelService
 - `container.config` → ConfigService
+- `container.configuration` → ConfigurationService
 - `container.stats` → StatsService (future)
 
 ### SubscriptionService
@@ -247,6 +250,14 @@ Servicio de configuración unificada de gamificación con cache integrado
 ### User States
 - **TokenRedemptionStates:** waiting_for_token
 - **FreeAccessStates:** waiting_for_approval
+
+### Configuration States (Wizard de Gamificación)
+- **ConfigMainStates:** main_menu
+- **ActionConfigStates:** list_actions, create_key, create_name, create_points, create_description, create_confirm, edit_select, edit_field, edit_value, edit_confirm
+- **LevelConfigStates:** list_levels, create_name, create_min_points, create_max_points, create_multiplier, create_icon, create_confirm, edit_select, edit_field, edit_value, edit_confirm, reorder
+- **BadgeConfigStates:** list_badges, create_key, create_name, create_icon, create_requirement_type, create_requirement_value, create_description, create_confirm, edit_select, edit_field, edit_value, edit_confirm
+- **RewardConfigStates:** list_rewards, create_name, create_type, create_points, create_badge_choice, create_description, create_confirm, nested_badge_key, nested_badge_name, nested_badge_icon, nested_badge_confirm, edit_select, edit_field, edit_value, edit_confirm
+- **MissionConfigStates:** list_missions, create_name, create_description, create_type, create_target_action, create_target_value, create_time_limit, create_repeatable, create_cooldown, create_reward_choice, nested_reward_name, nested_reward_type, nested_reward_points, nested_reward_badge_choice, nested_badge_key, nested_badge_name, nested_badge_icon, preview, confirm, edit_select, edit_field, edit_value, edit_confirm
 
 ---
 
