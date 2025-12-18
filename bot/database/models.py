@@ -22,7 +22,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import timezone
 
 from bot.database.base import Base
-from bot.database.enums import UserRole
+from bot.database.enums import UserRole, RewardType, MissionType
 
 logger = logging.getLogger(__name__)
 
@@ -643,3 +643,185 @@ class MessageReaction(Base):
             f"msg={self.message_id}, emoji='{self.emoji}', "
             f"besitos={self.besitos_awarded})>"
         )
+
+
+# ═══════════════════════════════════════════════════════════════
+# MODELOS DE CONFIGURACIÓN DE GAMIFICACIÓN
+# ═══════════════════════════════════════════════════════════════
+
+
+class ActionConfig(Base):
+    """
+    Configuración de acciones que otorgan puntos.
+
+    Reemplaza GamificationConfig.BESITOS_REWARDS hardcoded.
+
+    Attributes:
+        action_key: Identificador único de la acción (ej: "message_reacted")
+        display_name: Nombre para mostrar en UI (ej: "Reacción a mensaje")
+        description: Descripción detallada
+        points_amount: Puntos a otorgar por esta acción
+        is_active: Si la acción está habilitada
+    """
+    __tablename__ = "action_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    action_key = Column(String(50), unique=True, nullable=False, index=True)
+    display_name = Column(String(100), nullable=False)
+    description = Column(String(255), nullable=True)
+    points_amount = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<ActionConfig(key='{self.action_key}', points={self.points_amount})>"
+
+
+class LevelConfig(Base):
+    """
+    Configuración de niveles/rangos del sistema.
+
+    Reemplaza GamificationConfig.RANKS hardcoded.
+
+    Attributes:
+        name: Nombre del nivel (ej: "Novato", "Bronce")
+        min_points: Puntos mínimos para alcanzar este nivel
+        max_points: Puntos máximos (None = infinito)
+        multiplier: Multiplicador de puntos para este nivel
+        icon: Emoji del nivel
+        order: Orden de display (1 = más bajo)
+    """
+    __tablename__ = "level_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(50), nullable=False)
+    min_points = Column(Integer, nullable=False, default=0)
+    max_points = Column(Integer, nullable=True)  # None = infinito
+    multiplier = Column(Float, nullable=False, default=1.0)
+    icon = Column(String(10), nullable=False, default="🌱")
+    color = Column(String(20), nullable=True)  # Para UI futuro
+    order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_level_order', 'order'),
+        Index('idx_level_points', 'min_points'),
+    )
+
+    def __repr__(self) -> str:
+        return f"<LevelConfig(name='{self.name}', points={self.min_points}-{self.max_points})>"
+
+
+class BadgeConfig(Base):
+    """
+    Configuración de badges/insignias disponibles.
+
+    Reemplaza GamificationConfig.BADGES hardcoded.
+
+    Attributes:
+        badge_key: Identificador único (ej: "reactor", "hot_streak")
+        name: Nombre para display (ej: "Reactor Pro")
+        description: Cómo se obtiene
+        icon: Emoji del badge
+        requirement_type: Qué métrica se evalúa (total_reactions, streak_days, etc)
+        requirement_value: Valor necesario para desbloquear
+    """
+    __tablename__ = "badge_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    badge_key = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(String(255), nullable=True)
+    icon = Column(String(10), nullable=False, default="🏆")
+    requirement_type = Column(String(50), nullable=False)  # total_reactions, streak_days, total_points, etc
+    requirement_value = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relación inversa con rewards
+    rewards = relationship("RewardConfig", back_populates="badge", lazy="selectin")
+
+    def __repr__(self) -> str:
+        return f"<BadgeConfig(key='{self.badge_key}', req={self.requirement_type}:{self.requirement_value})>"
+
+
+class RewardConfig(Base):
+    """
+    Configuración de recompensas otorgables.
+
+    Puede incluir puntos, badge, o ambos.
+
+    Attributes:
+        name: Nombre de la recompensa
+        reward_type: Tipo (points, badge, both, custom)
+        points_amount: Puntos a otorgar (si aplica)
+        badge_id: Badge a otorgar (si aplica)
+        custom_data: Datos adicionales para recompensas custom (JSON)
+    """
+    __tablename__ = "reward_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    description = Column(String(255), nullable=True)
+    reward_type = Column(String(20), nullable=False, default="points")  # RewardType enum value
+    points_amount = Column(Integer, nullable=True, default=0)
+    badge_id = Column(Integer, ForeignKey("badge_configs.id"), nullable=True)
+    custom_data = Column(JSON, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relaciones
+    badge = relationship("BadgeConfig", back_populates="rewards", lazy="selectin")
+    missions = relationship("MissionConfig", back_populates="reward", lazy="selectin")
+
+    def __repr__(self) -> str:
+        return f"<RewardConfig(name='{self.name}', type={self.reward_type})>"
+
+
+class MissionConfig(Base):
+    """
+    Configuración de misiones disponibles.
+
+    Una misión tiene un objetivo y otorga una recompensa al completarse.
+
+    Attributes:
+        name: Nombre de la misión
+        mission_type: Tipo (single, streak, cumulative, timed)
+        target_action: Acción objetivo (si aplica)
+        target_value: Valor objetivo (ej: 10 reacciones)
+        reward_id: Recompensa al completar
+        time_limit_hours: Límite de tiempo (para misiones timed)
+        is_repeatable: Si se puede completar múltiples veces
+        cooldown_hours: Tiempo entre repeticiones
+    """
+    __tablename__ = "mission_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    description = Column(String(500), nullable=True)
+    mission_type = Column(String(20), nullable=False, default="single")  # MissionType enum value
+    target_action = Column(String(50), nullable=True)  # Referencia a ActionConfig.action_key
+    target_value = Column(Integer, nullable=False, default=1)
+    reward_id = Column(Integer, ForeignKey("reward_configs.id"), nullable=True)
+    time_limit_hours = Column(Integer, nullable=True)  # Solo para misiones timed
+    is_repeatable = Column(Boolean, nullable=False, default=False)
+    cooldown_hours = Column(Integer, nullable=True)  # Solo si is_repeatable=True
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relación
+    reward = relationship("RewardConfig", back_populates="missions", lazy="selectin")
+
+    __table_args__ = (
+        Index('idx_mission_type', 'mission_type'),
+        Index('idx_mission_active', 'is_active'),
+    )
+
+    def __repr__(self) -> str:
+        return f"<MissionConfig(name='{self.name}', type={self.mission_type})>"

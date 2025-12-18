@@ -6,7 +6,12 @@ from bot.database.models import (
     BotConfig,
     InvitationToken,
     VIPSubscriber,
-    FreeChannelRequest
+    FreeChannelRequest,
+    ActionConfig,
+    LevelConfig,
+    BadgeConfig,
+    RewardConfig,
+    MissionConfig,
 )
 from bot.database.engine import (
     init_db,
@@ -23,6 +28,13 @@ __all__ = [
     "InvitationToken",
     "VIPSubscriber",
     "FreeChannelRequest",
+
+    # Gamification Config Models
+    "ActionConfig",
+    "LevelConfig",
+    "BadgeConfig",
+    "RewardConfig",
+    "MissionConfig",
 
     # Engine & Sessions
     "init_db",

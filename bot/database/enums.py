@@ -6,6 +6,24 @@ Define enumeraciones usadas en los modelos.
 from enum import Enum
 
 
+class RewardType(str, Enum):
+    """Tipos de recompensa disponibles en el sistema de gamificación."""
+
+    POINTS = "points"
+    BADGE = "badge"
+    POINTS_AND_BADGE = "both"
+    CUSTOM = "custom"
+
+
+class MissionType(str, Enum):
+    """Tipos de misión disponibles en el sistema de gamificación."""
+
+    SINGLE_ACTION = "single"      # Realizar acción X veces
+    STREAK = "streak"             # Racha de días consecutivos
+    CUMULATIVE = "cumulative"     # Acumular X en total
+    TIMED = "timed"               # Completar en tiempo límite
+
+
 class UserRole(str, Enum):
     """
     Roles de usuario en el sistema.
