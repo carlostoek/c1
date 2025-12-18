@@ -14,12 +14,14 @@ Servicio principal que maneja:
 - Sistema de login diario
 - Rate limiting de reacciones
 
-### GamificationConfig
-Configuración centralizada con:
-- Recompensas por acción
-- Definiciones de badges
-- Rangos y requisitos
-- Límites de reacciones
+### ConfigurationService
+Sistema de configuración centralizada con CRUD completo para:
+- ActionConfig: Recompensas por acción
+- BadgeConfig: Definiciones de badges
+- LevelConfig: Rangos y requisitos
+- RewardConfig: Recompensas configurables
+- MissionConfig: Misiones y objetivos
+- Sistema de cache con TTL configurable
 
 ### GamificationListeners
 Event listeners que otorgan recompensas automáticamente cuando ocurren eventos específicos.
@@ -198,29 +200,90 @@ async def on_message_reacted(event: MessageReactedEvent):
 
 ## Configuración del Sistema
 
-### GamificationConfig
+### ConfigurationService Integration
+El sistema de gamificación ahora utiliza el ConfigurationService para gestionar todas las configuraciones dinámicamente:
+
+**ActionConfig (Recompensas por acción):**
 ```python
-# Configuración centralizada
-class GamificationConfig:
-    MAX_REACTIONS_PER_DAY = 50
-    MIN_SECONDS_BETWEEN_REACTIONS = 5
-    
-    REWARDS = {
-        "user_started": RewardConfig(10, "Regalo de bienvenida"),
-        "joined_vip": RewardConfig(100, "Activación VIP"),
-        # ... más recompensas
-    }
-    
-    BADGES = [
-        BadgeConfig("reactor", "Reactor", "❤️", 100, "total_reactions"),
-        # ... más badges
-    ]
-    
-    RANKS = [
-        RankConfig("Novato", 0, 499),
-        RankConfig("Bronce", 500, 1999),
-        RankConfig("Plata", 2000, float('inf'))
-    ]
+# Obtener puntos configurados para una acción
+points = await container.configuration.get_points_for_action("message_reacted")
+
+# Crear nueva acción con puntos
+action = await container.configuration.create_action(
+    action_key="custom_action",
+    display_name="Acción Custom",
+    points_amount=15,
+    description="Reacción especial"
+)
+```
+
+**BadgeConfig (Definiciones de badges):**
+```python
+# Crear nuevo badge
+badge = await container.configuration.create_badge(
+    badge_key="reactor",
+    name="Reactor",
+    icon="❤️",
+    requirement_type="total_reactions",
+    requirement_value=100,
+    description="100 reacciones totales"
+)
+
+# Verificar badges disponibles para un usuario
+badges = await container.configuration.get_badges_for_user_progress(
+    total_reactions=150,
+    total_points=2000,
+    streak_days=7,
+    is_vip=True
+)
+```
+
+**LevelConfig (Rangos y requisitos):**
+```python
+# Crear nuevo nivel
+level = await container.configuration.create_level(
+    name="Diamante",
+    min_points=5000,
+    max_points=None,
+    multiplier=1.5,
+    icon="💎"
+)
+
+# Obtener nivel correspondiente a puntos
+level = await container.configuration.get_level_for_points(3000)
+```
+
+**RewardConfig (Recompensas configurables):**
+```python
+# Crear recompensa
+reward = await container.configuration.create_reward(
+    name="Recompensa Especial",
+    reward_type="both",  # points + badge
+    points_amount=100,
+    badge_id=1
+)
+```
+
+**MissionConfig (Misiones y objetivos):**
+```python
+# Crear misión
+mission = await container.configuration.create_mission(
+    name="Reactor Activo",
+    mission_type="cumulative",
+    target_value=50,
+    target_action="message_reacted",
+    reward_id=1,
+    description="Reacciona a 50 mensajes",
+    is_repeatable=True,
+    cooldown_hours=24
+)
+```
+
+**Sistema de Cache:**
+```python
+# El ConfigurationService implementa cache con TTL para mejorar rendimiento
+cache = get_config_cache()
+stats = cache.get_stats()  # hits, misses, hit_ratio, etc.
 ```
 
 ## Uso del Servicio
@@ -232,9 +295,18 @@ progress = await container.gamification.get_or_create_progress(user_id=123)
 
 ### Otorgar Besitos
 ```python
+# Otorgar Besitos por acción específica (lee puntos desde ActionConfig)
 amount, ranked_up, new_rank = await container.gamification.award_besitos(
     user_id=123,
     action="message_reacted"
+)
+
+# Otorgar Besitos personalizados
+amount, ranked_up, new_rank = await container.gamification.award_besitos(
+    user_id=123,
+    action="custom_action",
+    custom_amount=100,
+    custom_reason="Recompensa especial"
 )
 ```
 
@@ -252,6 +324,24 @@ besitos, streak, is_record = await container.gamification.claim_daily_login(user
 ```python
 puede = await container.gamification.can_react_to_message(user_id=123)
 ```
+
+## Integración con ConfigurationService y Cache
+
+### Sistema de Configuración Dinámica
+El GamificationService ahora se integra con el ConfigurationService para obtener configuraciones en tiempo real:
+
+- **ActionConfig**: Lee puntos configurados para cada acción
+- **LevelConfig**: Obtiene rangos y requisitos actualizados
+- **BadgeConfig**: Consulta definiciones de badges dinámicamente
+- **RewardConfig**: Accede a recompensas configurables
+- **MissionConfig**: Gestiona misiones y objetivos
+
+### Sistema de Cache
+Todas las configuraciones se cachean con TTL configurable para mejorar el rendimiento:
+- Cache de acciones: 5 minutos por defecto
+- Cache de niveles: 5 minutos por defecto
+- Cache de puntos específicos: 1 minuto
+- Estadísticas de cache disponibles para monitoreo
 
 ## Integración con Notificaciones
 
@@ -356,10 +446,11 @@ await container.notifications.send_reward_batch(batch)
 ## Performance y Optimización
 
 - Uso eficiente de base de datos con sesiones optimizadas
-- Caching de configuración para mejor performance
+- Sistema de cache con TTL configurable para configuraciones de gamificación
 - Procesamiento asincrónico de eventos
 - Logging eficiente
 - Gestión de memoria optimizada
+- Estadísticas de rendimiento del cache disponibles
 
 ## Mejores Prácticas
 

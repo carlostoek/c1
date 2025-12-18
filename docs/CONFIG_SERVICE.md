@@ -1,434 +1,775 @@
-# Config Service (T9) - Documentación Completa
+# Configuration Service - Documentación Completa
 
 ## Descripción General
 
-El **Config Service** es un componente esencial del bot que gestiona la configuración global del sistema. Implementa un patrón singleton donde toda la configuración del bot se almacena en un único registro de la tabla `BotConfig`. Este servicio permite a los administradores gestionar dinámicamente los parámetros del bot sin necesidad de reiniciar el sistema.
+El **Configuration Service** es un componente esencial del bot que gestiona la configuración de gamificación mediante un sistema de CRUD unificado para todas las entidades relacionadas. Implementa un sistema de cache en memoria con TTL configurable y proporciona operaciones CRUD completas para:
+
+- **ActionConfig**: Configuración de puntos por acción
+- **LevelConfig**: Configuración de niveles/rangos
+- **BadgeConfig**: Configuración de insignias
+- **RewardConfig**: Configuración de recompensas
+- **MissionConfig**: Configuración de misiones
 
 ## Responsabilidades
 
-- **Obtención/actualización de configuración:** Acceso y modificación de la configuración global (BotConfig singleton)
-- **Gestión de tiempo de espera Free:** Control del tiempo de espera para acceso al canal Free
-- **Gestión de reacciones de canales:** Configuración de emojis personalizados para canales VIP y Free
-- **Validación de configuración:** Verificación de que la configuración esté completa y funcional
-- **Configuración de tarifas de suscripción:** Gestión de precios para diferentes tipos de membresías
-- **Resumen de configuración:** Proporcionar información detallada del estado actual del bot
+- **CRUD para configuraciones de gamificación:** Operaciones completas para todas las entidades de gamificación
+- **Sistema de cache con TTL:** Mejora el rendimiento con cache en memoria configurable
+- **Validación de negocio:** Validaciones específicas para cada tipo de configuración
+- **Gestión de dependencias:** Verificación de uso antes de eliminar configuraciones
+- **Operaciones anidadas:** Creación de recursos relacionados en transacciones atómicas
+- **Métricas de rendimiento:** Estadísticas del sistema de cache
 
 ## Arquitectura
 
-### Singleton Pattern
-El modelo `BotConfig` implementa un patrón singleton donde solo existe un registro con `id=1` que contiene toda la configuración global del bot. Todos los métodos del servicio operan sobre este único registro.
-
-### Estructura de la Configuración
+### Estructura de Configuración
 ```python
-class BotConfig:
-    id: int = 1  # Siempre 1 (singleton)
-    vip_channel_id: str  # ID del canal VIP
-    free_channel_id: str  # ID del canal Free
-    wait_time_minutes: int  # Tiempo de espera para Free
-    vip_reactions: List[str]  # JSON array de emojis para VIP
-    free_reactions: List[str]  # JSON array de emojis para Free
-    subscription_fees: Dict[str, float]  # JSON object con tarifas
-    created_at: datetime
-    updated_at: datetime
+# ActionConfig: Configura puntos por acción
+class ActionConfig:
+    action_key: str          # Identificador único (ej: "message_reacted")
+    display_name: str        # Nombre para mostrar (ej: "Reacción a mensaje")
+    points_amount: int       # Puntos a otorgar
+    description: str         # Descripción opcional
+    is_active: bool          # Estado activo/inactivo
+
+# LevelConfig: Configura niveles/rangos
+class LevelConfig:
+    name: str                # Nombre del nivel (ej: "Novato")
+    min_points: int          # Puntos mínimos para alcanzar
+    max_points: int          # Puntos máximos (None = infinito)
+    multiplier: float        # Multiplicador de puntos
+    icon: str                # Emoji del nivel (ej: "🌱")
+    order: int               # Orden de display
+    is_active: bool          # Estado activo/inactivo
+
+# BadgeConfig: Configura insignias
+class BadgeConfig:
+    badge_key: str           # Identificador único (ej: "reactor")
+    name: str                # Nombre para display (ej: "Reactor Pro")
+    icon: str                # Emoji del badge (ej: "🔥")
+    requirement_type: str    # Tipo de requisito (total_reactions, streak_days, etc)
+    requirement_value: int   # Valor necesario para desbloquear
+    is_active: bool          # Estado activo/inactivo
+
+# RewardConfig: Configura recompensas
+class RewardConfig:
+    name: str                # Nombre de la recompensa
+    reward_type: str         # Tipo (points, badge, both, custom)
+    points_amount: int       # Puntos a otorgar (si aplica)
+    badge_id: int            # Badge a otorgar (si aplica)
+    is_active: bool          # Estado activo/inactivo
+
+# MissionConfig: Configura misiones
+class MissionConfig:
+    name: str                # Nombre de la misión
+    mission_type: str        # Tipo (single, streak, cumulative, timed)
+    target_action: str       # Acción objetivo (referencia a ActionConfig)
+    target_value: int        # Valor objetivo (ej: 10 reacciones)
+    reward_id: int           # Recompensa al completar
+    is_active: bool          # Estado activo/inactivo
 ```
+
+### Sistema de Cache
+El servicio implementa un sistema de cache en memoria con TTL configurable por tipo de dato:
+
+- **TTL por defecto:** 300 segundos (5 minutos) para la mayoría de los datos
+- **TTL específico para puntos:** 60 segundos para puntos de acciones específicas
+- **Invalidación automática:** Cache se invalida al actualizar/eliminar configuraciones
+- **Estadísticas de rendimiento:** Métricas de hits/misses del cache
 
 ## API Pública
 
-### Getters
+### ActionConfig CRUD
 
-#### `get_config()` → BotConfig
-Obtiene la configuración global del bot.
-
-**Returns:** `BotConfig` - Objeto de configuración completa
-
-**Raises:** `RuntimeError` - Si BotConfig no existe (caso no esperado)
-
-**Ejemplo:**
-```python
-config = await container.config.get_config()
-print(f"Canal VIP: {config.vip_channel_id}")
-print(f"Tiempo de espera: {config.wait_time_minutes} minutos")
-```
-
-#### `get_wait_time()` → int
-Obtiene el tiempo de espera para el canal Free en minutos.
-
-**Returns:** `int` - Tiempo de espera en minutos
-
-**Ejemplo:**
-```python
-wait_time = await container.config.get_wait_time()
-print(f"Tiempo de espera actual: {wait_time} minutos")
-```
-
-#### `get_vip_channel_id()` → Optional[str]
-Obtiene el ID del canal VIP configurado.
-
-**Returns:** `str` - ID del canal VIP, o `None` si no está configurado
-
-**Ejemplo:**
-```python
-vip_channel_id = await container.config.get_vip_channel_id()
-if vip_channel_id:
-    print(f"Canal VIP configurado: {vip_channel_id}")
-else:
-    print("Canal VIP no configurado")
-```
-
-#### `get_free_channel_id()` → Optional[str]
-Obtiene el ID del canal Free configurado.
-
-**Returns:** `str` - ID del canal Free, o `None` si no está configurado
-
-**Ejemplo:**
-```python
-free_channel_id = await container.config.get_free_channel_id()
-if free_channel_id:
-    print(f"Canal Free configurado: {free_channel_id}")
-else:
-    print("Canal Free no configurado")
-```
-
-#### `get_vip_reactions()` → List[str]
-Obtiene las reacciones configuradas para el canal VIP.
-
-**Returns:** `List[str]` - Lista de emojis (ej: ["👍", "❤️", "🔥"])
-
-**Ejemplo:**
-```python
-reactions = await container.config.get_vip_reactions()
-print(f"Reacciones VIP: {reactions}")
-```
-
-#### `get_free_reactions()` → List[str]
-Obtiene las reacciones configuradas para el canal Free.
-
-**Returns:** `List[str]` - Lista de emojis
-
-**Ejemplo:**
-```python
-reactions = await container.config.get_free_reactions()
-print(f"Reacciones Free: {reactions}")
-```
-
-#### `get_subscription_fees()` → Dict[str, float]
-Obtiene las tarifas de suscripción configuradas.
-
-**Returns:** `Dict[str, float]` - Dict con tarifas (ej: {"monthly": 10, "yearly": 100})
-
-**Ejemplo:**
-```python
-fees = await container.config.get_subscription_fees()
-print(f"Tarifas de suscripción: {fees}")
-```
-
-### Setters
-
-#### `set_wait_time(minutes: int)` → None
-Actualiza el tiempo de espera para el canal Free.
+#### `list_actions(include_inactive: bool = False)` → List[ActionConfig]
+Lista todas las acciones configuradas.
 
 **Args:**
-- `minutes` - Tiempo en minutos (debe ser >= 1)
+- `include_inactive` - Si True, incluye acciones desactivadas
 
-**Raises:** `ValueError` - Si minutes < 1
+**Returns:** `List[ActionConfig]` - Lista ordenada por action_key
 
 **Ejemplo:**
 ```python
-try:
-    await container.config.set_wait_time(15)  # 15 minutos
-    print("Tiempo de espera actualizado a 15 minutos")
-except ValueError as e:
-    print(f"Error: {e}")
+actions = await container.configuration.list_actions()
+print(f"Acciones configuradas: {len(actions)}")
+
+# Incluir desactivadas
+all_actions = await container.configuration.list_actions(include_inactive=True)
 ```
 
-#### `set_vip_reactions(reactions: List[str])` → None
-Actualiza las reacciones del canal VIP.
+#### `get_action(action_key: str)` → ActionConfig
+Obtiene una acción por su key.
 
 **Args:**
-- `reactions` - Lista de emojis (ej: ["👍", "❤️"])
+- `action_key` - Identificador único de la acción
 
-**Raises:** 
-- `ValueError` - Si la lista está vacía o tiene más de 10 elementos
+**Returns:** `ActionConfig` - Configuración encontrada
+
+**Raises:** `ConfigNotFoundError` - Si la acción no existe
 
 **Ejemplo:**
 ```python
-try:
-    await container.config.set_vip_reactions(["👍", "❤️", "🔥", "🎉"])
-    print("Reacciones VIP actualizadas")
-except ValueError as e:
-    print(f"Error: {e}")
+action = await container.configuration.get_action("message_reacted")
+print(f"Puntos por reacción: {action.points_amount}")
 ```
 
-#### `set_free_reactions(reactions: List[str])` → None
-Actualiza las reacciones del canal Free.
+#### `create_action(action_key: str, display_name: str, points_amount: int, description: str = None)` → ActionConfig
+Crea una nueva configuración de acción.
 
 **Args:**
-- `reactions` - Lista de emojis
+- `action_key` - Identificador único (ej: "custom_reaction")
+- `display_name` - Nombre para mostrar (ej: "Reacción Custom")
+- `points_amount` - Puntos a otorgar
+- `description` - Descripción opcional
 
-**Raises:** 
-- `ValueError` - Si la lista está vacía o tiene más de 10 elementos
+**Returns:** `ActionConfig` - Configuración creada
+
+**Raises:**
+- `ConfigAlreadyExistsError` - Si action_key ya existe
+- `ConfigValidationError` - Si los datos son inválidos
 
 **Ejemplo:**
 ```python
-try:
-    await container.config.set_free_reactions(["✅", "✔️", "☑️"])
-    print("Reacciones Free actualizadas")
-except ValueError as e:
-    print(f"Error: {e}")
+action = await container.configuration.create_action(
+    action_key="special_reaction",
+    display_name="Reacción Especial",
+    points_amount=15,
+    description="Reacción para mensajes especiales"
+)
 ```
 
-#### `set_subscription_fees(fees: Dict[str, float])` → None
-Actualiza las tarifas de suscripción.
+#### `update_action(action_key: str, **kwargs)` → ActionConfig
+Actualiza una configuración de acción existente.
 
 **Args:**
-- `fees` - Dict con tarifas (ej: {"monthly": 10, "yearly": 100})
+- `action_key` - Key de la acción a actualizar
+- `display_name`, `points_amount`, `description`, `is_active` - Campos opcionales a actualizar
 
-**Raises:** 
-- `ValueError` - Si fees está vacío o contiene valores negativos
+**Returns:** `ActionConfig` - Configuración actualizada
 
-**Ejemplo:**
-```python
-try:
-    await container.config.set_subscription_fees({
-        "monthly": 10.0,
-        "yearly": 100.0,
-        "lifetime": 500.0
-    })
-    print("Tarifas de suscripción actualizadas")
-except ValueError as e:
-    print(f"Error: {e}")
-```
-
-### Validación y Estado
-
-#### `is_fully_configured()` → bool
-Verifica si el bot está completamente configurado.
-
-**Configuración completa requiere:**
-- Canal VIP configurado
-- Canal Free configurado  
-- Tiempo de espera > 0
-
-**Returns:** `bool` - True si la configuración está completa, False si no
+**Raises:** `ConfigNotFoundError` - Si la acción no existe
 
 **Ejemplo:**
 ```python
-is_configured = await container.config.is_fully_configured()
-if is_configured:
-    print("Bot completamente configurado ✅")
-else:
-    print("Bot necesita configuración adicional ❌")
+updated_action = await container.configuration.update_action(
+    action_key="message_reacted",
+    points_amount=8,
+    display_name="Reacción Mejorada"
+)
 ```
 
-#### `get_config_status()` → Dict[str, any]
-Obtiene el estado de la configuración para dashboard.
+#### `delete_action(action_key: str, hard_delete: bool = False)` → bool
+Elimina (soft o hard) una configuración de acción.
 
-**Returns:** `Dict` con información de configuración:
-```python
-{
-    "is_configured": bool,           # True si todo está configurado
-    "vip_channel_id": str | None,    # ID del canal VIP o None
-    "free_channel_id": str | None,   # ID del canal Free o None
-    "wait_time_minutes": int,        # Tiempo de espera en minutos
-    "vip_reactions_count": int,      # Número de reacciones VIP
-    "free_reactions_count": int,     # Número de reacciones Free
-    "missing": List[str]             # Lista de elementos faltantes
-}
-```
+**Args:**
+- `action_key` - Key de la acción a eliminar
+- `hard_delete` - Si True, elimina permanentemente
+
+**Returns:** `bool` - True si se eliminó correctamente
+
+**Raises:**
+- `ConfigNotFoundError` - Si la acción no existe
+- `ConfigInUseError` - Si la acción está siendo usada por misiones
 
 **Ejemplo:**
 ```python
-status = await container.config.get_config_status()
-print(f"Configurado: {status['is_configured']}")
-print(f"Faltante: {status['missing']}")
-print(f"Reacciones VIP: {status['vip_reactions_count']}")
+# Soft delete (desactivar)
+await container.configuration.delete_action("old_action", hard_delete=False)
+
+# Hard delete (eliminar permanentemente)
+await container.configuration.delete_action("temp_action", hard_delete=True)
 ```
 
-#### `get_config_summary()` → str
-Retorna un resumen de la configuración en formato texto, útil para mostrar en mensajes de Telegram.
+#### `get_points_for_action(action_key: str)` → int
+Obtiene los puntos configurados para una acción (método de conveniencia).
 
-**Returns:** `str` - String formateado con información de configuración
+**Args:**
+- `action_key` - Key de la acción
+
+**Returns:** `int` - Puntos configurados, o 0 si no existe o está inactiva
 
 **Ejemplo:**
 ```python
-summary = await container.config.get_config_summary()
-print(summary)
-# Salida:
-# 📊 <b>Estado de Configuración</b>
-#
-# <b>Canal VIP:</b> ✅ Configurado
-# ID: <code>-1001234567890</code>
-#
-# <b>Canal Free:</b> ✅ Configurado
-# ID: <code>-1009876543210</code>
-#
-# <b>Tiempo de Espera:</b> 5 minutos
-#
-# <b>Reacciones VIP:</b> 3 configuradas
-# <b>Reacciones Free:</b> 2 configuradas
+points = await container.configuration.get_points_for_action("message_reacted")
+print(f"Puntos por reacción: {points}")
 ```
 
-### Utilidades
+### LevelConfig CRUD
 
-#### `reset_to_defaults()` → None
-Resetea la configuración a valores por defecto.
+#### `list_levels(include_inactive: bool = False)` → List[LevelConfig]
+Lista todos los niveles configurados.
 
-**Advertencia:** Esto elimina la configuración de canales. Solo usar en caso de necesitar resetear completamente.
+**Args:**
+- `include_inactive` - Si True, incluye niveles desactivados
 
-**Valores por defecto:**
-- `vip_channel_id`: None
-- `free_channel_id`: None
-- `wait_time_minutes`: 5
-- `vip_reactions`: []
-- `free_reactions`: []
-- `subscription_fees`: {"monthly": 10, "yearly": 100}
+**Returns:** `List[LevelConfig]` - Lista ordenada por 'order'
 
 **Ejemplo:**
 ```python
-await container.config.reset_to_defaults()
-print("Configuración reseteada a valores por defecto")
+levels = await container.configuration.list_levels()
+print(f"Niveles configurados: {len(levels)}")
+```
+
+#### `get_level(level_id: int)` → LevelConfig
+Obtiene un nivel por su ID.
+
+**Args:**
+- `level_id` - ID del nivel
+
+**Returns:** `LevelConfig` - Nivel encontrado
+
+**Raises:** `ConfigNotFoundError` - Si el nivel no existe
+
+**Ejemplo:**
+```python
+level = await container.configuration.get_level(1)
+print(f"Nivel: {level.name}")
+```
+
+#### `get_level_for_points(points: int)` → Optional[LevelConfig]
+Obtiene el nivel correspondiente a una cantidad de puntos.
+
+**Args:**
+- `points` - Cantidad de puntos
+
+**Returns:** `LevelConfig` - Nivel correspondiente, o None si no hay niveles
+
+**Ejemplo:**
+```python
+level = await container.configuration.get_level_for_points(1500)
+if level:
+    print(f"Nivel para 1500 puntos: {level.name}")
+```
+
+#### `create_level(name: str, min_points: int, max_points: int, multiplier: float = 1.0, icon: str = "🌱", color: str = None)` → LevelConfig
+Crea un nuevo nivel.
+
+**Args:**
+- `name` - Nombre del nivel
+- `min_points` - Puntos mínimos para alcanzar
+- `max_points` - Puntos máximos (None = infinito)
+- `multiplier` - Multiplicador de puntos
+- `icon` - Emoji del nivel
+- `color` - Color para UI (opcional)
+
+**Returns:** `LevelConfig` - Nivel creado
+
+**Raises:** `ConfigValidationError` - Si los datos son inválidos
+
+**Ejemplo:**
+```python
+level = await container.configuration.create_level(
+    name="Diamante",
+    min_points=5000,
+    max_points=None,  # Infinito
+    multiplier=1.5,
+    icon="💎"
+)
+```
+
+#### `update_level(level_id: int, **kwargs)` → LevelConfig
+Actualiza un nivel existente.
+
+**Args:**
+- `level_id` - ID del nivel a actualizar
+- Campos opcionales: `name`, `min_points`, `max_points`, `multiplier`, `icon`, `color`, `is_active`
+
+**Returns:** `LevelConfig` - Nivel actualizado
+
+**Ejemplo:**
+```python
+updated_level = await container.configuration.update_level(
+    level_id=2,
+    multiplier=1.2,
+    icon="⭐"
+)
+```
+
+#### `reorder_levels(level_ids: List[int])` → List[LevelConfig]
+Reordena los niveles según el orden proporcionado.
+
+**Args:**
+- `level_ids` - Lista de IDs en el nuevo orden
+
+**Returns:** `List[LevelConfig]` - Niveles reordenados
+
+**Ejemplo:**
+```python
+# Reordenar niveles: primero nivel 3, luego 1, luego 2
+reordered = await container.configuration.reorder_levels([3, 1, 2])
+```
+
+### BadgeConfig CRUD
+
+#### `list_badges(include_inactive: bool = False)` → List[BadgeConfig]
+Lista todos los badges configurados.
+
+**Args:**
+- `include_inactive` - Si True, incluye badges desactivados
+
+**Returns:** `List[BadgeConfig]` - Lista ordenada por badge_key
+
+**Ejemplo:**
+```python
+badges = await container.configuration.list_badges()
+print(f"Badges configurados: {len(badges)}")
+```
+
+#### `get_badge(badge_key: str)` → BadgeConfig
+Obtiene un badge por su key.
+
+**Args:**
+- `badge_key` - Identificador único del badge
+
+**Returns:** `BadgeConfig` - Badge encontrado
+
+**Raises:** `ConfigNotFoundError` - Si el badge no existe
+
+**Ejemplo:**
+```python
+badge = await container.configuration.get_badge("super_reactor")
+print(f"Badge: {badge.name}")
+```
+
+#### `create_badge(badge_key: str, name: str, icon: str, requirement_type: str, requirement_value: int, description: str = None)` → BadgeConfig
+Crea un nuevo badge.
+
+**Args:**
+- `badge_key` - Identificador único (ej: "super_reactor")
+- `name` - Nombre para mostrar (ej: "Super Reactor")
+- `icon` - Emoji del badge
+- `requirement_type` - Tipo de requisito (total_reactions, streak_days, etc)
+- `requirement_value` - Valor requerido
+- `description` - Descripción de cómo obtenerlo
+
+**Returns:** `BadgeConfig` - Badge creado
+
+**Raises:**
+- `ConfigAlreadyExistsError` - Si badge_key ya existe
+- `ConfigValidationError` - Si los datos son inválidos
+
+**Ejemplo:**
+```python
+badge = await container.configuration.create_badge(
+    badge_key="hot_streak",
+    name="Racha Caliente",
+    icon="🔥",
+    requirement_type="streak_days",
+    requirement_value=7,
+    description="7 días de login consecutivos"
+)
+```
+
+#### `get_badges_for_user_progress(total_reactions: int, total_points: int, streak_days: int, is_vip: bool)` → List[BadgeConfig]
+Obtiene los badges que un usuario califica para desbloquear.
+
+**Args:**
+- `total_reactions` - Total de reacciones del usuario
+- `total_points` - Total de puntos del usuario
+- `streak_days` - Días de racha actual
+- `is_vip` - Si el usuario es VIP
+
+**Returns:** `List[BadgeConfig]` - Lista de badges que el usuario cumple requisitos
+
+**Ejemplo:**
+```python
+qualified_badges = await container.configuration.get_badges_for_user_progress(
+    total_reactions=150,
+    total_points=2000,
+    streak_days=10,
+    is_vip=True
+)
+```
+
+### RewardConfig CRUD
+
+#### `list_rewards(include_inactive: bool = False)` → List[RewardConfig]
+Lista todas las recompensas configuradas.
+
+**Args:**
+- `include_inactive` - Si True, incluye recompensas desactivadas
+
+**Returns:** `List[RewardConfig]` - Lista con badge relacionado cargado
+
+**Ejemplo:**
+```python
+rewards = await container.configuration.list_rewards()
+print(f"Recompensas configuradas: {len(rewards)}")
+```
+
+#### `get_reward(reward_id: int)` → RewardConfig
+Obtiene una recompensa por su ID.
+
+**Args:**
+- `reward_id` - ID de la recompensa
+
+**Returns:** `RewardConfig` - Recompensa con badge cargado
+
+**Raises:** `ConfigNotFoundError` - Si la recompensa no existe
+
+**Ejemplo:**
+```python
+reward = await container.configuration.get_reward(1)
+print(f"Recompensa: {reward.name}")
+```
+
+#### `create_reward(name: str, reward_type: str, points_amount: int = None, badge_id: int = None, description: str = None, custom_data: Dict[str, Any] = None)` → RewardConfig
+Crea una nueva recompensa.
+
+**Args:**
+- `name` - Nombre de la recompensa
+- `reward_type` - Tipo (points, badge, both, custom)
+- `points_amount` - Puntos a otorgar (requerido si type incluye points)
+- `badge_id` - ID del badge a otorgar (requerido si type incluye badge)
+- `description` - Descripción opcional
+- `custom_data` - Datos adicionales para recompensas custom
+
+**Returns:** `RewardConfig` - Recompensa creada
+
+**Raises:**
+- `ConfigValidationError` - Si los datos son inválidos
+- `ConfigNotFoundError` - Si badge_id no existe
+
+**Ejemplo:**
+```python
+reward = await container.configuration.create_reward(
+    name="Recompensa VIP",
+    reward_type="both",
+    points_amount=100,
+    badge_id=1,
+    description="Recompensa para usuarios VIP"
+)
+```
+
+#### `create_reward_with_new_badge(...)` → Tuple[RewardConfig, BadgeConfig]
+Crea una recompensa junto con un nuevo badge (operación atómica).
+
+**Args:** Parámetros para crear tanto recompensa como badge
+
+**Returns:** `Tuple[RewardConfig, BadgeConfig]` - Recompensa y badge creados
+
+**Ejemplo:**
+```python
+reward, badge = await container.configuration.create_reward_with_new_badge(
+    name="Recompensa de Prueba",
+    reward_type="both",
+    points_amount=50,
+    badge_key="test_badge",
+    badge_name="Badge de Prueba",
+    badge_icon="🧪",
+    badge_requirement_type="total_points",
+    badge_requirement_value=100
+)
+```
+
+### MissionConfig CRUD
+
+#### `list_missions(include_inactive: bool = False)` → List[MissionConfig]
+Lista todas las misiones configuradas.
+
+**Args:**
+- `include_inactive` - Si True, incluye misiones desactivadas
+
+**Returns:** `List[MissionConfig]` - Lista con reward y badge cargados
+
+**Ejemplo:**
+```python
+missions = await container.configuration.list_missions()
+print(f"Misiones configuradas: {len(missions)}")
+```
+
+#### `get_mission(mission_id: int)` → MissionConfig
+Obtiene una misión por su ID.
+
+**Args:**
+- `mission_id` - ID de la misión
+
+**Returns:** `MissionConfig` - Misión con reward y badge cargados
+
+**Raises:** `ConfigNotFoundError` - Si la misión no existe
+
+**Ejemplo:**
+```python
+mission = await container.configuration.get_mission(1)
+print(f"Misión: {mission.name}")
+```
+
+#### `create_mission(name: str, mission_type: str, target_value: int, target_action: str = None, reward_id: int = None, description: str = None, time_limit_hours: int = None, is_repeatable: bool = False, cooldown_hours: int = None)` → MissionConfig
+Crea una nueva misión.
+
+**Args:**
+- `name` - Nombre de la misión
+- `mission_type` - Tipo (single, streak, cumulative, timed)
+- `target_value` - Valor objetivo (ej: 10 reacciones)
+- `target_action` - Acción objetivo (referencia a ActionConfig.action_key)
+- `reward_id` - ID de la recompensa al completar
+- `description` - Descripción de la misión
+- `time_limit_hours` - Límite de tiempo (solo para tipo 'timed')
+- `is_repeatable` - Si se puede completar múltiples veces
+- `cooldown_hours` - Tiempo entre repeticiones
+
+**Returns:** `MissionConfig` - Misión creada
+
+**Raises:**
+- `ConfigValidationError` - Si los datos son inválidos
+- `ConfigNotFoundError` - Si reward_id o target_action no existen
+
+**Ejemplo:**
+```python
+mission = await container.configuration.create_mission(
+    name="Reactor Activo",
+    mission_type="cumulative",
+    target_value=50,
+    target_action="message_reacted",
+    reward_id=1,
+    description="Reacciona a 50 mensajes",
+    is_repeatable=True,
+    cooldown_hours=24
+)
+```
+
+#### `create_mission_complete(...)` → Tuple[MissionConfig, RewardConfig, BadgeConfig]
+Crea una misión completa con recompensa Y badge nuevos (operación atómica nivel 2).
+
+**Args:** Parámetros para crear misión, recompensa y badge
+
+**Returns:** `Tuple[MissionConfig, RewardConfig, BadgeConfig]` - Todos los recursos creados
+
+**Ejemplo:**
+```python
+mission, reward, badge = await container.configuration.create_mission_complete(
+    name="Misión Completa",
+    mission_type="single",
+    target_value=1,
+    target_action="message_reacted",
+    reward_name="Recompensa Completa",
+    reward_type="both",
+    reward_points=100,
+    badge_key="completo_badge",
+    badge_name="Badge Completo",
+    badge_icon="🏆",
+    badge_requirement_type="custom",
+    badge_requirement_value=1
+)
+```
+
+### Sistema de Cache
+
+#### `get_config_cache()` → ConfigCache
+Obtiene la instancia global del cache.
+
+**Returns:** `ConfigCache` - Instancia singleton del cache
+
+**Ejemplo:**
+```python
+cache = get_config_cache()
+stats = cache.get_stats()
+print(f"Cache hits: {stats['hits']}, misses: {stats['misses']}")
+```
+
+#### `get_stats()` → Dict[str, Any]
+Obtiene estadísticas del cache.
+
+**Returns:** `Dict` con hits, misses, ratio, entries
+
+**Ejemplo:**
+```python
+stats = cache.get_stats()
+print(f"Ratio de cache: {stats['hit_ratio']:.2%}")
+print(f"Entradas en cache: {stats['entries']}")
+```
+
+#### `invalidate_all()` → int
+Invalida todo el cache.
+
+**Returns:** `int` - Número de entradas eliminadas
+
+**Ejemplo:**
+```python
+deleted_count = cache.invalidate_all()
+print(f"Cache limpiado: {deleted_count} entradas eliminadas")
+```
+
+### Previews
+
+#### `preview_mission_complete(mission_data: Dict, reward_data: Dict, badge_data: Dict = None)` → str
+Genera un preview de texto de lo que se creará.
+
+**Args:**
+- `mission_data` - Datos de la misión
+- `reward_data` - Datos de la recompensa
+- `badge_data` - Datos del badge (opcional)
+
+**Returns:** `str` - String formateado con el preview
+
+**Ejemplo:**
+```python
+preview = container.configuration.preview_mission_complete(
+    mission_data={"name": "Misión Prueba", "target_value": 10},
+    reward_data={"name": "Recompensa Prueba", "points_amount": 50},
+    badge_data={"badge_key": "test", "name": "Badge Prueba", "icon": "🏆"}
+)
+print(preview)
 ```
 
 ## Ejemplos de Uso Completo
 
-### 1. Obtención de configuración global
+### 1. Gestión de acciones
 ```python
-# Obtener la configuración completa del bot
-config = await container.config.get_config()
-print(f"Canal VIP: {config.vip_channel_id}")
-print(f"Canal Free: {config.free_channel_id}")
-print(f"Tiempo de espera: {config.wait_time_minutes} minutos")
-print(f"Reacciones VIP: {config.vip_reactions}")
-print(f"Reacciones Free: {config.free_reactions}")
-print(f"Tarifas: {config.subscription_fees}")
+# Crear una nueva acción
+action = await container.configuration.create_action(
+    action_key="custom_action",
+    display_name="Acción Custom",
+    points_amount=15,
+    description="Acción especial para eventos"
+)
+
+# Listar todas las acciones
+actions = await container.configuration.list_actions()
+for action in actions:
+    print(f"{action.action_key}: {action.points_amount} pts")
+
+# Actualizar una acción
+await container.configuration.update_action(
+    action_key="custom_action",
+    points_amount=20
+)
 ```
 
-### 2. Configuración de tiempos de espera
+### 2. Gestión de niveles
 ```python
-# Verificar tiempo actual de espera
-current_wait_time = await container.config.get_wait_time()
-print(f"Tiempo actual de espera: {current_wait_time} minutos")
+# Crear niveles
+novato = await container.configuration.create_level(
+    name="Novato",
+    min_points=0,
+    max_points=499,
+    icon="🌱",
+    multiplier=1.0
+)
 
-# Configurar nuevo tiempo de espera (15 minutos)
-await container.config.set_wait_time(15)
-print("Tiempo de espera actualizado a 15 minutos")
+bronce = await container.configuration.create_level(
+    name="Bronce",
+    min_points=500,
+    max_points=1999,
+    icon="🥉",
+    multiplier=1.1
+)
 
-# Validar el cambio
-new_wait_time = await container.config.get_wait_time()
-print(f"Nuevo tiempo de espera: {new_wait_time} minutos")
+# Obtener nivel para puntos específicos
+level = await container.configuration.get_level_for_points(750)
+print(f"Nivel para 750 puntos: {level.name}")
 ```
 
-### 3. Gestión de reacciones de canales
+### 3. Gestión de badges
 ```python
-# Obtener reacciones actuales
-current_vip_reactions = await container.config.get_vip_reactions()
-current_free_reactions = await container.config.get_free_reactions()
+# Crear badges
+reactor_badge = await container.configuration.create_badge(
+    badge_key="reactor",
+    name="Reactor",
+    icon="❤️",
+    requirement_type="total_reactions",
+    requirement_value=100,
+    description="100 reacciones totales"
+)
 
-print(f"Reacciones VIP actuales: {current_vip_reactions}")
-print(f"Reacciones Free actuales: {current_free_reactions}")
+streak_badge = await container.configuration.create_badge(
+    badge_key="hot_streak",
+    name="Racha Caliente",
+    icon="🔥",
+    requirement_type="streak_days",
+    requirement_value=7,
+    description="7 días de login consecutivos"
+)
 
-# Configurar nuevas reacciones VIP
-await container.config.set_vip_reactions(["👍", "❤️", "🔥", "🎉", "💯"])
-print("Reacciones VIP actualizadas")
-
-# Configurar nuevas reacciones Free
-await container.config.set_free_reactions(["✅", "✔️", "☑️", "🟢", "🔵"])
-print("Reacciones Free actualizadas")
-
-# Verificar cambios
-updated_vip_reactions = await container.config.get_vip_reactions()
-updated_free_reactions = await container.config.get_free_reactions()
-print(f"Nuevas reacciones VIP: {updated_vip_reactions}")
-print(f"Nuevas reacciones Free: {updated_free_reactions}")
+# Verificar badges para un usuario
+badges = await container.configuration.get_badges_for_user_progress(
+    total_reactions=150,
+    total_points=1000,
+    streak_days=10,
+    is_vip=True
+)
+print(f"Badges disponibles: {len(badges)}")
 ```
 
-### 4. Configuración de tarifas de suscripción
+### 4. Gestión de recompensas y misiones
 ```python
-# Obtener tarifas actuales
-current_fees = await container.config.get_subscription_fees()
-print(f"Tarifas actuales: {current_fees}")
+# Crear recompensa
+reward = await container.configuration.create_reward(
+    name="Recompensa de Prueba",
+    reward_type="points",
+    points_amount=100,
+    description="Recompensa para probar sistema"
+)
 
-# Configurar nuevas tarifas
-new_fees = {
-    "monthly": 10.0,
-    "quarterly": 25.0,
-    "yearly": 100.0,
-    "lifetime": 500.0
-}
+# Crear misión completa (misión + recompensa + badge)
+mission, reward, badge = await container.configuration.create_mission_complete(
+    name="Desafío Completo",
+    mission_type="cumulative",
+    target_value=25,
+    target_action="message_reacted",
+    reward_name="Recompensa Desafío",
+    reward_type="both",
+    reward_points=200,
+    badge_key="desafiador",
+    badge_name="Desafiador",
+    badge_icon="⚔️",
+    badge_requirement_type="total_missions",
+    badge_requirement_value=1
+)
 
-await container.config.set_subscription_fees(new_fees)
-print("Tarifas de suscripción actualizadas")
-
-# Verificar cambios
-updated_fees = await container.config.get_subscription_fees()
-print(f"Nuevas tarifas: {updated_fees}")
+print(f"Creación completa: Misión '{mission.name}', Recompensa '{reward.name}', Badge '{badge.name}'")
 ```
 
-### 5. Validación de configuración completa
+### 5. Sistema de cache
 ```python
-# Verificar si el bot está completamente configurado
-is_configured = await container.config.is_fully_configured()
+# Obtener estadísticas del cache
+cache = get_config_cache()
+stats = cache.get_stats()
+print(f"Hit ratio: {stats['hit_ratio']:.2%}")
+print(f"Total entries: {stats['entries']}")
 
-if is_configured:
-    print("✅ Bot completamente configurado")
-else:
-    # Obtener detalles de lo que falta
-    status = await container.config.get_config_status()
-    print("❌ Bot necesita configuración adicional")
-    print(f"Faltan elementos: {', '.join(status['missing'])}")
-    
-    # Mostrar estado detallado
-    print(f"Canal VIP configurado: {'✅' if status['vip_channel_id'] else '❌'}")
-    print(f"Canal Free configurado: {'✅' if status['free_channel_id'] else '❌'}")
-    print(f"Tiempo de espera: {status['wait_time_minutes']} minutos")
-```
-
-### 6. Obtención de resumen de configuración
-```python
-# Obtener resumen completo de la configuración
-summary = await container.config.get_config_summary()
-print(summary)
-
-# Este resumen está formateado especialmente para ser mostrado en Telegram
-# con etiquetas HTML, emojis y formato claro
+# Limpiar cache si es necesario
+if stats['hit_ratio'] < 0.5:
+    cache.invalidate_all()
+    print("Cache limpiado por bajo rendimiento")
 ```
 
 ## Patrones de Diseño
 
-### Lazy Loading
-El ConfigService se carga bajo demanda a través del ServiceContainer, optimizando el uso de memoria en entornos limitados como Termux.
+### Cache con TTL
+El servicio implementa un sistema de cache en memoria con TTL configurable por tipo de dato, lo que mejora significativamente el rendimiento al reducir accesos a base de datos.
 
-### Validación de Entrada
-Todos los setters incluyen validación de entrada para prevenir configuraciones inválidas:
-- Tiempos de espera >= 1 minuto
-- Listas de reacciones con 1-10 elementos
-- Tarifas de suscripción no negativas
-- Campos obligatorios no nulos
+### Validación de Negocio
+Cada entidad tiene validaciones específicas de negocio para prevenir configuraciones inconsistentes o inválidas.
 
-### Logging
-El servicio incluye logging detallado para seguimiento de cambios:
-- Modificaciones de tiempos de espera
-- Actualizaciones de reacciones
-- Cambios en tarifas de suscripción
-- Acciones de reseteo
+### Transacciones Atómicas
+Las operaciones de creación anidada (como `create_mission_complete`) se realizan en transacciones atómicas para mantener la consistencia de datos.
+
+### Logging Detallado
+El servicio incluye logging detallado para seguimiento de operaciones:
+- Creación, actualización y eliminación de configuraciones
+- Operaciones de cache (hits, misses, invalidaciones)
+- Errores de validación y negocio
 
 ## Integración con Otros Servicios
 
-El ConfigService se integra con otros servicios del sistema:
+El ConfigurationService se integra con otros servicios del sistema:
 
-- **ChannelService:** Lee los IDs de canal configurados para operaciones
-- **SubscriptionService:** Usa el tiempo de espera Free para gestionar colas
+- **GamificationService:** Utiliza configuraciones para otorgar puntos y badges
 - **ServiceContainer:** Implementa el patrón DI + Lazy Loading
+- **EventBus:** Puede integrarse con eventos de sistema para actualizaciones dinámicas
 
 ## Consideraciones de Seguridad
 
 - Solo usuarios administradores deben tener acceso a los métodos de configuración
 - Validación exhaustiva de entradas para prevenir inyección de datos maliciosos
-- Logging de todas las modificaciones de configuración para auditoría
-- Protección contra valores extremos que puedan afectar el rendimiento
+- Verificación de dependencias antes de eliminar configuraciones
+- Logging de todas las modificaciones para auditoría
 
 ## Excepciones Comunes
 
-- `RuntimeError`: Cuando BotConfig no existe (caso crítico)
-- `ValueError`: Parámetros inválidos en setters (tiempo < 1, listas vacías, etc.)
+- `ConfigNotFoundError`: Configuración no encontrada
+- `ConfigAlreadyExistsError`: Configuración ya existe (duplicado)
+- `ConfigValidationError`: Validación de datos fallida
+- `ConfigInUseError`: Configuración está en uso y no se puede eliminar
 - `SQLAlchemyError`: Errores de base de datos (generalmente manejados por el contenedor de servicios)

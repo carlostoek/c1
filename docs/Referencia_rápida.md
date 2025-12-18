@@ -306,6 +306,51 @@ container.stats          # StatsService
 
 ---
 
+## ConfigurationService (Gamificación CRUD)
+**ActionConfig CRUD:**
+- `list_actions(include_inactive: bool)` → List[ActionConfig]
+- `get_action(action_key: str)` → ActionConfig
+- `create_action(action_key: str, display_name: str, points_amount: int, description: str)` → ActionConfig
+- `update_action(action_key: str, **kwargs)` → ActionConfig
+- `delete_action(action_key: str, hard_delete: bool)` → bool
+- `get_points_for_action(action_key: str)` → int
+
+**LevelConfig CRUD:**
+- `list_levels(include_inactive: bool)` → List[LevelConfig]
+- `get_level(level_id: int)` → LevelConfig
+- `get_level_for_points(points: int)` → Optional[LevelConfig]
+- `create_level(name: str, min_points: int, max_points: int, multiplier: float, icon: str, color: str)` → LevelConfig
+- `update_level(level_id: int, **kwargs)` → LevelConfig
+- `reorder_levels(level_ids: List[int])` → List[LevelConfig]
+
+**BadgeConfig CRUD:**
+- `list_badges(include_inactive: bool)` → List[BadgeConfig]
+- `get_badge(badge_key: str)` → BadgeConfig
+- `create_badge(badge_key: str, name: str, icon: str, requirement_type: str, requirement_value: int, description: str)` → BadgeConfig
+- `get_badges_for_user_progress(total_reactions: int, total_points: int, streak_days: int, is_vip: bool)` → List[BadgeConfig]
+
+**RewardConfig CRUD:**
+- `list_rewards(include_inactive: bool)` → List[RewardConfig]
+- `get_reward(reward_id: int)` → RewardConfig
+- `create_reward(name: str, reward_type: str, points_amount: int, badge_id: int, description: str, custom_data: Dict)` → RewardConfig
+- `create_reward_with_new_badge(...)` → Tuple[RewardConfig, BadgeConfig]
+
+**MissionConfig CRUD:**
+- `list_missions(include_inactive: bool)` → List[MissionConfig]
+- `get_mission(mission_id: int)` → MissionConfig
+- `create_mission(name: str, mission_type: str, target_value: int, target_action: str, reward_id: int, description: str, time_limit_hours: int, is_repeatable: bool, cooldown_hours: int)` → MissionConfig
+- `create_mission_complete(...)` → Tuple[MissionConfig, RewardConfig, BadgeConfig]
+
+**Sistema de Cache:**
+- `get_config_cache()` → ConfigCache
+- `get_stats()` → Dict[str, Any] (cache stats: hits, misses, hit_ratio, entries)
+- `invalidate_all()` → int (número de entradas eliminadas)
+
+**Previews:**
+- `preview_mission_complete(mission_data: Dict, reward_data: Dict, badge_data: Dict)` → str (preview formateado)
+
+---
+
 ## PricingService (A1)
 **Planes:**
 - `create_plan(name, duration_days, price)` → Plan
