@@ -12,12 +12,12 @@ Antes de empezar cualquier tarea, **debes leer primero** `docs/Referencia_rápid
 - Handlers y middlewares
 - Arquitectura general
 
-Este documento (CLAUDE.md) contiene **cómo trabajar** (patrones, convenciones, flujos).
+Este documento (QWEN.md) contiene **cómo trabajar** (patrones, convenciones, flujos).
 El documento `docs/Referencia_rápida.md` contiene **qué está implementado** (detalles técnicos).
 
 **Diferencia clave:**
 - 📖 `docs/Referencia_rápida.md` → Lectura para entender el proyecto
-- 📝 `CLAUDE.md` → Guía para saber cómo trabajar en el proyecto
+- 📝 `QWEN.md` → Guía para saber cómo trabajar en el proyecto
 
 ═══════════════════════════════════════════════════════════════
 # CONVENCIONES DE CÓDIGO
@@ -127,13 +127,13 @@ def generate_vip_token(
    - Aprende sobre modelos de BD
    - Familiarízate con handlers
 
-2. Lee `CLAUDE.md` (este archivo) para saber cómo trabajar
+2. Lee `QWEN.md` (este archivo) para saber cómo trabajar
 
 3. Revisa código real de examples similares en el codebase
 
 **En tareas subsecuentes:**
 - Consulta Referencia_rápida.md para detalles técnicos específicos
-- Usa CLAUDE.md para recordar patrones y convenciones
+- Usa QWEN.md para recordar patrones y convenciones
 
 ### 1. Lectura de Prompt
 
@@ -178,7 +178,7 @@ def generate_vip_token(
 ### 5. Commit
 
 ```bash
-# Sin referencias a herramientas externas como Claude, Claude Code.
+# Sin referencias a herramientas externas como QWEN, QWEN Code.
 
 # Mensaje describiendo cambios:
 # - Líneas de código
@@ -188,7 +188,7 @@ def generate_vip_token(
 ```
 
 **NO incluir:**
-- Referencias a "Claude Code"
+- Referencias a "QWEN Code"
 - Menciones a herramientas externas
 - Instrucciones de trabajo
 
@@ -202,7 +202,7 @@ def generate_vip_token(
 - Métodos públicos agregados
 - Flujos de datos modificados
 
-**Información de Trabajo → `CLAUDE.md` (este archivo):**
+**Información de Trabajo → `QWEN.md` (este archivo):**
 - Nuevos patrones de desarrollo
 - Cambios en convenciones
 - Nuevos flujos de trabajo
@@ -896,10 +896,6 @@ Body con detalles técnicos:
 - Métodos agregados
 - Cambios arquitectónicos
 
-🤖 Generated with Claude Code
-
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>
-```
 
 ## Tipos de Commit
 
@@ -957,7 +953,7 @@ Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>
 - Cómo hacer tareas
 - Información de procesos
 
-### 📝 CLAUDE.md (este archivo)
+### 📝 QWEN.md (este archivo)
 
 **Propósito:** Guía de desarrollo. CÓMO trabajar en el proyecto.
 
@@ -998,13 +994,13 @@ Después de implementar algo:
 ## Mantener Separación Clara
 
 ```
-CLAUDE.md = Cómo trabajar (instructor, guía)
+QWEN.md = Cómo trabajar (instructor, guía)
 docs/Referencia_rápida.md = Qué hay implementado (referencia técnica)
 ```
 
 Ambos documentos trabajan juntos:
 - Lees Referencia_rápida.md → Entiendes qué existe
-- Lees CLAUDE.md → Entiendes cómo trabajar con ello
+- Lees QWEN.md → Entiendes cómo trabajar con ello
 
 ═══════════════════════════════════════════════════════════════
 # BEST PRACTICES
@@ -1069,3 +1065,4 @@ Ambos documentos trabajan juntos:
 2. Identificar N+1 queries
 3. Agregar indexes en queries frecuentes
 4. Implementar caching si apropiado
+

@@ -896,9 +896,6 @@ Body con detalles técnicos:
 - Métodos agregados
 - Cambios arquitectónicos
 
-🤖 Generated with Claude Code
-
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>
 ```
 
 ## Tipos de Commit
