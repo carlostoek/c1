@@ -54,6 +54,7 @@ class ServiceContainer:
         self._notification_service = None
         self._gamification_service = None
         self._reactions_service = None
+        self._configuration_service = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -238,6 +239,34 @@ class ServiceContainer:
 
         return self._reactions_service
 
+    # ===== CONFIGURATION SERVICE =====
+
+    @property
+    def configuration(self):
+        """
+        Service de configuración de gamificación.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            ConfigurationService: Instancia del service
+
+        Example:
+            >>> container = ServiceContainer(session, bot)
+            >>> actions = await container.configuration.list_actions()
+            >>> await container.configuration.create_action(
+            ...     action_key="custom_action",
+            ...     display_name="Acción Custom",
+            ...     points_amount=15
+            ... )
+        """
+        if self._configuration_service is None:
+            from bot.services.configuration.service import ConfigurationService
+            logger.debug("🔄 Lazy loading: ConfigurationService")
+            self._configuration_service = ConfigurationService(self._session)
+
+        return self._configuration_service
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -269,6 +298,8 @@ class ServiceContainer:
             loaded.append("gamification")
         if self._reactions_service is not None:
             loaded.append("reactions")
+        if self._configuration_service is not None:
+            loaded.append("configuration")
 
         return loaded
 
@@ -287,5 +318,6 @@ class ServiceContainer:
         # Trigger lazy load accediendo a las properties
         _ = self.subscription
         _ = self.config
+        _ = self.gamification  # Include gamification since it's configuration-related
 
         logger.info(f"✅ Services precargados: {self.get_loaded_services()}")

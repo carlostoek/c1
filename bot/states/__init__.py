@@ -11,6 +11,15 @@ from bot.states.user import (
     TokenRedemptionStates,
     FreeAccessStates
 )
+from bot.states.configuration import (
+    ConfigMainStates,
+    ActionConfigStates,
+    LevelConfigStates,
+    BadgeConfigStates,
+    RewardConfigStates,
+    MissionConfigStates,
+    ConfigDataKeys,
+)
 
 __all__ = [
     # Admin states
@@ -22,4 +31,13 @@ __all__ = [
     # User states
     "TokenRedemptionStates",
     "FreeAccessStates",
+
+    # Configuration states
+    "ConfigMainStates",
+    "ActionConfigStates",
+    "LevelConfigStates",
+    "BadgeConfigStates",
+    "RewardConfigStates",
+    "MissionConfigStates",
+    "ConfigDataKeys",
 ]
