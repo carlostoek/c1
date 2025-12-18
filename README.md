@@ -391,6 +391,20 @@ Handlers del panel de estadísticas que proporcionan métricas generales y detal
 - **Formato visual:** Mensajes HTML formateados con iconos y estructura clara
 - **Proyecciones de ingresos:** Cálculo de ingresos proyectados mensuales y anuales basados en suscriptores activos
 
+### Configuration Handler (T42)
+Handlers del sistema de configuración de gamificación que permiten a los administradores gestionar todas las entidades relacionadas con el sistema de puntos, niveles, badges, recompensas y misiones:
+
+- **Gestión de acciones de gamificación:** Configuración de puntos otorgados por diferentes acciones (reacciones, login diario, referidos, etc.)
+- **Gestión de niveles de gamificación:** Configuración de rangos basados en puntos acumulados con multiplicadores y límites
+- **Gestión de badges:** Configuración de insignias con requisitos específicos (reacciones totales, días de racha, puntos acumulados, etc.)
+- **Gestión de recompensas:** Configuración de premios por logros que pueden incluir puntos, badges o beneficios personalizados
+- **Gestión de misiones:** Configuración de desafíos con objetivos específicos y recompensas asociadas
+- **Sistema de cache:** Implementación de cache en memoria con TTL configurable para mejorar rendimiento
+- **Operaciones anidadas:** Creación de recursos relacionados en transacciones atómicas (misión con recompensa y badge)
+- **Validaciones de negocio:** Verificación de consistencia y validación de datos para mantener integridad
+- **FSM States:** Uso de estados FSM específicos para cada tipo de configuración (acciones, niveles, badges, recompensas, misiones)
+- **Comando `/config`:** Acceso directo al panel de configuración de gamificación para administradores
+
 **Ejemplo de uso del handler de estadísticas:**
 ```python
 from aiogram import Router, F
@@ -1472,6 +1486,7 @@ Este proyecto está en desarrollo iterativo. Consulta las tareas completadas:
 - [x] T25: Paginated VIP Subscriber Management - Gestión paginada de suscriptores VIP con listado, filtrado por estado (activos, expirados, próximos a expirar, todos), vistas detalladas y expulsión manual de suscriptores
 - [x] T26: Free Queue Visualization - Visualización paginada de cola de solicitudes Free con filtrado por estado (pendientes, listas para procesar, procesadas, todas) y monitoreo del tiempo de espera configurado
 - [x] T27: Complete Status Dashboard - Panel de control completo del sistema con health checks, configuración, estadísticas clave, tareas en segundo plano y acciones rápidas
+- [x] T42: Configuration Handler - Panel de configuración de gamificación que permite gestionar todas las entidades relacionadas con el sistema de puntos, niveles, badges, recompensas y misiones, con sistema de cache en memoria y operaciones CRUD completas
 - [ ] ONDA 1: MVP Funcional (T1-T17)
 - [ ] ONDA 2: Features Avanzadas (T18-T33)
 - [ ] ONDA 3: Optimización (T34-T44)
