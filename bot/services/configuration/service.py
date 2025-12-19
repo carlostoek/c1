@@ -352,6 +352,31 @@ class ConfigurationService:
             # Guardar el valor 0 en cache para evitar consultas repetidas
             self._cache.set(cache_key, 0, ttl=60)
             return 0
+
+    async def get_config_value(self, key: str, default: int = 0) -> int:
+        """
+        Obtiene un valor de configuración genérico.
+
+        Método de conveniencia para obtener valores de configuración
+        que no necesariamente son puntos (por ejemplo, límites, tiempos, etc).
+
+        Args:
+            key: Key de la configuración (puede ser action_key o cualquier otro valor)
+            default: Valor por defecto si no existe
+
+        Returns:
+            Valor configurado o valor por defecto
+        """
+        try:
+            # Intentar obtener como action (para mantener compatibilidad)
+            action = await self.get_action(key)
+            if action.is_active:
+                return action.points_amount
+            else:
+                return default
+        except ConfigNotFoundError:
+            logger.warning(f"⚠️ Configuración no encontrada: {key}, usando default {default}")
+            return default
     
     # ═══════════════════════════════════════════════════════════════
     # LEVEL CONFIG CRUD

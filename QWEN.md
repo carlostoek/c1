@@ -988,7 +988,7 @@ Después de implementar algo:
 1. ✅ Código implementado y testeado
 2. ✅ Git commit realizado
 3. ✅ Actualizar docs/Referencia_rápida.md (información técnica)
-4. ✅ Actualizar CLAUDE.md SOLO si hay cambios en procesos/patrones
+4. ✅ Actualizar QWEN.md SOLO si hay cambios en procesos/patrones
 ```
 
 ## Mantener Separación Clara

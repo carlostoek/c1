@@ -313,8 +313,8 @@ class GamificationService:
             streak.longest_streak = streak.current_streak
 
         # Calcular Besitos
-        base_reward = await self.config_service.get_points_for_action("daily_login_base")
-        streak_bonus = await self.config_service.get_points_for_action("daily_login_streak_bonus")
+        base_reward = await self.config_service.get_config_value("daily_login_base", default=10)
+        streak_bonus = await self.config_service.get_config_value("daily_login_streak_bonus", default=2)
         streak_bonus_total = (streak.current_streak - 1) * streak_bonus
 
         total_besitos = base_reward + streak_bonus_total
@@ -349,19 +349,13 @@ class GamificationService:
         progress = await self.get_or_create_progress(user_id)
 
         # Verificar límite diario
-        # Para este caso, usamos una acción de configuración para el límite diario
-        # Si no existe, usamos el valor por defecto
-        max_reactions = await self.config_service.get_points_for_action("max_reactions_per_day")
-        if max_reactions == 0:  # Si no está configurado, usar valor por defecto
-            max_reactions = 20
+        max_reactions = await self.config_service.get_config_value("max_reactions_per_day", default=20)
 
         if progress.reactions_today >= max_reactions:
             return False
 
         # Verificar tiempo mínimo entre reacciones
-        min_seconds = await self.config_service.get_points_for_action("min_seconds_between_reactions")
-        if min_seconds == 0:  # Si no está configurado, usar valor por defecto
-            min_seconds = 30
+        min_seconds = await self.config_service.get_config_value("min_seconds_between_reactions", default=30)
 
         if progress.last_reaction_at:
             seconds_since_last = (datetime.utcnow() - progress.last_reaction_at).total_seconds()
