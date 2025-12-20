@@ -59,6 +59,10 @@ class UserGamification(Base):
         "UserReaction",
         back_populates="user_gamification"
     )
+    transactions: Mapped[List["BesitoTransaction"]] = relationship(
+        "BesitoTransaction",
+        back_populates="user_gamification"
+    )
 
     # Indexes
     __table_args__ = (
@@ -395,6 +399,39 @@ class ConfigTemplate(Base):
     __table_args__ = (
         Index('ix_config_templates_category', 'category'),
         Index('ix_config_templates_created_by', 'created_by'),
+    )
+
+
+class BesitoTransaction(Base):
+    """
+    Registro de transacciones de besitos.
+
+    Almacena todas las operaciones de besitos (otorgamientos, gastos, etc.)
+    para auditoría y seguimiento.
+    """
+    __tablename__ = "besito_transactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("user_gamification.user_id"))
+    amount: Mapped[int] = mapped_column(Integer)  # Puede ser negativo para gastos
+    transaction_type: Mapped[str] = mapped_column(String(50))  # TransactionType enum
+    description: Mapped[str] = mapped_column(String(500))
+    reference_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # ID de origen (mission_id, reward_id, etc)
+    balance_after: Mapped[int] = mapped_column(Integer)  # Balance después de esta transacción
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    # Relationships
+    user_gamification: Mapped["UserGamification"] = relationship(
+        "UserGamification",
+        back_populates="transactions"
+    )
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_besito_transactions_user_created', 'user_id', 'created_at'),
+        Index('ix_besito_transactions_user_type', 'user_id', 'transaction_type'),
+        Index('ix_besito_transactions_ref_type', 'reference_id', 'transaction_type'),
+        Index('ix_besito_transactions_created_at', 'created_at'),
     )
 
 

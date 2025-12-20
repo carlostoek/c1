@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, UTC
 import logging
 
-from bot.gamification.database.models import UserGamification
+from bot.gamification.database.models import UserGamification, BesitoTransaction
 from bot.gamification.database.enums import TransactionType
 
 logger = logging.getLogger(__name__)
@@ -99,6 +99,9 @@ class BesitoService:
         # Asegurar existencia del usuario (crea si no existe)
         await self._ensure_user_exists(user_id, commit=False)
 
+        # Obtener balance antes de la operación para auditoría
+        old_balance = await self.get_balance(user_id)
+
         # Operación atómica: UPDATE ... SET col = col + delta
         stmt = (
             update(UserGamification)
@@ -117,27 +120,38 @@ class BesitoService:
             # without more complex logic, so we raise an error.
             raise UserNotFoundError(user_id)
 
-        # Registrar transacción si existe el modelo (esto se implementará cuando se cree la tabla)
+        # Calcular nuevo balance
+        expected_new_balance = old_balance + amount
+
+        # Registrar transacción
         await self._create_transaction(
             user_id=user_id,
             amount=amount,
             transaction_type=transaction_type,
             description=description,
-            reference_id=reference_id
+            reference_id=reference_id,
+            balance_after=expected_new_balance
         )
 
         if commit:
             await self.session.commit()
 
-        # Obtener nuevo balance
-        new_balance = await self.get_balance(user_id)
+        # Obtener nuevo balance para verificación
+        actual_new_balance = await self.get_balance(user_id)
+
+        # Verificar integridad
+        if actual_new_balance != expected_new_balance:
+            logger.error(
+                f"Balance inconsistency for user {user_id}: "
+                f"expected {expected_new_balance}, got {actual_new_balance}"
+            )
 
         logger.info(
             f"Granted {amount} besitos to user {user_id}: {description} "
-            f"(new balance: {new_balance})"
+            f"(new balance: {actual_new_balance})"
         )
 
-        return new_balance
+        return actual_new_balance
 
     async def spend_besitos(
         self,
@@ -184,6 +198,9 @@ class BesitoService:
                 current_balance=current_balance
             )
 
+        # Obtener balance antes de la operación para auditoría
+        old_balance = await self.get_balance(user_id)
+
         # Operación atómica: UPDATE ... SET col = col - delta
         stmt = (
             update(UserGamification)
@@ -199,27 +216,38 @@ class BesitoService:
         if result.rowcount == 0:
             raise UserNotFoundError(user_id)
 
-        # Registrar transacción si existe el modelo
+        # Calcular nuevo balance
+        expected_new_balance = old_balance - amount
+
+        # Registrar transacción
         await self._create_transaction(
             user_id=user_id,
             amount=-amount,  # Negativo para gastos
             transaction_type=transaction_type,
             description=description,
-            reference_id=reference_id
+            reference_id=reference_id,
+            balance_after=expected_new_balance
         )
 
         if commit:
             await self.session.commit()
 
-        # Obtener nuevo balance
-        new_balance = await self.get_balance(user_id)
+        # Obtener nuevo balance para verificación
+        actual_new_balance = await self.get_balance(user_id)
+
+        # Verificar integridad
+        if actual_new_balance != expected_new_balance:
+            logger.error(
+                f"Balance inconsistency for user {user_id}: "
+                f"expected {expected_new_balance}, got {actual_new_balance}"
+            )
 
         logger.info(
             f"Spent {amount} besitos from user {user_id}: {description} "
-            f"(new balance: {new_balance})"
+            f"(new balance: {actual_new_balance})"
         )
 
-        return new_balance
+        return actual_new_balance
 
     async def get_balance(self, user_id: int) -> int:
         """
@@ -248,21 +276,62 @@ class BesitoService:
         """
         Obtiene historial de transacciones de un usuario.
 
-        NOTA: Actualmente devuelve historial simulado basado en los cambios de balance
-        ya que el modelo BesitoTransaction aún no está implementado.
-
         Args:
             user_id: ID del usuario
             limit: Límite de transacciones a devolver
             transaction_type: Tipo específico de transacción a filtrar
 
         Returns:
-            List[dict]: Lista de transacciones (simuladas por ahora)
+            List[dict]: Lista de transacciones con sus detalles
         """
-        # Temporal: Devolver información basada en el historial de UserGamification
-        # Cuando se implemente BesitoTransaction, esta función usará esa tabla
-        logger.warning("get_transaction_history: Modelo BesitoTransaction no implementado aún")
-        return []
+        # Call the new method with offset 0 to maintain backward compatibility
+        return await self.get_transaction_history_with_offset(user_id, limit=limit, offset=0, transaction_type=transaction_type)
+
+    async def get_transaction_history_with_offset(
+        self,
+        user_id: int,
+        limit: int = 50,
+        offset: int = 0,
+        transaction_type: Optional[TransactionType] = None
+    ) -> List[dict]:
+        """
+        Obtiene historial de transacciones de un usuario con paginación.
+
+        Args:
+            user_id: ID del usuario
+            limit: Límite de transacciones a devolver
+            offset: Desplazamiento para paginación
+            transaction_type: Tipo específico de transacción a filtrar
+
+        Returns:
+            List[dict]: Lista de transacciones con sus detalles
+        """
+        stmt = (
+            select(BesitoTransaction)
+            .where(BesitoTransaction.user_id == user_id)
+        )
+
+        if transaction_type:
+            stmt = stmt.where(BesitoTransaction.transaction_type == transaction_type)
+
+        stmt = stmt.order_by(BesitoTransaction.created_at.desc()).offset(offset).limit(limit)
+
+        result = await self.session.execute(stmt)
+        transactions = result.scalars().all()
+
+        return [
+            {
+                'id': t.id,
+                'user_id': t.user_id,
+                'amount': t.amount,
+                'transaction_type': t.transaction_type,
+                'description': t.description,
+                'reference_id': t.reference_id,
+                'balance_after': t.balance_after,
+                'created_at': t.created_at
+            }
+            for t in transactions
+        ]
 
     async def transfer_besitos(
         self,
@@ -305,6 +374,10 @@ class BesitoService:
                 current_balance=from_balance
             )
 
+        # Obtener balances antes de la operación para auditoría
+        from_old_balance = await self.get_balance(from_user_id)
+        to_old_balance = await self.get_balance(to_user_id)
+
         try:
             # Operación atómica: ambas actualizaciones en la misma transacción
             # Gastar del emisor
@@ -331,12 +404,9 @@ class BesitoService:
             )
             await self.session.execute(grant_stmt)
 
-            # Confirmar ambas operaciones
-            await self.session.commit()
-
-            # Obtener nuevos balances
-            from_new_balance = await self.get_balance(from_user_id)
-            to_new_balance = await self.get_balance(to_user_id)
+            # Calcular nuevos balances esperados
+            from_expected_new_balance = from_old_balance - amount
+            to_expected_new_balance = to_old_balance + amount
 
             # Registrar transacciones
             await self._create_transaction(
@@ -344,7 +414,8 @@ class BesitoService:
                 amount=-amount,
                 transaction_type=TransactionType.PURCHASE,  # Transferencia
                 description=f"{description} (transfer to user {to_user_id})",
-                reference_id=to_user_id
+                reference_id=to_user_id,
+                balance_after=from_expected_new_balance
             )
 
             await self._create_transaction(
@@ -352,21 +423,88 @@ class BesitoService:
                 amount=amount,
                 transaction_type=TransactionType.MISSION_REWARD,  # Transferencia
                 description=f"{description} (transfer from user {from_user_id})",
-                reference_id=from_user_id
+                reference_id=from_user_id,
+                balance_after=to_expected_new_balance
             )
+
+            # Confirmar ambas operaciones
+            await self.session.commit()
+
+            # Obtener nuevos balances para verificación
+            from_actual_new_balance = await self.get_balance(from_user_id)
+            to_actual_new_balance = await self.get_balance(to_user_id)
+
+            # Verificar integridad
+            if from_actual_new_balance != from_expected_new_balance:
+                logger.error(
+                    f"Balance inconsistency for sender {from_user_id}: "
+                    f"expected {from_expected_new_balance}, got {from_actual_new_balance}"
+                )
+
+            if to_actual_new_balance != to_expected_new_balance:
+                logger.error(
+                    f"Balance inconsistency for receiver {to_user_id}: "
+                    f"expected {to_expected_new_balance}, got {to_actual_new_balance}"
+                )
 
             logger.info(
                 f"Transferred {amount} besitos from {from_user_id} to {to_user_id} "
-                f"(from: {from_new_balance}, to: {to_new_balance})"
+                f"(from: {from_actual_new_balance}, to: {to_actual_new_balance})"
             )
 
-            return from_new_balance, to_new_balance
+            return from_actual_new_balance, to_actual_new_balance
 
         except Exception as e:
             # Rollback automático si falla cualquier parte
             await self.session.rollback()
             logger.error(f"Transfer failed from {from_user_id} to {to_user_id}: {str(e)}")
             raise
+
+    async def get_transaction_history(
+        self,
+        user_id: int,
+        limit: int = 50,
+        offset: int = 0,
+        transaction_type: Optional[TransactionType] = None
+    ) -> List[dict]:
+        """
+        Obtiene historial de transacciones de un usuario.
+
+        Args:
+            user_id: ID del usuario
+            limit: Límite de transacciones a devolver
+            offset: Desplazamiento para paginación
+            transaction_type: Tipo específico de transacción a filtrar
+
+        Returns:
+            List[dict]: Lista de transacciones con sus detalles
+        """
+        stmt = (
+            select(BesitoTransaction)
+            .where(BesitoTransaction.user_id == user_id)
+        )
+
+        if transaction_type:
+            stmt = stmt.where(BesitoTransaction.transaction_type == transaction_type)
+
+        stmt = stmt.order_by(BesitoTransaction.created_at.desc()).offset(offset).limit(limit)
+
+        result = await self.session.execute(stmt)
+        transactions = result.scalars().all()
+
+        return [
+            {
+                'id': t.id,
+                'user_id': t.user_id,
+                'amount': t.amount,
+                'transaction_type': t.transaction_type,
+                'description': t.description,
+                'reference_id': t.reference_id,
+                'balance_after': t.balance_after,
+                'created_at': t.created_at
+            }
+            for t in transactions
+        ]
 
     async def get_leaderboard(self, limit: int = 10) -> List[dict]:
         """
@@ -423,13 +561,11 @@ class BesitoService:
         amount: int,
         transaction_type: TransactionType,
         description: str,
-        reference_id: Optional[int] = None
+        reference_id: Optional[int] = None,
+        balance_after: Optional[int] = None
     ) -> None:
         """
-        Crea un registro de transacción (simulado por ahora).
-
-        NOTA: Esta función está preparada para usar BesitoTransaction cuando
-        se implemente el modelo. Por ahora, solo hace logging.
+        Crea un registro de transacción en la base de datos.
 
         Args:
             user_id: ID del usuario
@@ -437,10 +573,25 @@ class BesitoService:
             transaction_type: Tipo de transacción
             description: Descripción
             reference_id: ID de referencia
+            balance_after: Balance después de la transacción
         """
-        # Simular creación de transacción - pendiente de modelo BesitoTransaction
-        logger.debug(
-            f"Transaction record: user={user_id}, amount={amount}, "
-            f"type={transaction_type}, desc={description}, ref={reference_id}"
+        if balance_after is None:
+            # Si no se proporciona balance_after, calcularlo (solo para operaciones de gasto simple)
+            current_balance = await self.get_balance(user_id)
+            balance_after = current_balance
+
+        transaction = BesitoTransaction(
+            user_id=user_id,
+            amount=amount,
+            transaction_type=transaction_type,
+            description=description,
+            reference_id=reference_id,
+            balance_after=balance_after,
+            created_at=datetime.now(UTC)
         )
-        # Aquí se creará un BesitoTransaction cuando se implemente el modelo
+        self.session.add(transaction)
+
+        logger.debug(
+            f"Transaction created: user={user_id}, amount={amount}, "
+            f"type={transaction_type}, balance_after={balance_after}, desc={description}, ref={reference_id}"
+        )

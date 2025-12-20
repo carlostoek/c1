@@ -10,7 +10,7 @@ Responsabilidades:
 
 from typing import Optional, List, Tuple
 from datetime import datetime, UTC, date, timedelta
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
 import logging
@@ -497,9 +497,69 @@ class MissionService:
             return False
     
     # ========================================
+    # ESTADÍSTICAS DE MISIÓN
+    # ========================================
+
+    async def get_mission_stats(self, mission_id: int) -> dict:
+        """Obtiene estadísticas de uso de una misión."""
+        # Obtener misión
+        mission = await self.session.get(Mission, mission_id)
+        if not mission:
+            return {
+                'active_users': 0,
+                'completed_count': 0,
+                'completion_rate': 0.0,
+                'total_distributed_besitos': 0,
+                'error': 'Mission not found'
+            }
+
+        # Contar usuarios con misión in_progress
+        active_stmt = select(func.count()).select_from(UserMission).where(
+            UserMission.mission_id == mission_id,
+            UserMission.status == MissionStatus.IN_PROGRESS
+        )
+        result = await self.session.execute(active_stmt)
+        active_users = result.scalar() or 0
+
+        # Contar usuarios que completaron la misión
+        completed_stmt = select(func.count()).select_from(UserMission).where(
+            UserMission.mission_id == mission_id,
+            UserMission.status == MissionStatus.COMPLETED
+        )
+        result = await self.session.execute(completed_stmt)
+        completed_count = result.scalar() or 0
+
+        # Total que han iniciado la misión
+        started_stmt = select(func.count()).select_from(UserMission).where(
+            UserMission.mission_id == mission_id
+        )
+        result = await self.session.execute(started_stmt)
+        started_count = result.scalar() or 0
+
+        # Tasa de completación
+        completion_rate = (completed_count / started_count * 100) if started_count > 0 else 0.0
+
+        # Besitos totales distribuidos (solo de misiones reclamadas)
+        claimed_stmt = select(func.sum(Mission.besitos_reward)).join(
+            UserMission, UserMission.mission_id == Mission.id
+        ).where(
+            Mission.id == mission_id,
+            UserMission.status == MissionStatus.CLAIMED
+        )
+        result = await self.session.execute(claimed_stmt)
+        total_distributed_besitos = result.scalar() or 0
+
+        return {
+            'active_users': active_users,
+            'completed_count': completed_count,
+            'completion_rate': round(completion_rate, 2),
+            'total_distributed_besitos': total_distributed_besitos
+        }
+
+    # ========================================
     # RECLAMAR RECOMPENSA
     # ========================================
-    
+
     async def claim_reward(
         self,
         user_id: int,
@@ -514,27 +574,27 @@ class MissionService:
             )
             result = await self.session.execute(stmt)
             user_mission = result.scalar_one_or_none()
-            
+
             if not user_mission:
                 return False, "Mission not found", {}
-            
+
             if user_mission.status != MissionStatus.COMPLETED:
                 return False, "Mission not completed", {}
-            
+
             if user_mission.claimed_at:
                 return False, "Reward already claimed", {}
-            
+
             # Obtener misión
             mission = await self.session.get(Mission, mission_id)
             if not mission:
                 return False, "Mission not found", {}
-            
+
             rewards_info = {
                 'besitos': 0,
                 'level_up': None,
                 'unlocked_rewards': []
             }
-            
+
             # 1. Otorgar besitos
             from bot.gamification.services.container import gamification_container
             besitos_granted = await gamification_container.besito.grant_besitos(
@@ -545,7 +605,7 @@ class MissionService:
                 reference_id=user_mission.id
             )
             rewards_info['besitos'] = besitos_granted
-            
+
             # 2. Auto level-up (si aplica)
             if mission.auto_level_up_id:
                 level_updated = await gamification_container.level.set_user_level(
@@ -555,19 +615,19 @@ class MissionService:
                 if level_updated:
                     level = await self.session.get(Level, mission.auto_level_up_id)
                     rewards_info['level_up'] = level
-            
+
             # 3. No implementado: Unlock rewards - se implementará cuando se tenga el sistema de recompensas
             # TODO: Integrar con RewardService cuando exista
-            
+
             # 4. Marcar como reclamada
             user_mission.status = MissionStatus.CLAIMED
             user_mission.claimed_at = datetime.now(UTC)
             await self.session.commit()
-            
+
             logger.info(f"User {user_id} claimed mission {mission_id}: +{besitos_granted} besitos")
-            
+
             return True, f"Recompensa reclamada: +{besitos_granted} besitos", rewards_info
-        
+
         except Exception as e:
             logger.error(f"Error claiming reward for user {user_id}, mission {mission_id}: {str(e)}", exc_info=True)
             return False, f"Error al reclamar recompensa: {str(e)}", {}

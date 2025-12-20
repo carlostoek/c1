@@ -413,9 +413,21 @@ class RewardService:
         return locked
     
     # ========================================
+    # ESTADÍSTICAS
+    # ========================================
+
+    async def get_users_with_reward(self, reward_id: int) -> int:
+        """Obtiene cantidad de usuarios que tienen una recompensa."""
+        stmt = select(func.count()).select_from(UserReward).where(
+            UserReward.reward_id == reward_id
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar() or 0
+
+    # ========================================
     # BADGES
     # ========================================
-    
+
     async def get_user_badges(self, user_id: int) -> List[tuple]:
         """Obtiene badges de usuario."""
         stmt = (
@@ -426,7 +438,7 @@ class RewardService:
         )
         result = await self.session.execute(stmt)
         return list(result.all())
-    
+
     async def set_displayed_badges(
         self,
         user_id: int,
@@ -435,7 +447,7 @@ class RewardService:
         """Configura badges mostrados (máx 3)."""
         if len(badge_ids) > self.MAX_DISPLAYED_BADGES:
             return False
-        
+
         # Desmarcar todos los badges del usuario
         stmt = (
             select(UserBadge)
@@ -444,9 +456,9 @@ class RewardService:
         )
         result = await self.session.execute(stmt)
         all_user_badges = result.scalars().all()
-        
+
         for user_badge in all_user_badges:
             user_badge.displayed = user_badge.id in badge_ids
-        
+
         await self.session.commit()
         return True

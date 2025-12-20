@@ -35,6 +35,7 @@ class GamificationContainer:
         self._mission_orchestrator = None
         self._reward_orchestrator = None
         self._configuration_orchestrator = None
+        self._transaction_service = None  # Could be added in the future if needed
 
     # ========================================
     # PROPERTIES (LAZY LOADING)
@@ -134,6 +135,12 @@ class GamificationContainer:
             self._configuration_orchestrator = ConfigurationOrchestrator(self._session)
         return self._configuration_orchestrator
 
+    @property
+    def transaction(self):
+        """Servicio de transacciones (usando BesitoService actualmente)."""
+        # Since transactions are handled by the besito service until we create a separate service
+        return self.besito
+
     # ========================================
     # UTILIDADES
     # ========================================
@@ -163,6 +170,8 @@ class GamificationContainer:
             loaded.append('reward_orchestrator')
         if self._configuration_orchestrator is not None:
             loaded.append('configuration_orchestrator')
+        if self._transaction_service is not None:
+            loaded.append('transaction')
         return loaded
 
     def clear_cache(self):
@@ -178,6 +187,7 @@ class GamificationContainer:
         self._mission_orchestrator = None
         self._reward_orchestrator = None
         self._configuration_orchestrator = None
+        self._transaction_service = None
 
 
 # ========================================

@@ -37,10 +37,10 @@ class ReactionService:
     # ========================================
     # CATÁLOGO DE REACCIONES
     # ========================================
-    
+
     async def create_reaction(
-        self, 
-        emoji: str, 
+        self,
+        emoji: str,
         besitos_value: int = 1
     ) -> Reaction:
         """Crea nueva reacción en catálogo."""
@@ -52,13 +52,13 @@ class ReactionService:
         self.session.add(reaction)
         await self.session.commit()
         await self.session.refresh(reaction)
-        
+
         logger.info(f"Created reaction: {emoji} ({besitos_value} besitos)")
         return reaction
-    
+
     async def update_reaction(
-        self, 
-        reaction_id: int, 
+        self,
+        reaction_id: int,
         besitos_value: Optional[int] = None,
         active: Optional[bool] = None
     ) -> Optional[Reaction]:
@@ -66,50 +66,78 @@ class ReactionService:
         reaction = await self.session.get(Reaction, reaction_id)
         if not reaction:
             return None
-        
+
         if besitos_value is not None:
             reaction.besitos_value = besitos_value
         if active is not None:
             reaction.active = active
-        
+
         await self.session.commit()
         await self.session.refresh(reaction)
-        
+
         logger.info(f"Updated reaction {reaction_id}: {reaction.emoji} ({reaction.besitos_value} besitos, active: {reaction.active})")
         return reaction
-    
+
     async def delete_reaction(self, reaction_id: int) -> bool:
         """Elimina una reacción del catálogo."""
         reaction = await self.session.get(Reaction, reaction_id)
         if not reaction:
             return False
-        
+
         await self.session.delete(reaction)
         await self.session.commit()
-        
+
         logger.info(f"Deleted reaction {reaction_id}: {reaction.emoji}")
         return True
-    
+
+    async def get_by_id(self, reaction_id: int) -> Optional[Reaction]:
+        """Obtiene reacción por ID."""
+        return await self.session.get(Reaction, reaction_id)
+
     async def get_all_reactions(
-        self, 
+        self,
         active_only: bool = True
     ) -> List[Reaction]:
         """Obtiene todas las reacciones."""
         stmt = select(Reaction)
         if active_only:
             stmt = stmt.where(Reaction.active == True)
-        
+        stmt = stmt.order_by(Reaction.besitos_value.desc(), Reaction.id.desc())
+
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def get_reaction_by_emoji(
-        self, 
+        self,
         emoji: str
     ) -> Optional[Reaction]:
         """Busca reacción por emoji."""
         stmt = select(Reaction).where(Reaction.emoji == emoji)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_reaction_stats(self, reaction_id: int) -> dict:
+        """Obtiene estadísticas de uso de una reacción."""
+        # Get reaction to access its besitos_value
+        reaction = await self.session.get(Reaction, reaction_id)
+        if not reaction:
+            return {
+                'total_uses': 0,
+                'total_besitos': 0
+            }
+
+        # Count total uses of this reaction
+        stmt = select(func.count()).where(UserReaction.reaction_id == reaction_id)
+        result = await self.session.execute(stmt)
+        total_uses = result.scalar() or 0
+
+        # Calculate total besitos distributed (uses * value per reaction)
+        total_besitos = total_uses * reaction.besitos_value
+
+        return {
+            'total_uses': total_uses,
+            'total_besitos': total_besitos
+        }
     
     # ========================================
     # REGISTRO DE REACCIONES
