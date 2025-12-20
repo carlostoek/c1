@@ -12,6 +12,7 @@ Responsabilidades:
 from typing import Optional, List, Tuple
 from datetime import datetime, UTC, timedelta
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
@@ -119,7 +120,8 @@ class ReactionService:
         user_id: int,
         emoji: str,
         channel_id: int,
-        message_id: int
+        message_id: int,
+        reacted_at: Optional[datetime] = None
     ) -> Tuple[bool, str, int]:
         """
         Registra reacción de usuario y otorga besitos.
@@ -128,6 +130,8 @@ class ReactionService:
             (success, message, besitos_granted)
         """
         try:
+            current_time = reacted_at or datetime.now(UTC)
+
             # 1. Validar que reacción existe y está activa
             reaction = await self.get_reaction_by_emoji(emoji)
             if not reaction or not reaction.active:
@@ -148,33 +152,35 @@ class ReactionService:
                 reaction_id=reaction.id,
                 channel_id=channel_id,
                 message_id=message_id,
-                reacted_at=datetime.now(UTC)
+                reacted_at=current_time
             )
             self.session.add(user_reaction)
-            await self.session.commit()
-            await self.session.refresh(user_reaction)
-
-            # 5. Otorgar besitos por reacción
+            
+            # 5. Otorgar besitos (se commitea dentro de este servicio)
             from bot.gamification.services.container import gamification_container
             besitos_granted = await gamification_container.besito.grant_besitos(
                 user_id=user_id,
                 amount=reaction.besitos_value,
                 transaction_type=TransactionType.REACTION,
                 description=f"Reacción {emoji} en canal {channel_id}",
-                reference_id=user_reaction.id
+                reference_id=user_reaction.id,
+                commit=False
             )
 
             # 6. Actualizar racha
-            streak = await self._update_user_streak(user_id)
+            streak = await self._update_user_streak(user_id, current_time)
+            
+            await self.session.commit()
 
             logger.info(
                 f"User {user_id} reacted with {emoji}: "
-                f"+{besitos_granted} besitos, streak: {streak.current_streak}"
+                f"+{besitos_granted} besitos, streak: {streak.current_streak if streak else 'N/A'}"
             )
 
-            return True, f"+{besitos_granted} besitos (racha: {streak.current_streak})", besitos_granted
+            return True, f"+{besitos_granted} besitos (racha: {streak.current_streak if streak else 0})", besitos_granted
 
         except Exception as e:
+            await self.session.rollback()
             logger.error(f"Error recording reaction for user {user_id}: {str(e)}", exc_info=True)
             return False, "Error al procesar la reacción", 0
     
@@ -226,63 +232,44 @@ class ReactionService:
     # RACHAS
     # ========================================
     
-    async def _update_user_streak(self, user_id: int) -> UserStreak:
-        """Actualiza racha del usuario."""
-        try:
-            from datetime import datetime, UTC, timedelta
+    async def _update_user_streak(self, user_id: int, reacted_at: datetime) -> UserStreak:
+        """Actualiza la racha del usuario de forma atómica."""
+        streak = await self._get_or_create_streak(user_id)
 
-            # Obtener o crear streak
-            streak = await self._get_or_create_streak(user_id)
+        today = reacted_at.date()
+        last_date = streak.last_reaction_date.date() if streak.last_reaction_date else None
 
-            today = datetime.now(UTC).date()
-            last_date = streak.last_reaction_date.date() if streak.last_reaction_date else None
+        if last_date is None:
+            streak.current_streak = 1
+        elif last_date == today:
+            pass  # No change if already reacted today
+        elif last_date == today - timedelta(days=1):
+            streak.current_streak += 1
+        else:
+            streak.current_streak = 1
 
-            if last_date is None:
-                # Primera reacción
-                streak.current_streak = 1
-            elif last_date == today:
-                # Ya reaccionó hoy, no modificar streak
-                pass
-            elif last_date == today - timedelta(days=1):
-                # Día consecutivo
-                streak.current_streak += 1
-            else:
-                # Rompió racha
-                streak.current_streak = 1
+        if streak.current_streak > streak.longest_streak:
+            streak.longest_streak = streak.current_streak
 
-            # Actualizar récord
-            if streak.current_streak > streak.longest_streak:
-                streak.longest_streak = streak.current_streak
-
-            streak.last_reaction_date = datetime.now(UTC)
-            await self.session.commit()
-
-            return streak
-        except Exception as e:
-            logger.error(f"Error updating streak for user {user_id}: {str(e)}", exc_info=True)
-            # Return the streak object we have, potentially with old values
-            # but at least avoid crashing the whole operation
-            return streak
+        streak.last_reaction_date = reacted_at
+        
+        return streak
 
     async def _get_or_create_streak(self, user_id: int) -> UserStreak:
-        """Obtiene o crea la racha del usuario."""
-        try:
-            streak = await self.session.get(UserStreak, user_id)
-            if not streak:
-                streak = UserStreak(
-                    user_id=user_id,
-                    current_streak=0,
-                    longest_streak=0,
-                    last_reaction_date=None
-                )
-                self.session.add(streak)
-                await self.session.commit()
-                await self.session.refresh(streak)
+        """
+        Obtiene la racha de un usuario, o la crea si no existe.
+        Usa SELECT ... FOR UPDATE para prevenir race conditions.
+        """
+        async with self.session.begin_nested():
+            stmt = select(UserStreak).where(UserStreak.user_id == user_id).with_for_update()
+            result = await self.session.execute(stmt)
+            streak = result.scalar_one_or_none()
 
-            return streak
-        except Exception as e:
-            logger.error(f"Error getting/creating streak for user {user_id}: {str(e)}", exc_info=True)
-            raise
+            if not streak:
+                streak = UserStreak(user_id=user_id)
+                self.session.add(streak)
+        
+        return streak
 
     
     async def get_user_streak(self, user_id: int) -> Optional[UserStreak]:

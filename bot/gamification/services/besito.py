@@ -71,7 +71,7 @@ class BesitoService:
         transaction_type: TransactionType,
         description: str,
         reference_id: Optional[int] = None,
-        allow_negative: bool = False
+        commit: bool = True
     ) -> int:
         """
         Otorga besitos a un usuario.
@@ -85,7 +85,7 @@ class BesitoService:
             transaction_type: Tipo de transacción
             description: Descripción de la operación
             reference_id: ID de referencia (ej: mission_id)
-            allow_negative: Si permite saldos negativos (para admins)
+            commit: Si se debe hacer commit de la sesión
 
         Returns:
             int: Balance total de besitos después de la operación
@@ -97,7 +97,7 @@ class BesitoService:
             raise InvalidTransactionError(f"Amount debe ser positivo, recibido: {amount}")
 
         # Asegurar existencia del usuario (crea si no existe)
-        await self._ensure_user_exists(user_id)
+        await self._ensure_user_exists(user_id, commit=False)
 
         # Operación atómica: UPDATE ... SET col = col + delta
         stmt = (
@@ -112,13 +112,10 @@ class BesitoService:
         result = await self.session.execute(stmt)
 
         if result.rowcount == 0:
+            # This case can happen if the user was created in the same transaction
+            # but the session has not been flushed. We can't easily recover from this
+            # without more complex logic, so we raise an error.
             raise UserNotFoundError(user_id)
-
-        # Confirmar transacción
-        await self.session.commit()
-
-        # Obtener nuevo balance
-        new_balance = await self.get_balance(user_id)
 
         # Registrar transacción si existe el modelo (esto se implementará cuando se cree la tabla)
         await self._create_transaction(
@@ -128,6 +125,12 @@ class BesitoService:
             description=description,
             reference_id=reference_id
         )
+
+        if commit:
+            await self.session.commit()
+
+        # Obtener nuevo balance
+        new_balance = await self.get_balance(user_id)
 
         logger.info(
             f"Granted {amount} besitos to user {user_id}: {description} "
@@ -143,7 +146,7 @@ class BesitoService:
         transaction_type: TransactionType,
         description: str,
         reference_id: Optional[int] = None,
-        allow_negative: bool = False
+        commit: bool = True
     ) -> int:
         """
         Deduce besitos de un usuario.
@@ -157,7 +160,7 @@ class BesitoService:
             transaction_type: Tipo de transacción
             description: Descripción de la operación
             reference_id: ID de referencia (ej: reward_id)
-            allow_negative: Si permite saldos negativos (para admins)
+            commit: Si se debe hacer commit de la sesión
 
         Returns:
             int: Balance restante después de la operación
@@ -170,11 +173,11 @@ class BesitoService:
             raise InvalidTransactionError(f"Amount debe ser positivo, recibido: {amount}")
 
         # Asegurar existencia del usuario
-        await self._ensure_user_exists(user_id)
+        await self._ensure_user_exists(user_id, commit=False)
 
         # Validar saldo antes de operar
         current_balance = await self.get_balance(user_id)
-        if not allow_negative and current_balance < amount:
+        if current_balance < amount:
             raise InsufficientBesitosError(
                 user_id=user_id,
                 amount_needed=amount,
@@ -196,12 +199,6 @@ class BesitoService:
         if result.rowcount == 0:
             raise UserNotFoundError(user_id)
 
-        # Confirmar transacción
-        await self.session.commit()
-
-        # Obtener nuevo balance
-        new_balance = await self.get_balance(user_id)
-
         # Registrar transacción si existe el modelo
         await self._create_transaction(
             user_id=user_id,
@@ -210,6 +207,12 @@ class BesitoService:
             description=description,
             reference_id=reference_id
         )
+
+        if commit:
+            await self.session.commit()
+
+        # Obtener nuevo balance
+        new_balance = await self.get_balance(user_id)
 
         logger.info(
             f"Spent {amount} besitos from user {user_id}: {description} "
@@ -291,8 +294,8 @@ class BesitoService:
             raise InvalidTransactionError(f"Amount debe ser positivo, recibido: {amount}")
 
         # Validar que ambos usuarios existan y el emisor tenga saldo
-        await self._ensure_user_exists(from_user_id)
-        await self._ensure_user_exists(to_user_id)
+        await self._ensure_user_exists(from_user_id, commit=False)
+        await self._ensure_user_exists(to_user_id, commit=False)
 
         from_balance = await self.get_balance(from_user_id)
         if from_balance < amount:
@@ -388,13 +391,14 @@ class BesitoService:
             for row in rows
         ]
 
-    async def _ensure_user_exists(self, user_id: int) -> UserGamification:
+    async def _ensure_user_exists(self, user_id: int, commit: bool = True) -> UserGamification:
         """
         Asegura que exista un perfil de gamificación para el usuario.
         Crea uno si no existe.
 
         Args:
             user_id: ID del usuario
+            commit: Si se debe hacer commit de la sesión
 
         Returns:
             UserGamification: Instancia del perfil existente o recién creado
@@ -408,7 +412,8 @@ class BesitoService:
                 besitos_spent=0
             )
             self.session.add(user_gamification)
-            await self.session.commit()
+            if commit:
+                await self.session.commit()
 
         return user_gamification
 

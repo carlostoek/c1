@@ -4,8 +4,8 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from bot.gamification.database.models import (
-    Base, UserGamification, Reaction, UserReaction, UserStreak, 
-    Level, Mission, UserMission, Reward, UserReward, Badge, 
+    Base, UserGamification, Reaction, UserReaction, UserStreak,
+    Level, Mission, UserMission, Reward, UserReward, Badge,
     UserBadge, ConfigTemplate, GamificationConfig
 )
 from bot.gamification.database.enums import MissionType, MissionStatus, RewardType, BadgeRarity, ObtainedVia
@@ -30,8 +30,14 @@ async def sample_user(db_session):
     """Usuario de prueba."""
     user = UserGamification(user_id=12345, total_besitos=0)
     db_session.add(user)
+
+    # Create corresponding streak record to avoid unique constraint violations
+    streak = UserStreak(user_id=12345, current_streak=0, longest_streak=0)
+    db_session.add(streak)
+
     await db_session.commit()
     await db_session.refresh(user)
+    await db_session.refresh(streak)
     return user
 
 
@@ -65,6 +71,23 @@ async def sample_mission(db_session, sample_level):
         criteria='{"type": "streak", "days": 7}',
         besitos_reward=500,
         auto_level_up_id=sample_level.id,
+        created_by=98765
+    )
+    db_session.add(mission)
+    await db_session.commit()
+    await db_session.refresh(mission)
+    return mission
+
+
+@pytest_asyncio.fixture
+async def daily_mission(db_session):
+    """Misión diaria de prueba."""
+    mission = Mission(
+        name="Reacciones Diarias",
+        description="Reacciona 5 veces en un día",
+        mission_type=MissionType.DAILY,
+        criteria='{"type": "daily", "count": 5}',
+        besitos_reward=200,
         created_by=98765
     )
     db_session.add(mission)
