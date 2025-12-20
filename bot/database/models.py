@@ -102,7 +102,9 @@ class User(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relaciones (se definen después en VIPSubscriber y FreeChannelRequest)
+    # Relaciones
+    # Definidas en VIPSubscriber y FreeChannelRequest
+    # Relación con gamificación (se define en el módulo de gamificación si está activo)
 
     @property
     def full_name(self) -> str:
