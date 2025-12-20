@@ -29,6 +29,9 @@ class GamificationContainer:
         self._mission_service = None
         self._reward_service = None
         self._user_gamification_service = None
+        self._stats_service = None
+        self._notifications_service = None
+        self._bot_instance = None  # Store bot instance if needed
         self._mission_orchestrator = None
         self._reward_orchestrator = None
         self._configuration_orchestrator = None
@@ -86,6 +89,28 @@ class GamificationContainer:
         return self._user_gamification_service
 
     @property
+    def stats(self) -> 'StatsService':
+        """Servicio de estadísticas."""
+        if self._stats_service is None:
+            from bot.gamification.services.stats import StatsService
+            self._stats_service = StatsService(self._session)
+        return self._stats_service
+
+    def set_bot_instance(self, bot):
+        """Establece la instancia del bot para servicios que la necesitan."""
+        self._bot_instance = bot
+
+    @property
+    def notifications(self):
+        """Servicio de notificaciones."""
+        if self._bot_instance is None:
+            raise RuntimeError("Bot instance not set. Call set_bot_instance(bot) first.")
+        if self._notifications_service is None:
+            from bot.gamification.services.notifications import NotificationService
+            self._notifications_service = NotificationService(self._bot_instance, self._session)
+        return self._notifications_service
+
+    @property
     def mission_orchestrator(self):
         """Orquestador de creación de misiones."""
         if self._mission_orchestrator is None:
@@ -128,6 +153,10 @@ class GamificationContainer:
             loaded.append('reward')
         if self._user_gamification_service is not None:
             loaded.append('user_gamification')
+        if self._stats_service is not None:
+            loaded.append('stats')
+        if self._notifications_service is not None:
+            loaded.append('notifications')
         if self._mission_orchestrator is not None:
             loaded.append('mission_orchestrator')
         if self._reward_orchestrator is not None:
@@ -144,6 +173,8 @@ class GamificationContainer:
         self._mission_service = None
         self._reward_service = None
         self._user_gamification_service = None
+        self._stats_service = None
+        self._notifications_service = None
         self._mission_orchestrator = None
         self._reward_orchestrator = None
         self._configuration_orchestrator = None
