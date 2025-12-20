@@ -17,6 +17,8 @@ from apscheduler.triggers.cron import CronTrigger
 from bot.database import get_session
 from bot.services.container import ServiceContainer
 from config import Config
+from bot.gamification.background.auto_progression_checker import setup_auto_progression_scheduler
+from bot.gamification.background.streak_expiration_checker import setup_streak_expiration_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +258,14 @@ def start_background_tasks(bot: Bot):
         max_instances=1
     )
     logger.info("✅ Tarea programada: Limpieza (diaria 3 AM UTC)")
+
+    # Tarea 4: Auto-progression checker
+    # Frecuencia: Cada 6 horas
+    setup_auto_progression_scheduler(_scheduler, get_session, bot)
+
+    # Tarea 5: Streak expiration checker
+    # Frecuencia: Cada 1 hora
+    setup_streak_expiration_scheduler(_scheduler, get_session, bot)
 
     # Iniciar scheduler
     _scheduler.start()
