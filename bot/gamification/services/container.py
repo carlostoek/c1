@@ -29,6 +29,9 @@ class GamificationContainer:
         self._mission_service = None
         self._reward_service = None
         self._user_gamification_service = None
+        self._mission_orchestrator = None
+        self._reward_orchestrator = None
+        self._configuration_orchestrator = None
 
     # ========================================
     # PROPERTIES (LAZY LOADING)
@@ -82,6 +85,30 @@ class GamificationContainer:
             self._user_gamification_service = UserGamificationService(self._session)
         return self._user_gamification_service
 
+    @property
+    def mission_orchestrator(self):
+        """Orquestador de creación de misiones."""
+        if self._mission_orchestrator is None:
+            from bot.gamification.services.orchestrator.mission import MissionOrchestrator
+            self._mission_orchestrator = MissionOrchestrator(self._session)
+        return self._mission_orchestrator
+
+    @property
+    def reward_orchestrator(self):
+        """Orquestador de creación de recompensas."""
+        if self._reward_orchestrator is None:
+            from bot.gamification.services.orchestrator.reward import RewardOrchestrator
+            self._reward_orchestrator = RewardOrchestrator(self._session)
+        return self._reward_orchestrator
+
+    @property
+    def configuration_orchestrator(self):
+        """Orquestador maestro de configuración de gamificación."""
+        if self._configuration_orchestrator is None:
+            from bot.gamification.services.orchestrator.configuration import ConfigurationOrchestrator
+            self._configuration_orchestrator = ConfigurationOrchestrator(self._session)
+        return self._configuration_orchestrator
+
     # ========================================
     # UTILIDADES
     # ========================================
@@ -101,6 +128,12 @@ class GamificationContainer:
             loaded.append('reward')
         if self._user_gamification_service is not None:
             loaded.append('user_gamification')
+        if self._mission_orchestrator is not None:
+            loaded.append('mission_orchestrator')
+        if self._reward_orchestrator is not None:
+            loaded.append('reward_orchestrator')
+        if self._configuration_orchestrator is not None:
+            loaded.append('configuration_orchestrator')
         return loaded
 
     def clear_cache(self):
@@ -111,6 +144,9 @@ class GamificationContainer:
         self._mission_service = None
         self._reward_service = None
         self._user_gamification_service = None
+        self._mission_orchestrator = None
+        self._reward_orchestrator = None
+        self._configuration_orchestrator = None
 
 
 # ========================================
