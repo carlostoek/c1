@@ -9,18 +9,15 @@ from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKe
 from typing import Optional, List
 import json
 
-from bot.filters.admin import IsAdmin
 from bot.gamification.services.container import GamificationContainer
 from bot.gamification.database.enums import RewardType, BadgeRarity
 from bot.gamification.utils.validators import (
-    validate_reward_metadata, 
-    validate_unlock_conditions, 
+    validate_reward_metadata,
+    validate_unlock_conditions,
     is_valid_emoji
 )
 
 router = Router()
-router.message.filter(IsAdmin())
-router.callback_query.filter(IsAdmin())
 
 
 class RewardConfigStates(StatesGroup):

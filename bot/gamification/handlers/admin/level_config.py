@@ -7,12 +7,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 
-from bot.filters.admin import IsAdmin
 from bot.gamification.services.container import GamificationContainer
 
 router = Router()
-router.message.filter(IsAdmin())
-router.callback_query.filter(IsAdmin())
 
 
 class LevelConfigStates(StatesGroup):

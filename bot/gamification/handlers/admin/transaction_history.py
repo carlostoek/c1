@@ -10,13 +10,10 @@ from typing import Optional
 from math import ceil
 import json
 
-from bot.filters.admin import IsAdmin
 from bot.gamification.services.container import GamificationContainer
 from bot.gamification.database.enums import TransactionType
 
 router = Router()
-router.message.filter(IsAdmin())
-router.callback_query.filter(IsAdmin())
 
 
 class TransactionHistoryStates(StatesGroup):

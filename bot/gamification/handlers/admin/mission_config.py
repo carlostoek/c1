@@ -11,14 +11,11 @@ from math import ceil
 import json
 from datetime import datetime
 
-from bot.filters.admin import IsAdmin
 from bot.gamification.services.container import GamificationContainer
 from bot.gamification.database.enums import MissionType
 from bot.gamification.utils.validators import validate_mission_criteria
 
 router = Router()
-router.message.filter(IsAdmin())
-router.callback_query.filter(IsAdmin())
 
 
 class MissionConfigStates(StatesGroup):
