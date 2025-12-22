@@ -420,7 +420,7 @@ async def receive_besitos_reward(message: Message, state: FSMContext, gamificati
             mission_type=MissionType(data['mission_type']),
             criteria=data['criteria'],
             besitos_reward=data['besitos_reward'],
-            created_by=callback.from_user.id  # Usar ID del admin que crea
+            created_by=message.from_user.id  # Usar ID del admin que crea
         )
         
         await message.answer(
@@ -767,11 +767,20 @@ async def receive_edited_field(message: Message, state: FSMContext, gamification
             f"Campo: {field}\n"
             f"Nuevo valor: {update_data[field]}"
         )
-        
+
         await state.clear()
-        
-        # Volver a detalles de la misión
-        await view_mission_details(message, gamification)
+
+        # Volver a detalles de la misión - send navigation options
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📊 Ver Detalles", callback_data=f"gamif:mission:view:{mission_id}")],
+            [InlineKeyboardButton(text="📋 Volver a Misiones", callback_data="gamif:admin:missions")]
+        ])
+
+        await message.answer(
+            "¿Qué deseas hacer ahora?",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
         
     except ValueError:
         await message.answer("❌ Debe ser un número válido. Intenta de nuevo:")
@@ -888,11 +897,20 @@ async def receive_edited_criteria(message: Message, state: FSMContext, gamificat
             f"Tipo: {mission.mission_type}\n"
             f"Criterios: {format_criteria_display(criteria)}"
         )
-        
+
         await state.clear()
-        
-        # Volver a detalles de la misión
-        await view_mission_details(message, gamification)
+
+        # Volver a detalles de la misión - send navigation options
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📊 Ver Detalles", callback_data=f"gamif:mission:view:{mission_id}")],
+            [InlineKeyboardButton(text="📋 Volver a Misiones", callback_data="gamif:admin:missions")]
+        ])
+
+        await message.answer(
+            "¿Qué deseas hacer ahora?",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
         
     except json.JSONDecodeError:
         await message.answer("❌ Formato JSON inválido. Intenta de nuevo:")
