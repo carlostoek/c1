@@ -1020,8 +1020,19 @@ async def receive_edited_general_field(message: Message, state: FSMContext, gami
 
         await state.clear()
 
-        # Volver a detalles de la recompensa
-        await view_reward_details(message, gamification)
+        # Volver a detalles de la recompensa - need to redirect to callback-based navigation
+        # Send a new message with navigation options instead of calling view_reward_details with message
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📊 Ver Recompensa", callback_data=f"gamif:reward:view:{reward_id}")],
+            [InlineKeyboardButton(text="🔙 Volver al Menú", callback_data="gamif:admin:rewards")]
+        ])
+
+        await message.answer(
+            "✅ <b>Campo Actualizado</b>\n\n"
+            "¿Qué deseas hacer ahora?",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
 
     except Exception as e:
         await message.answer(f"❌ Error al actualizar: {str(e)}")
@@ -1051,8 +1062,19 @@ async def receive_edited_cost(message: Message, state: FSMContext, gamification:
 
         await state.clear()
 
-        # Volver a detalles de la recompensa
-        await view_reward_details(message, gamification)
+        # Volver a detalles de la recompensa - need to redirect to callback-based navigation
+        # Send a new message with navigation options instead of calling view_reward_details with message
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📊 Ver Recompensa", callback_data=f"gamif:reward:view:{reward_id}")],
+            [InlineKeyboardButton(text="🔙 Volver al Menú", callback_data="gamif:admin:rewards")]
+        ])
+
+        await message.answer(
+            "✅ <b>Costo Actualizado</b>\n\n"
+            "¿Qué deseas hacer ahora?",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
 
     except Exception as e:
         await message.answer(f"❌ Error al actualizar: {str(e)}")
@@ -1088,12 +1110,23 @@ async def receive_edited_metadata(message: Message, state: FSMContext, gamificat
             f"✅ <b>Metadata Actualizada</b>\n\n"
             f"Tipo: {reward.reward_type}"
         )
-        
+
         await state.clear()
-        
-        # Volver a detalles de la recompensa
-        await view_reward_details(message, gamification)
-        
+
+        # Volver a detalles de la recompensa - need to redirect to callback-based navigation
+        # Send a new message with navigation options instead of calling view_reward_details with message
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📊 Ver Recompensa", callback_data=f"gamif:reward:view:{reward_id}")],
+            [InlineKeyboardButton(text="🔙 Volver al Menú", callback_data="gamif:admin:rewards")]
+        ])
+
+        await message.answer(
+            "✅ <b>Metadata Actualizada</b>\n\n"
+            "¿Qué deseas hacer ahora?",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+
     except json.JSONDecodeError:
         await message.answer("❌ Formato JSON inválido. Intenta de nuevo:")
     except Exception as e:

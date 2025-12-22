@@ -460,51 +460,6 @@ class BesitoService:
             logger.error(f"Transfer failed from {from_user_id} to {to_user_id}: {str(e)}")
             raise
 
-    async def get_transaction_history(
-        self,
-        user_id: int,
-        limit: int = 50,
-        offset: int = 0,
-        transaction_type: Optional[TransactionType] = None
-    ) -> List[dict]:
-        """
-        Obtiene historial de transacciones de un usuario.
-
-        Args:
-            user_id: ID del usuario
-            limit: Límite de transacciones a devolver
-            offset: Desplazamiento para paginación
-            transaction_type: Tipo específico de transacción a filtrar
-
-        Returns:
-            List[dict]: Lista de transacciones con sus detalles
-        """
-        stmt = (
-            select(BesitoTransaction)
-            .where(BesitoTransaction.user_id == user_id)
-        )
-
-        if transaction_type:
-            stmt = stmt.where(BesitoTransaction.transaction_type == transaction_type)
-
-        stmt = stmt.order_by(BesitoTransaction.created_at.desc()).offset(offset).limit(limit)
-
-        result = await self.session.execute(stmt)
-        transactions = result.scalars().all()
-
-        return [
-            {
-                'id': t.id,
-                'user_id': t.user_id,
-                'amount': t.amount,
-                'transaction_type': t.transaction_type,
-                'description': t.description,
-                'reference_id': t.reference_id,
-                'balance_after': t.balance_after,
-                'created_at': t.created_at
-            }
-            for t in transactions
-        ]
 
     async def get_leaderboard(self, limit: int = 10) -> List[dict]:
         """

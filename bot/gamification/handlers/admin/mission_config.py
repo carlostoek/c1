@@ -434,10 +434,20 @@ async def receive_besitos_reward(message: Message, state: FSMContext, gamificati
         )
         
         await state.clear()
-        
-        # Volver a la lista de misiones
-        await state.update_data(current_page=1)
-        await show_missions_page(message, state, 1)
+
+        # Volver a la lista de misiones - need to redirect to callback-based navigation
+        # Instead of calling show_missions_page with message, send a new message with navigation options
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📋 Ver Misiones", callback_data="gamif:admin:missions")],
+            [InlineKeyboardButton(text="🔙 Volver al Menú", callback_data="gamif:menu")]
+        ])
+
+        await message.answer(
+            "✅ <b>Misión Creada Exitosamente</b>\n\n"
+            "¿Qué deseas hacer ahora?",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
         
     except Exception as e:
         await message.answer(f"❌ Error al crear misión: {str(e)}")
