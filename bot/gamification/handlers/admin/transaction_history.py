@@ -146,33 +146,37 @@ async def request_user_id(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(TransactionHistoryStates.waiting_user_id)
-async def show_user_transactions(message: Message, state: FSMContext, gamification: GamificationContainer):
+async def show_user_transactions(message: Message, state: FSMContext, session):
     """Muestra historial de transacciones para un usuario específico."""
     try:
         user_id = int(message.text.strip())
     except ValueError:
         await message.answer("❌ ID de usuario inválido. Debe ser un número.")
         return
-    
+
     # Validate user exists
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     balance = await gamification.besito.get_balance(user_id)
-    
+
     # Store in state
     await state.update_data(user_id=user_id, current_filter=None, current_page=1)
-    
-    await show_transactions_page(message, user_id, state, 1, None, balance)
+
+    await show_transactions_page(message, user_id, state, session, 1, None, balance)
 
 
 async def show_transactions_page(
     message_or_callback,
     user_id: int,
     state: FSMContext,
+    session,
     page: int,
     transaction_type: Optional[TransactionType],
     current_balance: Optional[int] = None
 ):
     """Muestra una página específica del historial de transacciones."""
-    gamification = message_or_callback.bot['services']['gamification']
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     
     if current_balance is None:
         current_balance = await gamification.besito.get_balance(user_id)
@@ -284,53 +288,59 @@ async def show_transactions_page(
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:transactions:filter:"))
-async def filter_transactions(callback: CallbackQuery, state: FSMContext):
+async def filter_transactions(callback: CallbackQuery, state: FSMContext, session):
     """Filtra transacciones por tipo."""
     parts = callback.data.split(":")
     if len(parts) < 5:
         await callback.answer("❌ Datos inválidos", show_alert=True)
         return
-        
+
     user_id = int(parts[3])
     tx_type = parts[4]
-    
+
     try:
         transaction_type = TransactionType(tx_type)
     except ValueError:
         transaction_type = None
-    
+
     await state.update_data(current_filter=transaction_type, current_page=1)
-    
-    balance = await callback.bot['services']['gamification'].besito.get_balance(user_id)
-    await show_transactions_page(callback, user_id, state, 1, transaction_type, balance)
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
+    balance = await gamification.besito.get_balance(user_id)
+    await show_transactions_page(callback, user_id, state, session, 1, transaction_type, balance)
 
 
 @router.callback_query(F.data.startswith("gamif:transactions:page:"))
-async def change_transaction_page(callback: CallbackQuery, state: FSMContext):
+async def change_transaction_page(callback: CallbackQuery, state: FSMContext, session):
     """Cambia entre páginas de transacciones."""
     parts = callback.data.split(":")
     if len(parts) < 6:
         await callback.answer("❌ Datos inválidos", show_alert=True)
         return
-        
+
     user_id = int(parts[3])
     page = int(parts[4])
     tx_type = parts[5]
-    
+
     transaction_type = None if tx_type == 'all' else TransactionType(tx_type)
-    
+
     await state.update_data(current_page=page)
-    
-    balance = await callback.bot['services']['gamification'].besito.get_balance(user_id)
-    await show_transactions_page(callback, user_id, state, page, transaction_type, balance)
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
+    balance = await gamification.besito.get_balance(user_id)
+    await show_transactions_page(callback, user_id, state, session, page, transaction_type, balance)
 
 
 @router.callback_query(F.data.startswith("gamif:transactions:user:"))
-async def show_user_transactions_callback(callback: CallbackQuery, state: FSMContext):
+async def show_user_transactions_callback(callback: CallbackQuery, state: FSMContext, session):
     """Muestra historial de transacciones de usuario (desde menú principal)."""
     user_id = int(callback.data.split(":")[-1])
-    
+
     await state.update_data(user_id=user_id, current_filter=None, current_page=1)
-    
-    balance = await callback.bot['services']['gamification'].besito.get_balance(user_id)
-    await show_transactions_page(callback, user_id, state, 1, None, balance)
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
+    balance = await gamification.besito.get_balance(user_id)
+    await show_transactions_page(callback, user_id, state, session, 1, None, balance)

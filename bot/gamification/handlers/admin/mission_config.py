@@ -108,16 +108,17 @@ def paginate_missions(missions: List, page: int, per_page: int = 10):
 # ========================================
 
 @router.callback_query(F.data == "gamif:admin:missions")
-async def missions_menu(callback: CallbackQuery, state: FSMContext):
+async def missions_menu(callback: CallbackQuery, state: FSMContext, session):
     """Muestra lista de misiones configuradas con paginación."""
     await state.update_data(current_page=1, filter_type=None)
-    await show_missions_page(callback, state, 1)
+    await show_missions_page(callback, state, session, 1)
 
 
-async def show_missions_page(callback: CallbackQuery, state: FSMContext, page: int, filter_type: str = None):
+async def show_missions_page(callback: CallbackQuery, state: FSMContext, session, page: int, filter_type: str = None):
     """Muestra una página específica de misiones."""
-    gamification = callback.bot['services']['gamification']
-    
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
+
     # Obtener misiones
     all_missions = await gamification.mission.get_all_missions(active_only=True)
     
@@ -209,12 +210,12 @@ async def show_missions_page(callback: CallbackQuery, state: FSMContext, page: i
 
 
 @router.callback_query(F.data.startswith("gamif:missions:page:"))
-async def change_page(callback: CallbackQuery, state: FSMContext):
+async def change_page(callback: CallbackQuery, state: FSMContext, session):
     """Cambia entre páginas de misiones."""
     page = int(callback.data.split(":")[-1])
     data = await state.get_data()
     filter_type = data.get('filter_type')
-    await show_missions_page(callback, state, page, filter_type)
+    await show_missions_page(callback, state, session, page, filter_type)
 
 
 # ========================================
@@ -398,7 +399,7 @@ async def receive_criteria(message: Message, state: FSMContext):
 
 
 @router.message(MissionConfigStates.waiting_besitos_reward)
-async def receive_besitos_reward(message: Message, state: FSMContext, gamification: GamificationContainer):
+async def receive_besitos_reward(message: Message, state: FSMContext, session):
     """Recibe recompensa en besitos."""
     try:
         reward = int(message.text)
@@ -407,12 +408,14 @@ async def receive_besitos_reward(message: Message, state: FSMContext, gamificati
     except ValueError:
         await message.answer("❌ Debe ser un número entero positivo. Intenta de nuevo:")
         return
-    
+
     await state.update_data(besitos_reward=reward)
-    
+
     # Crear misión
     data = await state.get_data()
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     try:
         mission = await gamification.mission.create_mission(
             name=data['name'],
@@ -458,11 +461,13 @@ async def receive_besitos_reward(message: Message, state: FSMContext, gamificati
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:mission:view:"))
-async def view_mission_details(callback: CallbackQuery, gamification: GamificationContainer):
+async def view_mission_details(callback: CallbackQuery, session):
     """Muestra detalles de una misión específica."""
     mission_id = int(callback.data.split(":")[-1])
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     mission = await gamification.mission.get_mission_by_id(mission_id)
-    
+
     if not mission:
         await callback.answer("❌ Misión no encontrada", show_alert=True)
         return
@@ -537,11 +542,13 @@ async def view_mission_details(callback: CallbackQuery, gamification: Gamificati
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:mission:edit:"))
-async def edit_mission_menu(callback: CallbackQuery, gamification: GamificationContainer):
+async def edit_mission_menu(callback: CallbackQuery, session):
     """Muestra menú de edición de misión."""
     mission_id = int(callback.data.split(":")[-1])
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     mission = await gamification.mission.get_mission_by_id(mission_id)
-    
+
     if not mission:
         await callback.answer("❌ Misión no encontrada", show_alert=True)
         return
@@ -586,7 +593,7 @@ Selecciona qué campo deseas editar:
 
 
 @router.callback_query(F.data.startswith("gamif:mission:edit_field:"))
-async def start_edit_field(callback: CallbackQuery, state: FSMContext):
+async def start_edit_field(callback: CallbackQuery, state: FSMContext, session):
     """Inicia edición de campo específico."""
     parts = callback.data.split(":")
     mission_id = int(parts[3])
@@ -623,14 +630,16 @@ async def start_edit_field(callback: CallbackQuery, state: FSMContext):
     
     elif field == 'auto_level_up_id':
         # Obtener todos los niveles para elegir
-        levels = await callback.bot['services']['gamification'].level.get_all_levels()
+        from bot.gamification.services.container import GamificationContainer
+        gamification = GamificationContainer(session)
+        levels = await gamification.level.get_all_levels()
         keyboard_buttons = []
-        
+
         # Opción de "ninguno"
         keyboard_buttons.append([
             InlineKeyboardButton(text="❌ Ninguno", callback_data="gamif:edit_level_up:0")
         ])
-        
+
         for level in levels:
             keyboard_buttons.append([
                 InlineKeyboardButton(text=f"🎯 {level.name}", callback_data=f"gamif:edit_level_up:{level.id}")
@@ -661,14 +670,16 @@ async def start_edit_field(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("gamif:edit_repeatable:"))
-async def edit_repeatable_selection(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
+async def edit_repeatable_selection(callback: CallbackQuery, state: FSMContext, session):
     """Maneja selección de repetible."""
     parts = callback.data.split(":")
     value = parts[2] == 'yes'
-    
+
     data = await state.get_data()
     mission_id = data['editing_mission_id']
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     try:
         await gamification.mission.update_mission(mission_id, repeatable=value)
         
@@ -682,21 +693,23 @@ async def edit_repeatable_selection(callback: CallbackQuery, state: FSMContext, 
 
 
 @router.callback_query(F.data.startswith("gamif:edit_level_up:"))
-async def edit_level_up_selection(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
+async def edit_level_up_selection(callback: CallbackQuery, state: FSMContext, session):
     """Maneja selección de nivel de auto-level-up."""
     level_id_str = callback.data.split(":")[2]
     level_id = int(level_id_str) if level_id_str != '0' else None
-    
+
     data = await state.get_data()
     mission_id = data['editing_mission_id']
-    
+
     # Validar que el nivel exista si se especifica
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     if level_id:
         level = await gamification.level.get_level_by_id(level_id)
         if not level:
             await callback.answer("❌ Nivel no encontrado", show_alert=True)
             return
-    
+
     try:
         await gamification.mission.update_mission(mission_id, auto_level_up_id=level_id)
         
@@ -711,20 +724,22 @@ async def edit_level_up_selection(callback: CallbackQuery, state: FSMContext, ga
 
 
 @router.message(MissionConfigStates.editing_field)
-async def receive_edited_field(message: Message, state: FSMContext, gamification: GamificationContainer):
+async def receive_edited_field(message: Message, state: FSMContext, session):
     """Recibe valor editado para campo específico."""
     data = await state.get_data()
     mission_id = data['editing_mission_id']
     field = data['editing_field']
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     mission = await gamification.mission.get_mission_by_id(mission_id)
     if not mission:
         await message.answer("❌ Misión no encontrada")
         await state.clear()
         return
-    
+
     update_data = {}
-    
+
     try:
         if field == 'name':
             new_value = message.text.strip()
@@ -789,14 +804,15 @@ async def receive_edited_field(message: Message, state: FSMContext, gamification
 
 
 @router.callback_query(F.data.startswith("gamif:mission:edit_field:criteria"))
-async def start_edit_criteria(callback: CallbackQuery, state: FSMContext):
+async def start_edit_criteria(callback: CallbackQuery, state: FSMContext, session):
     """Inicia edición de criterios (mostrar form especial según tipo)."""
     mission_id = int(callback.data.split(":")[3])
-    
+
     await state.update_data(editing_mission_id=mission_id, editing_field='criteria')
-    
+
     # Obtener la misión para saber el tipo
-    gamification = callback.bot['services']['gamification']
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     mission = await gamification.mission.get_mission_by_id(mission_id)
     
     if not mission:
@@ -842,12 +858,14 @@ async def start_edit_criteria(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(MissionConfigStates.editing_criteria)
-async def receive_edited_criteria(message: Message, state: FSMContext, gamification: GamificationContainer):
+async def receive_edited_criteria(message: Message, state: FSMContext, session):
     """Recibe criterios editados."""
     criteria_input = message.text.strip()
     data = await state.get_data()
     mission_id = data['editing_mission_id']
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     mission = await gamification.mission.get_mission_by_id(mission_id)
     if not mission:
         await message.answer("❌ Misión no encontrada")
@@ -923,17 +941,19 @@ async def receive_edited_criteria(message: Message, state: FSMContext, gamificat
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:mission:toggle:"))
-async def toggle_mission(callback: CallbackQuery, gamification: GamificationContainer):
+async def toggle_mission(callback: CallbackQuery, session):
     """Activa o desactiva una misión."""
     mission_id = int(callback.data.split(":")[-1])
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     mission = await gamification.mission.get_mission_by_id(mission_id)
     if not mission:
         await callback.answer("❌ Misión no encontrada", show_alert=True)
         return
-    
+
     await gamification.mission.update_mission(mission_id, active=not mission.active)
-    
+
     status_text = "activada" if not mission.active else "desactivada"
     await callback.answer(f"✅ Misión {status_text}", show_alert=True)
     
@@ -946,22 +966,24 @@ async def toggle_mission(callback: CallbackQuery, gamification: GamificationCont
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:mission:duplicate:"))
-async def duplicate_mission(callback: CallbackQuery, gamification: GamificationContainer):
+async def duplicate_mission(callback: CallbackQuery, session):
     """Duplica una misión existente."""
     mission_id = int(callback.data.split(":")[-1])
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     original = await gamification.mission.get_mission_by_id(mission_id)
     if not original:
         await callback.answer("❌ Misión no encontrada", show_alert=True)
         return
-    
+
     # Crear nombre duplicado
     duplicate_name = f"Copia de {original.name}"
-    
+
     try:
         # Extraer criterios
         criteria = json.loads(original.criteria) if isinstance(original.criteria, str) else original.criteria
-        
+
         # Crear nueva misión con los mismos datos
         new_mission = await gamification.mission.create_mission(
             name=duplicate_name,
@@ -989,19 +1011,21 @@ async def duplicate_mission(callback: CallbackQuery, gamification: GamificationC
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:mission:delete:"))
-async def delete_mission_prompt(callback: CallbackQuery, gamification: GamificationContainer):
+async def delete_mission_prompt(callback: CallbackQuery, session):
     """Pide confirmación para eliminar misión."""
     mission_id = int(callback.data.split(":")[-1])
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     mission = await gamification.mission.get_mission_by_id(mission_id)
     if not mission:
         await callback.answer("❌ Misión no encontrada", show_alert=True)
         return
-    
+
     # Check if mission has active users
     stats = await gamification.mission.get_mission_stats(mission_id)
     active_users = stats.get('active_users', 0)
-    
+
     if active_users > 0:
         text = f"""⚠️ <b>Advertencia: Eliminación con Usuarios Activos</b>
 
@@ -1014,7 +1038,7 @@ Al eliminarla, se cancelarán todas las instancias activas.
 ¿Deseas continuar con la eliminación?
 
 <b>Esta acción no se puede deshacer.</b>"""
-        
+
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="🗑️ Sí, Eliminar", callback_data=f"gamif:mission:delete_confirm:{mission_id}"),
@@ -1032,23 +1056,25 @@ Tipo: {MISSION_TYPE_NAMES.get(mission.mission_type, mission.mission_type)}
 Recompensa: {mission.besitos_reward:,} besitos
 
 <b>Esta acción no se puede deshacer.</b>"""
-        
+
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="🗑️ Sí, Eliminar", callback_data=f"gamif:mission:delete_confirm:{mission_id}"),
                 InlineKeyboardButton(text="❌ Cancelar", callback_data=f"gamif:mission:view:{mission_id}")
             ]
         ])
-    
+
     await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("gamif:mission:delete_confirm:"))
-async def confirm_delete_mission(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
+async def confirm_delete_mission(callback: CallbackQuery, state: FSMContext, session):
     """Confirma eliminación de misión (soft delete)."""
     mission_id = int(callback.data.split(":")[-1])
 
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     mission = await gamification.mission.get_mission_by_id(mission_id)
     if not mission:
         await callback.answer("❌ Misión no encontrada", show_alert=True)
@@ -1061,6 +1087,6 @@ async def confirm_delete_mission(callback: CallbackQuery, state: FSMContext, gam
         await callback.answer("✅ Misión eliminada", show_alert=True)
         # Go back to main missions menu
         await state.update_data(current_page=1)
-        await show_missions_page(callback, state, 1)
+        await show_missions_page(callback, state, session, 1)
     else:
         await callback.answer("❌ Error al eliminar misión", show_alert=True)

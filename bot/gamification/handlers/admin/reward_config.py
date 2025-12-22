@@ -149,15 +149,16 @@ def get_reward_icon(reward: 'Reward') -> str:
 # ========================================
 
 @router.callback_query(F.data == "gamif:admin:rewards")
-async def rewards_menu(callback: CallbackQuery, state: FSMContext):
+async def rewards_menu(callback: CallbackQuery, state: FSMContext, session):
     """Muestra lista de recompensas configuradas con filtros."""
     await state.update_data(current_filter=None, current_page=1)
-    await show_rewards_list(callback, state, reward_type=None)
+    await show_rewards_list(callback, state, session, reward_type=None)
 
 
-async def show_rewards_list(callback: CallbackQuery, state: FSMContext, reward_type: Optional[str] = None):
+async def show_rewards_list(callback: CallbackQuery, state: FSMContext, session, reward_type: Optional[str] = None):
     """Muestra lista de recompensas con opción de filtrado."""
-    gamification = callback.bot['services']['gamification']
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     
     # Obtener recompensas
     all_rewards = await gamification.reward.get_all_rewards(active_only=True, reward_type=reward_type)
@@ -574,14 +575,14 @@ async def ask_reward_conditions(message: Message, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("gamif:condition:type:"))
-async def select_condition_type(callback: CallbackQuery, state: FSMContext):
+async def select_condition_type(callback: CallbackQuery, state: FSMContext, session):
     """Selecciona tipo de condición."""
     condition_type = callback.data.split(":")[-1]
-    
+
     if condition_type == 'none':
         # No condiciones
         await state.update_data(unlock_conditions=None)
-        await create_reward_from_state(callback, state)
+        await create_reward_from_state(callback, state, session)
         return
     
     await state.update_data(condition_type=condition_type)
@@ -668,10 +669,10 @@ async def add_condition_to_multiple(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(RewardConfigStates.waiting_condition_value)
-async def receive_condition_value(message: Message, state: FSMContext):
+async def receive_condition_value(message: Message, state: FSMContext, session):
     """Recibe valor de condición."""
     data = await state.get_data()
-    
+
     try:
         value = int(message.text)
         if value <= 0:
@@ -679,31 +680,31 @@ async def receive_condition_value(message: Message, state: FSMContext):
     except ValueError:
         await message.answer("❌ Debe ser un número entero positivo. Intenta de nuevo:")
         return
-    
+
     # Construir condición según tipo
     if data.get('condition_type') == 'multiple':
         # Agregar a condiciones múltiples
         condition_type = data['current_condition_type']
         condition = {"type": condition_type}
-        
+
         if condition_type == 'mission':
             condition["mission_id"] = value
         elif condition_type == 'level':
             condition["level_id"] = value
         elif condition_type == 'besitos':
             condition["min_besitos"] = value
-        
+
         # Validar condición individual
         is_valid, error = validate_unlock_conditions(condition)
         if not is_valid:
             await message.answer(f"❌ Condición inválida: {error}\n\nIntenta de nuevo:")
             return
-        
+
         # Actualizar lista de condiciones
         current_conditions = data.get('multiple_conditions', [])
         current_conditions.append(condition)
         await state.update_data(multiple_conditions=current_conditions)
-        
+
         # Volver al menú de agregar condiciones
         await message.answer(
             f"✅ Condición agregada: {format_unlock_condition_display(condition)}\n\n"
@@ -721,57 +722,58 @@ async def receive_condition_value(message: Message, state: FSMContext):
             parse_mode="HTML"
         )
         await state.set_state(RewardConfigStates.building_multiple_conditions)
-        
+
     else:
         # Condición individual
         condition = {"type": data['condition_type']}
-        
+
         if data['condition_type'] == 'mission':
             condition["mission_id"] = value
         elif data['condition_type'] == 'level':
             condition["level_id"] = value
         elif data['condition_type'] == 'besitos':
             condition["min_besitos"] = value
-        
+
         # Validar
         is_valid, error = validate_unlock_conditions(condition)
         if not is_valid:
             await message.answer(f"❌ Condición inválida: {error}\n\nIntenta de nuevo:")
             return
-        
+
         await state.update_data(unlock_conditions=condition)
-        await create_reward_from_state(message, state)
+        await create_reward_from_state(message, state, session)
 
 
 @router.callback_query(F.data == "gamif:condition:finish_multiple")
-async def finish_multiple_conditions(callback: CallbackQuery, state: FSMContext):
+async def finish_multiple_conditions(callback: CallbackQuery, state: FSMContext, session):
     """Finaliza condiciones múltiples."""
     data = await state.get_data()
     conditions = data.get('multiple_conditions', [])
-    
+
     if not conditions:
         await callback.answer("❌ Debes agregar al menos una condición", show_alert=True)
         return
-    
+
     unlock_conditions = {
         "type": "multiple",
         "conditions": conditions
     }
-    
+
     # Validar condiciones múltiples
     is_valid, error = validate_unlock_conditions(unlock_conditions)
     if not is_valid:
         await callback.answer(f"❌ Condiciones inválidas: {error}", show_alert=True)
         return
-    
+
     await state.update_data(unlock_conditions=unlock_conditions)
-    await create_reward_from_state(callback, state)
+    await create_reward_from_state(callback, state, session)
 
 
-async def create_reward_from_state(message_or_callback: Message | CallbackQuery, state: FSMContext):
+async def create_reward_from_state(message_or_callback: Message | CallbackQuery, state: FSMContext, session):
     """Crea recompensa desde datos de estado."""
     data = await state.get_data()
-    gamification = message_or_callback.bot['services']['gamification']
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     
     try:
         # Crear recompensa según tipo
@@ -821,19 +823,21 @@ async def create_reward_from_state(message_or_callback: Message | CallbackQuery,
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:reward:view:"))
-async def view_reward_details(callback: CallbackQuery, gamification: GamificationContainer):
+async def view_reward_details(callback: CallbackQuery, session):
     """Muestra detalles de una recompensa específica."""
     reward_id = int(callback.data.split(":")[-1])
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reward = await gamification.reward.get_reward_by_id(reward_id)
-    
+
     if not reward:
         await callback.answer("❌ Recompensa no encontrada", show_alert=True)
         return
-    
+
     status = "✅ Activa" if reward.active else "❌ Inactiva"
     icon = get_reward_icon(reward)
     type_name = REWARD_TYPE_NAMES.get(reward.reward_type, reward.reward_type)
-    
+
     # Obtener estadísticas
     users_count = await gamification.reward.get_users_with_reward(reward_id)
     
@@ -894,15 +898,17 @@ async def view_reward_details(callback: CallbackQuery, gamification: Gamificatio
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:reward:edit:"))
-async def edit_reward_menu(callback: CallbackQuery, gamification: GamificationContainer):
+async def edit_reward_menu(callback: CallbackQuery, session):
     """Muestra menú de edición de recompensa."""
     reward_id = int(callback.data.split(":")[-1])
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reward = await gamification.reward.get_reward_by_id(reward_id)
-    
+
     if not reward:
         await callback.answer("❌ Recompensa no encontrada", show_alert=True)
         return
-    
+
     metadata_text = format_metadata_display(reward.reward_type, reward.reward_metadata)
     
     text = f"""✏️ <b>Editar Recompensa: {reward.name}</b>
@@ -986,12 +992,14 @@ async def start_edit_field(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(RewardConfigStates.waiting_name)  # Using it for general text input
-async def receive_edited_general_field(message: Message, state: FSMContext, gamification: GamificationContainer):
+async def receive_edited_general_field(message: Message, state: FSMContext, session):
     """Recibe valor editado para campo general."""
     data = await state.get_data()
     reward_id = data['editing_reward_id']
     field = data['editing_field']
 
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     try:
         if field == 'name':
             new_value = message.text.strip()
@@ -1039,7 +1047,7 @@ async def receive_edited_general_field(message: Message, state: FSMContext, gami
 
 
 @router.message(RewardConfigStates.waiting_cost)
-async def receive_edited_cost(message: Message, state: FSMContext, gamification: GamificationContainer):
+async def receive_edited_cost(message: Message, state: FSMContext, session):
     """Recibe valor editado para costo."""
     try:
         cost = int(message.text)
@@ -1052,6 +1060,8 @@ async def receive_edited_cost(message: Message, state: FSMContext, gamification:
     data = await state.get_data()
     reward_id = data['editing_reward_id']
 
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     try:
         await gamification.reward.update_reward(reward_id, cost_besitos=cost if cost > 0 else None)
 
@@ -1081,12 +1091,14 @@ async def receive_edited_cost(message: Message, state: FSMContext, gamification:
 
 
 @router.message(RewardConfigStates.waiting_metadata)
-async def receive_edited_metadata(message: Message, state: FSMContext, gamification: GamificationContainer):
+async def receive_edited_metadata(message: Message, state: FSMContext, session):
     """Recibe metadata editada."""
     metadata_input = message.text.strip()
     data = await state.get_data()
     reward_id = data['editing_reward_id']
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reward = await gamification.reward.get_reward_by_id(reward_id)
     if not reward:
         await message.answer("❌ Recompensa no encontrada")
@@ -1168,12 +1180,14 @@ async def start_edit_conditions(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("gamif:edit_condition:type:"))
-async def select_edit_condition_type(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
+async def select_edit_condition_type(callback: CallbackQuery, state: FSMContext, session):
     """Selecciona tipo de condición para editar."""
     condition_type = callback.data.split(":")[-1]
     data = await state.get_data()
     reward_id = data['editing_reward_id']
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     if condition_type == 'none':
         # No condiciones
         await gamification.reward.update_reward(reward_id, unlock_conditions=None)
@@ -1267,34 +1281,36 @@ async def add_condition_for_edit(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data == "gamif:finish_edit_multiple")
-async def finish_editing_multiple_conditions(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
+async def finish_editing_multiple_conditions(callback: CallbackQuery, state: FSMContext, session):
     """Finaliza edición de condiciones múltiples."""
     data = await state.get_data()
     conditions = data.get('multiple_conditions', [])
     reward_id = data['editing_reward_id']
-    
+
     if not conditions:
         await callback.answer("❌ Debes agregar al menos una condición", show_alert=True)
         return
-    
+
     unlock_conditions = {
         "type": "multiple",
         "conditions": conditions
     }
-    
+
     # Validar condiciones múltiples
     is_valid, error = validate_unlock_conditions(unlock_conditions)
     if not is_valid:
         await callback.answer(f"❌ Condiciones inválidas: {error}", show_alert=True)
         return
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     try:
         await gamification.reward.update_reward(reward_id, unlock_conditions=unlock_conditions)
-        
+
         await callback.answer("✅ Condiciones actualizadas", show_alert=True)
-        await view_reward_details(callback, gamification)
+        await view_reward_details(callback, session)
         await state.clear()
-        
+
     except Exception as e:
         await callback.answer(f"❌ Error al actualizar: {str(e)}", show_alert=True)
 
@@ -1304,22 +1320,24 @@ async def finish_editing_multiple_conditions(callback: CallbackQuery, state: FSM
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:reward:toggle:"))
-async def toggle_reward(callback: CallbackQuery, gamification: GamificationContainer):
+async def toggle_reward(callback: CallbackQuery, session):
     """Activa o desactiva una recompensa."""
     reward_id = int(callback.data.split(":")[-1])
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reward = await gamification.reward.get_reward_by_id(reward_id)
     if not reward:
         await callback.answer("❌ Recompensa no encontrada", show_alert=True)
         return
-    
+
     await gamification.reward.update_reward(reward_id, active=not reward.active)
-    
+
     status_text = "activada" if not reward.active else "desactivada"
     await callback.answer(f"✅ Recompensa {status_text}", show_alert=True)
-    
+
     # Refresh the view
-    await view_reward_details(callback, gamification)
+    await view_reward_details(callback, session)
 
 
 # ========================================
@@ -1327,18 +1345,20 @@ async def toggle_reward(callback: CallbackQuery, gamification: GamificationConta
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:reward:delete:"))
-async def delete_reward_prompt(callback: CallbackQuery, gamification: GamificationContainer):
+async def delete_reward_prompt(callback: CallbackQuery, session):
     """Pide confirmación para eliminar recompensa."""
     reward_id = int(callback.data.split(":")[-1])
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reward = await gamification.reward.get_reward_by_id(reward_id)
     if not reward:
         await callback.answer("❌ Recompensa no encontrada", show_alert=True)
         return
-    
+
     # Check if reward has users
     users_count = await gamification.reward.get_users_with_reward(reward_id)
-    
+
     if users_count > 0:
         text = f"""⚠️ <b>Advertencia: Eliminación con Usuarios</b>
 
@@ -1382,22 +1402,24 @@ Costo: {reward.cost_besitos or 'Gratis'} besitos
 
 
 @router.callback_query(F.data.startswith("gamif:reward:delete_confirm:"))
-async def confirm_delete_reward(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
+async def confirm_delete_reward(callback: CallbackQuery, state: FSMContext, session):
     """Confirma eliminación de recompensa (soft delete)."""
     reward_id = int(callback.data.split(":")[-1])
-    
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reward = await gamification.reward.get_reward_by_id(reward_id)
     if not reward:
         await callback.answer("❌ Recompensa no encontrada", show_alert=True)
         return
-    
+
     # Since the service already does a soft-delete, we'll use that
     success = await gamification.reward.delete_reward(reward_id)
-    
+
     if success:
         await callback.answer("✅ Recompensa eliminada", show_alert=True)
         # Go back to main rewards menu
         await state.update_data(current_filter=None, current_page=1)
-        await show_rewards_list(callback, state, reward_type=None)
+        await show_rewards_list(callback, state, session, reward_type=None)
     else:
         await callback.answer("❌ Error al eliminar recompensa", show_alert=True)

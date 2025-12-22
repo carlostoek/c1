@@ -9,7 +9,7 @@ from typing import Dict, List
 
 from bot.gamification.database.models import (
     UserGamification, UserMission, UserReward, UserReaction,
-    UserStreak, Mission, Level
+    UserStreak, Mission, Level, Reaction
 )
 from bot.gamification.database.enums import MissionStatus
 
@@ -167,8 +167,9 @@ class StatsService:
         
         # Top emojis
         stmt = (
-            select(UserReaction.emoji, func.count(UserReaction.id))
-            .group_by(UserReaction.emoji)
+            select(Reaction.emoji, func.count(UserReaction.id))
+            .join(Reaction, UserReaction.reaction_id == Reaction.id)
+            .group_by(Reaction.emoji)
             .order_by(func.count(UserReaction.id).desc())
             .limit(5)
         )

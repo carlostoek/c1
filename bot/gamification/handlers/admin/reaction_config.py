@@ -26,8 +26,10 @@ class ReactionConfigStates(StatesGroup):
 # ========================================
 
 @router.callback_query(F.data == "gamif:admin:reactions")
-async def reactions_menu(callback: CallbackQuery, gamification: GamificationContainer):
+async def reactions_menu(callback: CallbackQuery, session):
     """Muestra lista de reacciones configuradas."""
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     # Since the model doesn't have a 'name' field, we'll use emoji as name
     reactions = await gamification.reaction.get_all_reactions(active_only=False)
 
@@ -94,11 +96,13 @@ async def start_add_reaction(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(ReactionConfigStates.waiting_emoji)
-async def receive_emoji(message: Message, state: FSMContext, gamification: GamificationContainer):
+async def receive_emoji(message: Message, state: FSMContext, session):
     """Recibe y valida emoji."""
     emoji = message.text.strip()
 
     # Validar emoji
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     if not is_valid_emoji(emoji):
         await message.answer("❌ Debe ser un emoji válido. Intenta de nuevo:")
         return
@@ -124,7 +128,7 @@ async def receive_emoji(message: Message, state: FSMContext, gamification: Gamif
 
 
 @router.message(ReactionConfigStates.waiting_besitos)
-async def receive_besitos_value(message: Message, state: FSMContext, gamification: GamificationContainer):
+async def receive_besitos_value(message: Message, state: FSMContext, session):
     """Recibe valor de besitos y crea reacción."""
     try:
         besitos = int(message.text)
@@ -138,6 +142,8 @@ async def receive_besitos_value(message: Message, state: FSMContext, gamificatio
     data = await state.get_data()
 
     # Crear reacción
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reaction = await gamification.reaction.create_reaction(
         emoji=data['emoji'],
         besitos_value=besitos
@@ -159,11 +165,13 @@ async def receive_besitos_value(message: Message, state: FSMContext, gamificatio
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:reaction:edit:"))
-async def edit_reaction(callback: CallbackQuery, gamification: GamificationContainer):
+async def edit_reaction(callback: CallbackQuery, session):
     """Muestra opciones de edición."""
     reaction_id = int(callback.data.split(":")[-1])
 
     # Get reaction
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reaction = await gamification.reaction.get_by_id(reaction_id)
 
     if not reaction:
@@ -199,9 +207,12 @@ Estado: {'Activo' if reaction.active else 'Inactivo'}
 
 
 @router.callback_query(F.data.startswith("gamif:reaction:view:"))
-async def view_reaction(callback: CallbackQuery, gamification: GamificationContainer):
+async def view_reaction(callback: CallbackQuery, session):
     """Muestra detalles de reacción."""
     reaction_id = int(callback.data.split(":")[-1])
+
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reaction = await gamification.reaction.get_by_id(reaction_id)
 
     if not reaction:
@@ -261,7 +272,7 @@ async def start_change_value(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(ReactionConfigStates.editing_value)
-async def receive_new_value(message: Message, state: FSMContext, gamification: GamificationContainer):
+async def receive_new_value(message: Message, state: FSMContext, session):
     """Actualiza valor de besitos."""
     try:
         besitos = int(message.text)
@@ -274,6 +285,8 @@ async def receive_new_value(message: Message, state: FSMContext, gamification: G
     data = await state.get_data()
     reaction_id = data['editing_reaction_id']
 
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reaction = await gamification.reaction.update_reaction(
         reaction_id,
         besitos_value=besitos
@@ -292,10 +305,12 @@ async def receive_new_value(message: Message, state: FSMContext, gamification: G
 # ========================================
 
 @router.callback_query(F.data.startswith("gamif:reaction:toggle:"))
-async def toggle_reaction(callback: CallbackQuery, gamification: GamificationContainer):
+async def toggle_reaction(callback: CallbackQuery, session):
     """Activa o desactiva reacción."""
     reaction_id = int(callback.data.split(":")[-1])
 
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     reaction = await gamification.reaction.get_by_id(reaction_id)
     new_state = not reaction.active
 
@@ -308,7 +323,7 @@ async def toggle_reaction(callback: CallbackQuery, gamification: GamificationCon
     await callback.answer(f"✅ Emoji {status_text}", show_alert=True)
 
     # Refrescar vista
-    await view_reaction(callback, gamification)
+    await view_reaction(callback, session)
 
 
 # ========================================
@@ -338,11 +353,13 @@ async def delete_reaction(callback: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("gamif:reaction:delete_confirm:"))
-async def confirm_delete_reaction(callback: CallbackQuery, gamification: GamificationContainer):
+async def confirm_delete_reaction(callback: CallbackQuery, session):
     """Elimina reacción."""
     reaction_id = int(callback.data.split(":")[-1])
 
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
     await gamification.reaction.delete_reaction(reaction_id)
 
     await callback.answer("✅ Emoji eliminado", show_alert=True)
-    await reactions_menu(callback, gamification)
+    await reactions_menu(callback, session)
