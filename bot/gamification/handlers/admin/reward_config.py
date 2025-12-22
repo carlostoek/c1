@@ -153,6 +153,7 @@ async def rewards_menu(callback: CallbackQuery, state: FSMContext, session):
     """Muestra lista de recompensas configuradas con filtros."""
     await state.update_data(current_filter=None, current_page=1)
     await show_rewards_list(callback, state, session, reward_type=None)
+    await callback.answer()
 
 
 async def show_rewards_list(callback: CallbackQuery, state: FSMContext, session, reward_type: Optional[str] = None):
@@ -235,18 +236,98 @@ async def show_rewards_list(callback: CallbackQuery, state: FSMContext, session,
     await callback.answer()
 
 
+async def show_rewards_list_message(message: Message, state: FSMContext, session, reward_type: Optional[str] = None):
+    """Muestra lista de recompensas con opción de filtrado (para mensajes)."""
+    from bot.gamification.services.container import GamificationContainer
+    gamification = GamificationContainer(session)
+
+    # Obtener recompensas
+    all_rewards = await gamification.reward.get_all_rewards(active_only=True, reward_type=reward_type)
+
+    # Filtros para mostrar
+    filter_buttons = [
+        [
+            InlineKeyboardButton(text="🏆 Badges", callback_data="gamif:rewards:filter:badge"),
+            InlineKeyboardButton(text="🎁 Items", callback_data="gamif:rewards:filter:item")
+        ],
+        [
+            InlineKeyboardButton(text="🔓 Permisos", callback_data="gamif:rewards:filter:permission"),
+            InlineKeyboardButton(text="💰 Besitos", callback_data="gamif:rewards:filter:besitos")
+        ],
+        [
+            InlineKeyboardButton(text="🏷️ Títulos", callback_data="gamif:rewards:filter:title"),
+            InlineKeyboardButton(text=" TODOS ", callback_data="gamif:rewards:filter:all")
+        ]
+    ]
+
+    text = f"🎁 <b>RECOMPENSAS CONFIGURADAS</b>\n━━━━━━━━━━━━━━━━\n\n"
+
+    current_filter_name = "Todas" if not reward_type or reward_type == 'all' else REWARD_TYPE_NAMES.get(reward_type, reward_type.title())
+    text += f"<b>Filtro:</b> {current_filter_name}\n"
+    text += f"<b>Total:</b> {len(all_rewards)} recompensa(s)\n\n"
+
+    if not all_rewards:
+        text += "No hay recompensas configuradas.\n\n"
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="➕ Crear Primera Recompensa", callback_data="gamif:reward:create:start")],
+            [InlineKeyboardButton(text="🔙 Volver", callback_data="gamif:menu")]
+        ])
+    else:
+        # Mostrar recompensas
+        for reward in all_rewards:
+            status = "✅" if reward.active else "❌"
+            icon = get_reward_icon(reward)
+
+            # Obtener estadísticas
+            users_count = await gamification.reward.get_users_with_reward(reward.id)
+
+            # Formatear costo
+            cost_text = f" ({reward.cost_besitos:,} besitos)" if reward.cost_besitos else " (gratis)"
+
+            text += f"{status} {icon} <b>{reward.name}</b>\n"
+            text += f"   • {REWARD_TYPE_NAMES.get(reward.reward_type, reward.reward_type)}{cost_text}\n"
+            text += f"   • {users_count:,} usuarios lo tienen\n\n"
+
+        # Botones de cada recompensa
+        keyboard_buttons = []
+        for reward in all_rewards:
+            icon = get_reward_icon(reward)
+            keyboard_buttons.append([
+                InlineKeyboardButton(
+                    text=f"{icon} {reward.name}",
+                    callback_data=f"gamif:reward:view:{reward.id}"
+                ),
+                InlineKeyboardButton(
+                    text="✏️",
+                    callback_data=f"gamif:reward:edit:{reward.id}"
+                )
+            ])
+
+        # Añadir botones de filtros y acción
+        keyboard_buttons.extend(filter_buttons)
+        keyboard_buttons.extend([
+            [InlineKeyboardButton(text="➕ Crear Recompensa", callback_data="gamif:reward:create:start")],
+            [InlineKeyboardButton(text="🔙 Volver", callback_data="gamif:menu")]
+        ])
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+
+
 @router.callback_query(F.data.startswith("gamif:rewards:filter:"))
-async def filter_rewards(callback: CallbackQuery, state: FSMContext):
+async def filter_rewards(callback: CallbackQuery, state: FSMContext, session):
     """Filtra recompensas por tipo."""
     reward_type = callback.data.split(":")[-1]
-    
+
     if reward_type == 'all':
         filter_type = None
     else:
         filter_type = reward_type
-    
+
     await state.update_data(current_filter=filter_type, current_page=1)
-    await show_rewards_list(callback, state, reward_type=filter_type)
+    await show_rewards_list(callback, state, session, reward_type=filter_type)
+    await callback.answer()
 
 
 # ========================================
@@ -313,8 +394,9 @@ async def receive_reward_description(message: Message, state: FSMContext):
         ]
     ])
     
+    data = await state.get_data()
     await message.answer(
-        f"✅ Nombre: {state.data['name']}\n"
+        f"✅ Nombre: {data['name']}\n"
         f"✅ Descripción: {description}\n\n"
         f"Selecciona el tipo de recompensa:",
         reply_markup=keyboard
@@ -371,7 +453,63 @@ async def receive_reward_cost_preference(callback: CallbackQuery, state: FSMCont
     else:
         # No tiene costo, ir directo a especificar metadata
         await state.update_data(cost_besitos=None)
-        await ask_metadata_for_type(callback, state)
+        data = await state.get_data()
+        reward_type = data['reward_type']
+
+        # Manejar casos especiales para callback
+        if reward_type == 'badge':
+            # Preguntar por icono del badge
+            await callback.message.edit_text(
+                "🏆 <b>Badge</b>\n\n"
+                "Envía el icono del badge (emoji) para el badge:",
+                parse_mode="HTML"
+            )
+            await state.set_state(RewardConfigStates.waiting_badge_icon)
+        elif reward_type == 'permission':
+            await callback.message.edit_text(
+                "🔓 <b>Permiso</b>\n\n"
+                "Envía los metadatos en formato JSON:\n\n"
+                "<code>{\"permission_key\": \"custom_emoji\", \"duration_days\": 30}</code>\n\n"
+                "O envía solo el permission_key (ej: custom_emoji):",
+                parse_mode="HTML"
+            )
+            await state.set_state(RewardConfigStates.waiting_metadata)
+        elif reward_type == 'title':
+            await callback.message.edit_text(
+                "🏷️ <b>Título</b>\n\n"
+                "Envía los metadatos en formato JSON:\n\n"
+                "<code>{\"title\": \"Rey del Chat\", \"icon\": \"👑\", \"color\": \"#FFD700\"}</code>\n\n"
+                "O envía solo el título (ej: Rey del Chat):",
+                parse_mode="HTML"
+            )
+            await state.set_state(RewardConfigStates.waiting_metadata)
+        elif reward_type == 'item':
+            await callback.message.edit_text(
+                "🎁 <b>Item</b>\n\n"
+                "Envía los metadatos en formato JSON:\n\n"
+                "<code>{\"item_type\": \"sticker\", \"item_id\": \"12345\", \"quantity\": 1}</code>\n\n"
+                "O envía solo el tipo de item (ej: sticker):",
+                parse_mode="HTML"
+            )
+            await state.set_state(RewardConfigStates.waiting_metadata)
+        elif reward_type == 'besitos':
+            await callback.message.edit_text(
+                "💰 <b>Besitos</b>\n\n"
+                "Envía los metadatos en formato JSON:\n\n"
+                "<code>{\"amount\": 500}</code>\n\n"
+                "O envía solo la cantidad (ej: 500):",
+                parse_mode="HTML"
+            )
+            await state.set_state(RewardConfigStates.waiting_metadata)
+        else:
+            # Otros tipos - pedir metadata genérica
+            await callback.message.edit_text(
+                f"📦 <b>{REWARD_TYPE_NAMES.get(reward_type, reward_type.title())}</b>\n\n"
+                f"Envía los metadatos en formato JSON:",
+                parse_mode="HTML"
+            )
+            await state.set_state(RewardConfigStates.waiting_metadata)
+    await callback.answer()
 
 
 @router.message(RewardConfigStates.waiting_cost)
@@ -480,6 +618,7 @@ async def receive_badge_icon(message: Message, state: FSMContext):
         f"Selecciona la rareza del badge:",
         reply_markup=keyboard
     )
+    await state.set_state(RewardConfigStates.waiting_badge_rarity)
 
 
 @router.callback_query(F.data.startswith("gamif:badge:rarity:"))
@@ -502,9 +641,28 @@ async def receive_badge_rarity(callback: CallbackQuery, state: FSMContext):
         "rarity": rarity
     }
     await state.update_data(metadata=metadata)
-    
+
     # Ir a configurar condiciones
-    await ask_reward_conditions(callback, state)
+    await callback.message.edit_text(
+        "🔓 <b>Condiciones de Desbloqueo</b>\n\n"
+        "¿Qué condiciones debe cumplir un usuario para obtener esta recompensa?\n\n"
+        "Selecciona el tipo de condición:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🏁 Misión", callback_data="gamif:condition:type:mission"),
+                InlineKeyboardButton(text="🏆 Nivel", callback_data="gamif:condition:type:level")
+            ],
+            [
+                InlineKeyboardButton(text="💰 Besitos", callback_data="gamif:condition:type:besitos"),
+                InlineKeyboardButton(text="📋 Múltiple", callback_data="gamif:condition:type:multiple")
+            ],
+            [
+                InlineKeyboardButton(text="❌ Ninguna", callback_data="gamif:condition:type:none")
+            ]
+        ]),
+        parse_mode="HTML"
+    )
+    await callback.answer()
 
 
 @router.message(RewardConfigStates.waiting_metadata)
@@ -530,21 +688,38 @@ async def receive_metadata(message: Message, state: FSMContext):
                 return
         else:
             # Intentar parsear como JSON
-            metadata = json.loads(metadata_input)
-        
+            try:
+                metadata = json.loads(metadata_input)
+            except json.JSONDecodeError:
+                # Si no es JSON válido, tratarlo según el tipo de recompensa
+                if reward_type == 'permission':
+                    metadata = {"permission_key": metadata_input, "duration_days": None}
+                elif reward_type == 'title':
+                    metadata = {"title": metadata_input, "icon": None, "color": None}
+                elif reward_type == 'item':
+                    metadata = {"item_type": metadata_input, "item_id": None, "quantity": None}
+                elif reward_type == 'besitos':
+                    # Intentar convertir a número si es posible
+                    try:
+                        metadata = {"amount": int(metadata_input)}
+                    except ValueError:
+                        await message.answer("❌ Para besitos, envía un número o JSON válido. Intenta de nuevo:")
+                        return
+                else:
+                    await message.answer("❌ Formato inválido. Envía JSON o sigue el ejemplo mostrado. Intenta de nuevo:")
+                    return
+
         # Validar con el validador existente
         is_valid, error = validate_reward_metadata(RewardType(reward_type), metadata)
         if not is_valid:
             await message.answer(f"❌ Metadata inválida: {error}\n\nIntenta de nuevo:")
             return
-        
+
         await state.update_data(metadata=metadata)
-        
+
         # Ir a configurar condiciones
         await ask_reward_conditions(message, state)
-        
-    except json.JSONDecodeError:
-        await message.answer("❌ Formato JSON inválido. Intenta de nuevo:")
+
     except Exception as e:
         await message.answer(f"❌ Error en metadata: {str(e)}\n\nIntenta de nuevo:")
 
@@ -634,6 +809,7 @@ async def select_condition_type(callback: CallbackQuery, state: FSMContext, sess
         )
         await state.update_data(multiple_conditions=[])
         await state.set_state(RewardConfigStates.building_multiple_conditions)
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("gamif:condition:add:"))
@@ -774,7 +950,7 @@ async def create_reward_from_state(message_or_callback: Message | CallbackQuery,
     data = await state.get_data()
     from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
-    
+
     try:
         # Crear recompensa según tipo
         if data['reward_type'] == 'badge':
@@ -797,25 +973,56 @@ async def create_reward_from_state(message_or_callback: Message | CallbackQuery,
                 metadata=data['metadata'],
                 created_by=message_or_callback.from_user.id
             )
-        
-        await message_or_callback.answer(
-            f"✅ <b>Recompensa Creada Exitosamente</b>\n\n"
-            f"ID: {reward.id}\n"
-            f"Nombre: {reward.name}\n"
-            f"Tipo: {REWARD_TYPE_NAMES.get(reward.reward_type, reward.reward_type)}\n"
-            f"Costo: {reward.cost_besitos or 'Gratis'} besitos\n\n"
-            f"La recompensa está lista para que los usuarios la obtengan.",
-            parse_mode="HTML"
-        )
-        
+
+        # Handle response based on type (Message vs CallbackQuery)
+        if isinstance(message_or_callback, CallbackQuery):
+            await message_or_callback.answer(
+                f"✅ <b>Recompensa Creada Exitosamente</b>\n\n"
+                f"ID: {reward.id}\n"
+                f"Nombre: {reward.name}\n"
+                f"Tipo: {REWARD_TYPE_NAMES.get(reward.reward_type, reward.reward_type)}\n"
+                f"Costo: {reward.cost_besitos or 'Gratis'} besitos\n\n"
+                f"La recompensa está lista para que los usuarios la obtengan.",
+                parse_mode="HTML"
+            )
+        else:  # It's a Message
+            await message_or_callback.reply(
+                f"✅ <b>Recompensa Creada Exitosamente</b>\n\n"
+                f"ID: {reward.id}\n"
+                f"Nombre: {reward.name}\n"
+                f"Tipo: {REWARD_TYPE_NAMES.get(reward.reward_type, reward.reward_type)}\n"
+                f"Costo: {reward.cost_besitos or 'Gratis'} besitos\n\n"
+                f"La recompensa está lista para que los usuarios la obtengan.",
+                parse_mode="HTML"
+            )
+
         await state.clear()
-        
-        # Volver a la lista de recompensas
-        await state.update_data(current_filter=None, current_page=1)
-        await show_rewards_list(message_or_callback, state, reward_type=None)
-        
+
+        # Since we cannot redirect to show_rewards_list directly from a Message,
+        # we send a menu message with options
+        if isinstance(message_or_callback, CallbackQuery):
+            # For callbacks, we can edit the message directly
+            await state.update_data(current_filter=None, current_page=1)
+            await show_rewards_list(message_or_callback, state, session, reward_type=None)
+        else:
+            # For messages, send a new message with options
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📊 Ver Recompensas", callback_data="gamif:admin:rewards")],
+                [InlineKeyboardButton(text="➕ Crear Nueva Recompensa", callback_data="gamif:reward:create:start")]
+            ])
+
+            await message_or_callback.reply(
+                "✅ <b>Recompensa Creada Exitosamente</b>\n\n"
+                "¿Qué deseas hacer ahora?",
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+
     except Exception as e:
-        await message_or_callback.answer(f"❌ Error al crear recompensa: {str(e)}", show_alert=True)
+        if isinstance(message_or_callback, CallbackQuery):
+            await message_or_callback.answer(f"❌ Error al crear recompensa: {str(e)}", show_alert=True)
+        else:
+            await message_or_callback.reply(f"❌ Error al crear recompensa: {str(e)}")
 
 
 # ========================================
@@ -1246,6 +1453,7 @@ async def select_edit_condition_type(callback: CallbackQuery, state: FSMContext,
         )
         await state.update_data(multiple_conditions=[])
         await state.set_state(RewardConfigStates.building_multiple_conditions)
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("gamif:edit_add_condition:"))

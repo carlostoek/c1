@@ -278,8 +278,9 @@ async def receive_mission_description(message: Message, state: FSMContext):
         ]
     ])
     
+    data = await state.get_data()
     await message.answer(
-        f"✅ Nombre: {state.current_state().data['name']}\n"
+        f"✅ Nombre: {data['name']}\n"
         f"✅ Descripción: {description}\n\n"
         f"Selecciona el tipo de misión:",
         reply_markup=keyboard
