@@ -156,14 +156,8 @@ async def rewards_menu(callback: CallbackQuery, state: FSMContext, session):
     await callback.answer()
 
 
-async def show_rewards_list(callback: CallbackQuery, state: FSMContext, session, reward_type: Optional[str] = None):
-    """Muestra lista de recompensas con opción de filtrado."""
-    from bot.gamification.services.container import GamificationContainer
-    gamification = GamificationContainer(session)
-    
-    # Obtener recompensas
-    all_rewards = await gamification.reward.get_all_rewards(active_only=True, reward_type=reward_type)
-    
+def _build_rewards_display_data(gamification: GamificationContainer, all_rewards: List, reward_type: Optional[str] = None):
+    """Helper function to build rewards display data for both callback and message handlers."""
     # Filtros para mostrar
     filter_buttons = [
         [
@@ -179,138 +173,83 @@ async def show_rewards_list(callback: CallbackQuery, state: FSMContext, session,
             InlineKeyboardButton(text=" TODOS ", callback_data="gamif:rewards:filter:all")
         ]
     ]
-    
+
     text = f"🎁 <b>RECOMPENSAS CONFIGURADAS</b>\n━━━━━━━━━━━━━━━━\n\n"
-    
+
     current_filter_name = "Todas" if not reward_type or reward_type == 'all' else REWARD_TYPE_NAMES.get(reward_type, reward_type.title())
     text += f"<b>Filtro:</b> {current_filter_name}\n"
     text += f"<b>Total:</b> {len(all_rewards)} recompensa(s)\n\n"
-    
+
     if not all_rewards:
         text += "No hay recompensas configuradas.\n\n"
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="➕ Crear Primera Recompensa", callback_data="gamif:reward:create:start")],
             [InlineKeyboardButton(text="🔙 Volver", callback_data="gamif:menu")]
         ])
-    else:
-        # Mostrar recompensas
-        for reward in all_rewards:
-            status = "✅" if reward.active else "❌"
-            icon = get_reward_icon(reward)
-            
-            # Obtener estadísticas
-            users_count = await gamification.reward.get_users_with_reward(reward.id)
-            
-            # Formatear costo
-            cost_text = f" ({reward.cost_besitos:,} besitos)" if reward.cost_besitos else " (gratis)"
-            
-            text += f"{status} {icon} <b>{reward.name}</b>\n"
-            text += f"   • {REWARD_TYPE_NAMES.get(reward.reward_type, reward.reward_type)}{cost_text}\n"
-            text += f"   • {users_count:,} usuarios lo tienen\n\n"
-        
-        # Botones de cada recompensa
-        keyboard_buttons = []
-        for reward in all_rewards:
-            icon = get_reward_icon(reward)
-            keyboard_buttons.append([
-                InlineKeyboardButton(
-                    text=f"{icon} {reward.name}",
-                    callback_data=f"gamif:reward:view:{reward.id}"
-                ),
-                InlineKeyboardButton(
-                    text="✏️",
-                    callback_data=f"gamif:reward:edit:{reward.id}"
-                )
-            ])
-        
-        # Añadir botones de filtros y acción
-        keyboard_buttons.extend(filter_buttons)
-        keyboard_buttons.extend([
-            [InlineKeyboardButton(text="➕ Crear Recompensa", callback_data="gamif:reward:create:start")],
-            [InlineKeyboardButton(text="🔙 Volver", callback_data="gamif:menu")]
+        return text, keyboard
+
+    # Mostrar recompensas
+    for reward in all_rewards:
+        status = "✅" if reward.active else "❌"
+        icon = get_reward_icon(reward)
+
+        # Obtener estadísticas
+        users_count = await gamification.reward.get_users_with_reward(reward.id)
+
+        # Formatear costo
+        cost_text = f" ({reward.cost_besitos:,} besitos)" if reward.cost_besitos else " (gratis)"
+
+        text += f"{status} {icon} <b>{reward.name}</b>\n"
+        text += f"   • {REWARD_TYPE_NAMES.get(reward.reward_type, reward.reward_type)}{cost_text}\n"
+        text += f"   • {users_count:,} usuarios lo tienen\n\n"
+
+    # Botones de cada recompensa
+    keyboard_buttons = []
+    for reward in all_rewards:
+        icon = get_reward_icon(reward)
+        keyboard_buttons.append([
+            InlineKeyboardButton(
+                text=f"{icon} {reward.name}",
+                callback_data=f"gamif:reward:view:{reward.id}"
+            ),
+            InlineKeyboardButton(
+                text="✏️",
+                callback_data=f"gamif:reward:edit:{reward.id}"
+            )
         ])
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-    
+
+    # Añadir botones de filtros y acción
+    keyboard_buttons.extend(filter_buttons)
+    keyboard_buttons.extend([
+        [InlineKeyboardButton(text="➕ Crear Recompensa", callback_data="gamif:reward:create:start")],
+        [InlineKeyboardButton(text="🔙 Volver", callback_data="gamif:menu")]
+    ])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    return text, keyboard
+
+
+async def _get_rewards_display_content(session, reward_type: Optional[str] = None):
+    """Helper function to get rewards display content (text and keyboard) to avoid code duplication."""
+    gamification = GamificationContainer(session)
+
+    # Obtener recompensas
+    all_rewards = await gamification.reward.get_all_rewards(active_only=True, reward_type=reward_type)
+
+    return _build_rewards_display_data(gamification, all_rewards, reward_type)
+
+
+async def show_rewards_list(callback: CallbackQuery, state: FSMContext, session, reward_type: Optional[str] = None):
+    """Muestra lista de recompensas con opción de filtrado."""
+    text, keyboard = await _get_rewards_display_content(session, reward_type)
+
     await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
 
 async def show_rewards_list_message(message: Message, state: FSMContext, session, reward_type: Optional[str] = None):
     """Muestra lista de recompensas con opción de filtrado (para mensajes)."""
-    from bot.gamification.services.container import GamificationContainer
-    gamification = GamificationContainer(session)
-
-    # Obtener recompensas
-    all_rewards = await gamification.reward.get_all_rewards(active_only=True, reward_type=reward_type)
-
-    # Filtros para mostrar
-    filter_buttons = [
-        [
-            InlineKeyboardButton(text="🏆 Badges", callback_data="gamif:rewards:filter:badge"),
-            InlineKeyboardButton(text="🎁 Items", callback_data="gamif:rewards:filter:item")
-        ],
-        [
-            InlineKeyboardButton(text="🔓 Permisos", callback_data="gamif:rewards:filter:permission"),
-            InlineKeyboardButton(text="💰 Besitos", callback_data="gamif:rewards:filter:besitos")
-        ],
-        [
-            InlineKeyboardButton(text="🏷️ Títulos", callback_data="gamif:rewards:filter:title"),
-            InlineKeyboardButton(text=" TODOS ", callback_data="gamif:rewards:filter:all")
-        ]
-    ]
-
-    text = f"🎁 <b>RECOMPENSAS CONFIGURADAS</b>\n━━━━━━━━━━━━━━━━\n\n"
-
-    current_filter_name = "Todas" if not reward_type or reward_type == 'all' else REWARD_TYPE_NAMES.get(reward_type, reward_type.title())
-    text += f"<b>Filtro:</b> {current_filter_name}\n"
-    text += f"<b>Total:</b> {len(all_rewards)} recompensa(s)\n\n"
-
-    if not all_rewards:
-        text += "No hay recompensas configuradas.\n\n"
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="➕ Crear Primera Recompensa", callback_data="gamif:reward:create:start")],
-            [InlineKeyboardButton(text="🔙 Volver", callback_data="gamif:menu")]
-        ])
-    else:
-        # Mostrar recompensas
-        for reward in all_rewards:
-            status = "✅" if reward.active else "❌"
-            icon = get_reward_icon(reward)
-
-            # Obtener estadísticas
-            users_count = await gamification.reward.get_users_with_reward(reward.id)
-
-            # Formatear costo
-            cost_text = f" ({reward.cost_besitos:,} besitos)" if reward.cost_besitos else " (gratis)"
-
-            text += f"{status} {icon} <b>{reward.name}</b>\n"
-            text += f"   • {REWARD_TYPE_NAMES.get(reward.reward_type, reward.reward_type)}{cost_text}\n"
-            text += f"   • {users_count:,} usuarios lo tienen\n\n"
-
-        # Botones de cada recompensa
-        keyboard_buttons = []
-        for reward in all_rewards:
-            icon = get_reward_icon(reward)
-            keyboard_buttons.append([
-                InlineKeyboardButton(
-                    text=f"{icon} {reward.name}",
-                    callback_data=f"gamif:reward:view:{reward.id}"
-                ),
-                InlineKeyboardButton(
-                    text="✏️",
-                    callback_data=f"gamif:reward:edit:{reward.id}"
-                )
-            ])
-
-        # Añadir botones de filtros y acción
-        keyboard_buttons.extend(filter_buttons)
-        keyboard_buttons.extend([
-            [InlineKeyboardButton(text="➕ Crear Recompensa", callback_data="gamif:reward:create:start")],
-            [InlineKeyboardButton(text="🔙 Volver", callback_data="gamif:menu")]
-        ])
-
-        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    text, keyboard = await _get_rewards_display_content(session, reward_type)
 
     await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
@@ -948,7 +887,6 @@ async def finish_multiple_conditions(callback: CallbackQuery, state: FSMContext,
 async def create_reward_from_state(message_or_callback: Message | CallbackQuery, state: FSMContext, session):
     """Crea recompensa desde datos de estado."""
     data = await state.get_data()
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
 
     try:
@@ -1033,7 +971,6 @@ async def create_reward_from_state(message_or_callback: Message | CallbackQuery,
 async def view_reward_details(callback: CallbackQuery, session):
     """Muestra detalles de una recompensa específica."""
     reward_id = int(callback.data.split(":")[-1])
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     reward = await gamification.reward.get_reward_by_id(reward_id)
 

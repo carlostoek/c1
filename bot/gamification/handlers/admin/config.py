@@ -5,7 +5,10 @@ Handlers para configuración general de gamificación.
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
+from datetime import timedelta
 
+from bot.gamification.services.container import GamificationContainer
 from bot.gamification.services.orchestrator.configuration import ConfigurationOrchestrator
 
 router = Router()
@@ -164,38 +167,53 @@ async def confirm_cleanup(callback: CallbackQuery, session: AsyncSession):
 @router.callback_query(F.data.startswith("gamif:config:cleanup_confirm:"))
 async def execute_cleanup(callback: CallbackQuery, session: AsyncSession):
     """Ejecuta la limpieza de datos."""
+
     cleanup_type = callback.data.split(":")[-1]
-    
+
     try:
-        # Aquí iría la lógica real de limpieza
-        # Por ahora solo simulamos
+        gamification = GamificationContainer(session)
         cleaned_count = 0
-        
+
+        # Calculate cutoff dates
+        thirty_days_ago = datetime.datetime.now() - timedelta(days=30)
+        ninety_days_ago = datetime.datetime.now() - timedelta(days=90)
+
         if cleanup_type == "transactions":
             # Limpiar transacciones antiguas (más de 30 días)
-            from datetime import datetime
-            # Implementation would go here
-            cleaned_count = 0
-            
+            cleaned_count = await gamification.transaction.cleanup_old_transactions(
+                older_than=thirty_days_ago
+            )
+
         elif cleanup_type == "reactions":
             # Limpiar reacciones antiguas (más de 90 días)
-            from datetime import datetime
-            # Implementation would go here
-            cleaned_count = 0
-            
+            cleaned_count = await gamification.reaction.cleanup_old_reactions(
+                older_than=ninety_days_ago
+            )
+
         elif cleanup_type == "missions":
             # Limpiar misiones completadas antiguas
-            # Esta es una operación compleja que requeriría más lógica
-            cleaned_count = 0
-            
+            cleaned_count = await gamification.mission.cleanup_old_completed_missions(
+                older_than=thirty_days_ago
+            )
+
         elif cleanup_type == "all":
             # Limpiar todo (solo para desarrollo/testing)
+            # Note: This is dangerous and should be used with caution
             cleaned_count = 0
-            
+            cleaned_count += await gamification.transaction.cleanup_old_transactions(
+                older_than=thirty_days_ago
+            )
+            cleaned_count += await gamification.reaction.cleanup_old_reactions(
+                older_than=ninety_days_ago
+            )
+            cleaned_count += await gamification.mission.cleanup_old_completed_missions(
+                older_than=thirty_days_ago
+            )
+
         await callback.answer(f"✅ Limpieza completada ({cleaned_count} elementos eliminados)", show_alert=True)
-        
+
         # Volver al menú de configuración
         await config_menu(callback, session)
-        
+
     except Exception as e:
         await callback.answer(f"❌ Error en limpieza: {str(e)}", show_alert=True)

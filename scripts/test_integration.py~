@@ -1,0 +1,136 @@
+usr/bin/env python3
+"""
+Script de validación de integración ConfigurationService
+"""
+import asyncio
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from bot.database.engine import get_session
+from bot.services.container import ServiceContainer
+from aiogram import Bot
+from bot.config import settings
+
+
+async def test_award_besitos():
+    """Test del método award_besitos con ConfigurationService."""
+    print("\n🧪 Test 1: award_besitos()")
+    
+    async with get_session() as session:
+        bot = Bot(token=settings.bot_token)
+        container = ServiceContainer(session, bot)
+        
+        try:
+            # Test otorgar besitos por acción configurada
+            amount, ranked_up, new_rank = await container.gamification.award_besitos(
+                user_id=999999,  # User de prueba
+                action="user_started"
+            )
+            
+            print(f"  ✅ award_besitos funcionó correctamente")
+            print(f"     Amount: {amount}, Ranked up: {ranked_up}, New rank: {new_rank}")
+            
+        except Exception as e:
+            print(f"  ❌ Error en award_besitos: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+        finally:
+            await bot.session.close()
+
+
+async def test_get_badge_from_config():
+    """Test obtener badge desde ConfigurationService."""
+    print("\n🧪 Test 2: Obtener badge desde ConfigurationService")
+    
+    async with get_session() as session:
+        bot = Bot(token=settings.bot_token)
+        container = ServiceContainer(session, bot)
+        
+        try:
+            # Obtener todos los badges
+            badges = await container.configuration.list_badges()
+            
+            if badges:
+                badge = badges[0]
+                print(f"  ✅ ConfigurationService funcionó correctamente")
+                print(f"     Badge ejemplo: {badge.icon} {badge.name} (ID: {badge.id})")
+            else:
+                print(f"  ⚠️ No hay badges en BD (¿se ejecutó el seed?)")
+            
+        except Exception as e:
+            print(f"  ❌ Error en ConfigurationService: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+        finally:
+            await bot.session.close()
+
+
+async def test_helper_function():
+    """Test de la función helper _get_badge_info."""
+    print("\n🧪 Test 3: Helper function _get_badge_info()")
+    
+    async with get_session() as session:
+        bot = Bot(token=settings.bot_token)
+        container = ServiceContainer(session, bot)
+        
+        try:
+            # Importar la función helper
+            from bot.gamification.listeners import _get_badge_info
+            
+            # Obtener un badge de ejemplo
+            badges = await container.configuration.list_badges()
+            
+            if badges:
+                badge_id = badges[0].id
+                badge_info = await _get_badge_info(container, badge_id)
+                
+                if badge_info:
+                    print(f"  ✅ Helper function funcionó correctamente")
+                    print(f"     Badge: {badge_info['icon']} {badge_info['name']}")
+                else:
+                    print(f"  ❌ Helper function retornó None")
+            else:
+                print(f"  ⚠️ No hay badges para testear")
+                
+        except Exception as e:
+            print(f"  ❌ Error en helper function: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+        finally:
+            await bot.session.close()
+
+
+async def main():
+    """Ejecuta todos los tests."""
+    print("="*60)
+    print("VALIDACIÓN DE INTEGRACIÓN ConfigurationService")
+    print("="*60)
+    
+    try:
+        await test_award_besitos()
+        await test_get_badge_from_config()
+        await test_helper_function()
+        
+        print("\n" + "="*60)
+        print("✅ TODOS LOS TESTS PASARON")
+        print("="*60)
+        print("\n🎉 La integración está funcionando correctamente!")
+        
+    except Exception as e:
+        print("\n" + "="*60)
+        print("❌ TESTS FALLARON")
+        print("="*60)
+        print(f"\nError: {e}")
+        return 1
+    
+    return 0
+
+
+if __name__ == "__main__":
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code)

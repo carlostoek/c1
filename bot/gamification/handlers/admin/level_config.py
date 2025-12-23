@@ -6,6 +6,7 @@ from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
+import json
 
 from bot.gamification.services.container import GamificationContainer
 
@@ -28,7 +29,6 @@ class LevelConfigStates(StatesGroup):
 @router.callback_query(F.data == "gamif:admin:levels")
 async def levels_menu(callback: CallbackQuery, session):
     """Muestra lista de niveles configurados."""
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     levels = await gamification.level.get_all_levels(active_only=True)
     
@@ -104,7 +104,6 @@ async def receive_level_name(message: Message, state: FSMContext, session):
     """Recibe nombre del nivel."""
     name = message.text.strip()
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     if len(name) < 2:
         await message.answer("❌ El nombre debe tener al menos 2 caracteres. Intenta de nuevo:")
@@ -142,7 +141,6 @@ async def receive_min_besitos(message: Message, state: FSMContext, session):
         await message.answer("❌ Debe ser un número entero no negativo. Intenta de nuevo:")
         return
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
 
     # Validar si min_besitos ya existe
@@ -185,7 +183,6 @@ async def receive_level_order(message: Message, state: FSMContext, session):
         return
 
     # Validate order progression
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     all_levels = await gamification.level.get_all_levels(active_only=True)
     orders = [level.order for level in all_levels]
@@ -240,7 +237,6 @@ async def receive_level_order(message: Message, state: FSMContext, session):
 async def view_level_details(callback: CallbackQuery, session):
     """Muestra detalles de un nivel específico."""
     level_id = int(callback.data.split(":")[-1])
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     level = await gamification.level.get_level_by_id(level_id)
     
@@ -303,7 +299,6 @@ async def view_level_details(callback: CallbackQuery, session):
 async def edit_level_menu(callback: CallbackQuery, session):
     """Muestra menú de edición de nivel."""
     level_id = int(callback.data.split(":")[-1])
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     level = await gamification.level.get_level_by_id(level_id)
 
@@ -375,7 +370,6 @@ async def receive_edited_field(message: Message, state: FSMContext, session):
     level_id = data['editing_level_id']
     field = data['editing_field']
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     level = await gamification.level.get_level_by_id(level_id)
     if not level:
@@ -440,7 +434,6 @@ async def receive_edited_field(message: Message, state: FSMContext, session):
         elif field == 'benefits':
             new_value = message.text.strip()
             # Validate JSON if provided
-            import json
             try:
                 if new_value.lower() != 'none' and new_value.lower() != 'null':
                     json.loads(new_value)  # Validate JSON format
@@ -480,7 +473,6 @@ async def toggle_level(callback: CallbackQuery, session):
     """Activa o desactiva un nivel."""
     level_id = int(callback.data.split(":")[-1])
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     level = await gamification.level.get_level_by_id(level_id)
     if not level:
@@ -505,7 +497,6 @@ async def delete_level_prompt(callback: CallbackQuery, session):
     """Pide confirmación para eliminar nivel."""
     level_id = int(callback.data.split(":")[-1])
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     level = await gamification.level.get_level_by_id(level_id)
     if not level:
@@ -579,7 +570,6 @@ async def reassign_users_before_delete(callback: CallbackQuery, session):
     source_level_id = int(parts[3])
     target_level_id = int(parts[4])
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     # Get target level for confirmation
     source_level = await gamification.level.get_level_by_id(source_level_id)
@@ -625,7 +615,6 @@ async def confirm_delete_level(callback: CallbackQuery, session):
     """Confirma eliminación de nivel."""
     level_id = int(callback.data.split(":")[-1])
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     level = await gamification.level.get_level_by_id(level_id)
     if not level:

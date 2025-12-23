@@ -28,7 +28,6 @@ class ReactionConfigStates(StatesGroup):
 @router.callback_query(F.data == "gamif:admin:reactions")
 async def reactions_menu(callback: CallbackQuery, session):
     """Muestra lista de reacciones configuradas."""
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     # Since the model doesn't have a 'name' field, we'll use emoji as name
     reactions = await gamification.reaction.get_all_reactions(active_only=False)
@@ -101,7 +100,6 @@ async def receive_emoji(message: Message, state: FSMContext, session):
     emoji = message.text.strip()
 
     # Validar emoji
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     if not is_valid_emoji(emoji):
         await message.answer("❌ Debe ser un emoji válido. Intenta de nuevo:")
@@ -142,7 +140,6 @@ async def receive_besitos_value(message: Message, state: FSMContext, session):
     data = await state.get_data()
 
     # Crear reacción
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     reaction = await gamification.reaction.create_reaction(
         emoji=data['emoji'],
@@ -170,7 +167,6 @@ async def edit_reaction(callback: CallbackQuery, session):
     reaction_id = int(callback.data.split(":")[-1])
 
     # Get reaction
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     reaction = await gamification.reaction.get_by_id(reaction_id)
 
@@ -211,7 +207,6 @@ async def view_reaction(callback: CallbackQuery, session):
     """Muestra detalles de reacción."""
     reaction_id = int(callback.data.split(":")[-1])
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     reaction = await gamification.reaction.get_by_id(reaction_id)
 
@@ -285,7 +280,6 @@ async def receive_new_value(message: Message, state: FSMContext, session):
     data = await state.get_data()
     reaction_id = data['editing_reaction_id']
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     reaction = await gamification.reaction.update_reaction(
         reaction_id,
@@ -309,7 +303,6 @@ async def toggle_reaction(callback: CallbackQuery, session):
     """Activa o desactiva reacción."""
     reaction_id = int(callback.data.split(":")[-1])
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     reaction = await gamification.reaction.get_by_id(reaction_id)
     new_state = not reaction.active
@@ -357,7 +350,6 @@ async def confirm_delete_reaction(callback: CallbackQuery, session):
     """Elimina reacción."""
     reaction_id = int(callback.data.split(":")[-1])
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     await gamification.reaction.delete_reaction(reaction_id)
 

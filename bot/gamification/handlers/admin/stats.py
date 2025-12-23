@@ -12,7 +12,6 @@ router = Router()
 async def show_stats(callback: CallbackQuery, session):
     """Muestra estadísticas del sistema."""
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     overview = await gamification.stats.get_system_overview()
     user_dist = await gamification.stats.get_user_distribution()

@@ -155,7 +155,6 @@ async def show_user_transactions(message: Message, state: FSMContext, session):
         return
 
     # Validate user exists
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     balance = await gamification.besito.get_balance(user_id)
 
@@ -175,7 +174,6 @@ async def show_transactions_page(
     current_balance: Optional[int] = None
 ):
     """Muestra una página específica del historial de transacciones."""
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     
     if current_balance is None:
@@ -305,7 +303,6 @@ async def filter_transactions(callback: CallbackQuery, state: FSMContext, sessio
 
     await state.update_data(current_filter=transaction_type, current_page=1)
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     balance = await gamification.besito.get_balance(user_id)
     await show_transactions_page(callback, user_id, state, session, 1, transaction_type, balance)
@@ -327,7 +324,6 @@ async def change_transaction_page(callback: CallbackQuery, state: FSMContext, se
 
     await state.update_data(current_page=page)
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     balance = await gamification.besito.get_balance(user_id)
     await show_transactions_page(callback, user_id, state, session, page, transaction_type, balance)
@@ -340,7 +336,6 @@ async def show_user_transactions_callback(callback: CallbackQuery, state: FSMCon
 
     await state.update_data(user_id=user_id, current_filter=None, current_page=1)
 
-    from bot.gamification.services.container import GamificationContainer
     gamification = GamificationContainer(session)
     balance = await gamification.besito.get_balance(user_id)
     await show_transactions_page(callback, user_id, state, session, 1, None, balance)
