@@ -49,6 +49,32 @@ class WaitTimeSetupStates(StatesGroup):
     waiting_for_minutes = State()
 
 
+class FreeMessageSetupStates(StatesGroup):
+    """
+    Estados para configurar mensaje de bienvenida Free.
+
+    Flujo:
+    1. Admin selecciona "Configurar Mensaje de Bienvenida"
+    2. Bot entra en estado waiting_for_message
+    3. Admin envía mensaje personalizado
+    4. Bot valida (10-1000 chars) y guarda
+    5. Bot sale del estado
+
+    Variables soportadas en el mensaje:
+    - {user_name}: Nombre del usuario
+    - {channel_name}: Nombre del canal
+    - {wait_time}: Tiempo de espera en minutos
+
+    Validación:
+    - Longitud: 10-1000 caracteres
+    - Si no es válido → Error y mantener estado
+    - Si es válido → Guardar en DB y clear state
+    """
+
+    # Esperando que admin envíe mensaje personalizado
+    waiting_for_message = State()
+
+
 class BroadcastStates(StatesGroup):
     """
     Estados para envío de publicaciones a canales (BROADCASTING AVANZADO).

@@ -49,6 +49,8 @@ def mock_bot():
     - ban_chat_member
     - unban_chat_member
     - send_message
+    - approve_chat_join_request
+    - decline_chat_join_request
     """
     bot = Mock()
     bot.id = 123456789
@@ -60,5 +62,7 @@ def mock_bot():
     bot.ban_chat_member = AsyncMock()
     bot.unban_chat_member = AsyncMock()
     bot.send_message = AsyncMock()
+    bot.approve_chat_join_request = AsyncMock()
+    bot.decline_chat_join_request = AsyncMock()
 
     return bot

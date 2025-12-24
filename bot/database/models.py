@@ -46,6 +46,13 @@ class BotConfig(Base):
     # Configuración
     wait_time_minutes = Column(Integer, default=5)  # Tiempo espera Free
 
+    # Mensaje de bienvenida Free (con variables: {user_name}, {channel_name}, {wait_time})
+    free_welcome_message = Column(
+        String(1000),
+        nullable=True,
+        default="Hola {user_name}, tu solicitud de acceso a {channel_name} ha sido registrada. Debes esperar {wait_time} minutos antes de ser aprobado."
+    )
+
     # Reacciones (JSON arrays de emojis)
     vip_reactions = Column(JSON, default=list)   # ["👍", "❤️", "🔥"]
     free_reactions = Column(JSON, default=list)  # ["👍", "👎"]

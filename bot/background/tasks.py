@@ -18,6 +18,10 @@ from bot.database import get_session
 from bot.services.container import ServiceContainer
 from config import Config
 
+# Importar jobs de gamificación
+from bot.gamification.background.auto_progression_checker import check_all_users_progression
+from bot.gamification.background.streak_expiration_checker import check_expired_streaks
+
 logger = logging.getLogger(__name__)
 
 # Scheduler global
@@ -70,20 +74,22 @@ async def expire_and_kick_vip_subscribers(bot: Bot):
 
 async def process_free_queue(bot: Bot):
     """
-    Tarea: Procesar cola de solicitudes Free.
+    Tarea: Aprobar solicitudes Free que cumplieron tiempo de espera.
+
+    NUEVO: Aprueba directamente con approve_chat_join_request
+    (antes: enviaba invite links por mensaje privado)
 
     Proceso:
     1. Busca solicitudes que cumplieron el tiempo de espera
     2. Para cada solicitud:
+       - Aprueba con approve_chat_join_request
        - Marca como procesada
-       - Crea invite link
-       - Envía link al usuario por mensaje privado
     3. Loguea resultados
 
     Args:
         bot: Instancia del bot de Telegram
     """
-    logger.info("🔄 Ejecutando tarea: Procesamiento cola Free")
+    logger.info("🔄 Ejecutando tarea: Aprobación cola Free")
 
     try:
         async with get_session() as session:
@@ -93,72 +99,25 @@ async def process_free_queue(bot: Bot):
             free_channel_id = await container.channel.get_free_channel_id()
 
             if not free_channel_id:
-                logger.warning("⚠️ Canal Free no configurado, saltando procesamiento")
+                logger.warning("⚠️ Canal Free no configurado, saltando aprobación")
                 return
 
             # Obtener tiempo de espera configurado
             wait_time = await container.config.get_wait_time()
 
-            # Buscar solicitudes listas para procesar
-            ready_requests = await container.subscription.process_free_queue(wait_time)
-
-            if not ready_requests:
-                logger.debug("✓ No hay solicitudes Free listas")
-                return
-
-            logger.info(f"📋 Procesando {len(ready_requests)} solicitud(es) Free")
-
-            # Procesar cada solicitud
-            success_count = 0
-            error_count = 0
-
-            for request in ready_requests:
-                user_id = request.user_id
-
-                try:
-                    # Crear invite link personal
-                    invite_link = await container.subscription.create_invite_link(
-                        channel_id=free_channel_id,
-                        user_id=user_id,
-                        expire_hours=24  # Link Free válido por 24 horas
-                    )
-
-                    # Enviar link al usuario por mensaje privado
-                    message_text = (
-                        f"✅ <b>¡Tu Acceso Free está Listo!</b>\n\n"
-                        f"Has esperado {wait_time} minutos como se requiere.\n\n"
-                        f"👇 Usa este link para unirte al canal Free:\n"
-                        f"{invite_link.invite_link}\n\n"
-                        f"⚠️ <b>Importante:</b>\n"
-                        f"• El link expira en 24 horas\n"
-                        f"• Solo puedes usarlo 1 vez\n"
-                        f"• No lo compartas con otros\n\n"
-                        f"Disfruta del contenido! 🎉"
-                    )
-
-                    await bot.send_message(
-                        chat_id=user_id,
-                        text=message_text,
-                        parse_mode="HTML"
-                    )
-
-                    success_count += 1
-                    logger.info(f"✅ Link Free enviado a user {user_id}")
-
-                except Exception as e:
-                    error_count += 1
-                    logger.error(
-                        f"❌ Error enviando link Free a user {user_id}: {e}",
-                        exc_info=True
-                    )
-                    # Continuar con siguiente usuario
-
-            logger.info(
-                f"✅ Cola Free procesada: {success_count} éxitos, {error_count} errores"
+            # Aprobar solicitudes listas
+            success_count, error_count = await container.subscription.approve_ready_free_requests(
+                wait_time_minutes=wait_time,
+                free_channel_id=free_channel_id
             )
 
+            if success_count > 0 or error_count > 0:
+                logger.info(f"✅ Cola Free: {success_count} aprobados, {error_count} errores")
+            else:
+                logger.debug("✓ No hay solicitudes Free listas")
+
     except Exception as e:
-        logger.error(f"❌ Error en tarea de procesamiento Free: {e}", exc_info=True)
+        logger.error(f"❌ Error en tarea de aprobación Free: {e}", exc_info=True)
 
 
 async def cleanup_old_data(bot: Bot):
@@ -256,6 +215,40 @@ def start_background_tasks(bot: Bot):
         max_instances=1
     )
     logger.info("✅ Tarea programada: Limpieza (diaria 3 AM UTC)")
+
+    # Tarea 4: Auto-progression checker (Gamificación)
+    # Frecuencia: Cada 6 horas
+    async def auto_progression_job():
+        """Job wrapper para auto-progression con session management."""
+        async with get_session() as session:
+            await check_all_users_progression(session, bot)
+
+    _scheduler.add_job(
+        auto_progression_job,
+        trigger=IntervalTrigger(hours=6),
+        id="auto_progression_checker",
+        name="Auto-progression checker (Gamificación)",
+        replace_existing=True,
+        max_instances=1
+    )
+    logger.info("✅ Tarea programada: Auto-progression (cada 6 horas)")
+
+    # Tarea 5: Streak expiration checker (Gamificación)
+    # Frecuencia: Cada 1 hora
+    async def streak_expiration_job():
+        """Job wrapper para streak expiration con session management."""
+        async with get_session() as session:
+            await check_expired_streaks(session, bot)
+
+    _scheduler.add_job(
+        streak_expiration_job,
+        trigger=IntervalTrigger(hours=1),
+        id="streak_expiration_checker",
+        name="Streak expiration checker (Gamificación)",
+        replace_existing=True,
+        max_instances=1
+    )
+    logger.info("✅ Tarea programada: Streak expiration (cada 1 hora)")
 
     # Iniciar scheduler
     _scheduler.start()

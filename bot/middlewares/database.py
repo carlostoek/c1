@@ -11,6 +11,7 @@ from aiogram.types import TelegramObject
 from aiogram.exceptions import TelegramNetworkError, TelegramBadRequest
 
 from bot.database import get_session
+from bot.gamification.services import GamificationContainer, set_container
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +27,14 @@ def get_db_session():
 
 class DatabaseMiddleware(BaseMiddleware):
     """
-    Middleware que inyecta sesión de base de datos.
+    Middleware que inyecta sesión de base de datos y containers de servicios.
 
     Uso:
         dispatcher.update.middleware(DatabaseMiddleware())
 
     El handler recibe automáticamente:
-        async def handler(message: Message, session: AsyncSession):
-            # session está disponible
+        async def handler(message: Message, session: AsyncSession, gamification: GamificationContainer):
+            # session y gamification están disponibles
             pass
     """
 
@@ -47,7 +48,8 @@ class DatabaseMiddleware(BaseMiddleware):
         Ejecuta el middleware.
 
         Crea una sesión de base de datos y la inyecta en data["session"].
-        El handler puede acceder a ella como parámetro.
+        Crea GamificationContainer y lo inyecta en data["gamification"].
+        El handler puede acceder a ellos como parámetros.
 
         Args:
             handler: Handler a ejecutar
@@ -61,6 +63,11 @@ class DatabaseMiddleware(BaseMiddleware):
         async with get_session() as session:
             # Inyectar sesión en data
             data["session"] = session
+
+            # Crear y configurar GamificationContainer
+            gamif_container = GamificationContainer(session)
+            set_container(gamif_container)  # Establecer como instancia global
+            data["gamification"] = gamif_container
 
             try:
                 # Ejecutar handler

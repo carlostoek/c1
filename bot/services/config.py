@@ -214,6 +214,52 @@ class ConfigService:
 
         logger.info(f"💰 Tarifas actualizadas: {fees}")
 
+    async def get_free_welcome_message(self) -> str:
+        """
+        Obtiene el mensaje de bienvenida del canal Free.
+
+        El mensaje puede contener variables que serán reemplazadas:
+        - {user_name}: Nombre del usuario
+        - {channel_name}: Nombre del canal
+        - {wait_time}: Tiempo de espera en minutos
+
+        Returns:
+            str: Mensaje con variables sin reemplazar
+        """
+        config = await self.get_config()
+
+        if not config.free_welcome_message:
+            # Mensaje por defecto si no está configurado
+            return (
+                "Hola {user_name}, tu solicitud de acceso a {channel_name} ha sido registrada. "
+                "Debes esperar {wait_time} minutos antes de ser aprobado."
+            )
+
+        return config.free_welcome_message
+
+    async def set_free_welcome_message(self, message: str) -> None:
+        """
+        Actualiza el mensaje de bienvenida del canal Free.
+
+        Args:
+            message: Mensaje personalizado (10-1000 caracteres)
+
+        Raises:
+            ValueError: Si el mensaje es muy corto (<10) o muy largo (>1000)
+        """
+        if not message or len(message.strip()) < 10:
+            raise ValueError("El mensaje debe tener al menos 10 caracteres")
+
+        if len(message) > 1000:
+            raise ValueError("El mensaje no puede exceder 1000 caracteres")
+
+        config = await self.get_config()
+        config.free_welcome_message = message.strip()
+
+        await self.session.commit()
+
+        logger.info(f"💬 Mensaje Free actualizado: {message[:50]}...")
+
     # ===== VALIDACIÓN =====
 
     async def is_fully_configured(self) -> bool:

@@ -13,7 +13,7 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.handlers.admin.main import admin_router
-from bot.states.admin import ChannelSetupStates, WaitTimeSetupStates
+from bot.states.admin import ChannelSetupStates, WaitTimeSetupStates, FreeMessageSetupStates
 from bot.services.container import ServiceContainer
 from bot.utils.keyboards import create_inline_keyboard
 
@@ -35,6 +35,7 @@ def free_menu_keyboard(is_configured: bool) -> "InlineKeyboardMarkup":
     if is_configured:
         buttons.extend([
             [{"text": "⏱️ Configurar Tiempo de Espera", "callback_data": "free:set_wait_time"}],
+            [{"text": "💬 Configurar Mensaje de Bienvenida", "callback_data": "free:set_welcome_message"}],
             [{"text": "📤 Enviar Publicación", "callback_data": "free:broadcast"}],
             [{"text": "📋 Ver Cola de Solicitudes", "callback_data": "free:view_queue"}],
             [{"text": "🔧 Reconfigurar Canal", "callback_data": "free:setup"}],
@@ -309,3 +310,96 @@ async def process_wait_time_input(
             "Intenta nuevamente.",
             parse_mode="HTML"
         )
+
+
+# ===== CONFIGURACIÓN DE MENSAJE DE BIENVENIDA FREE =====
+
+
+@admin_router.callback_query(F.data == "free:set_welcome_message")
+async def callback_set_welcome_message(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Inicia configuración de mensaje de bienvenida Free.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    logger.debug(f"💬 Admin {callback.from_user.id} configurando mensaje Free")
+
+    await state.set_state(FreeMessageSetupStates.waiting_for_message)
+
+    container = ServiceContainer(session, callback.bot)
+    current_message = await container.config.get_free_welcome_message()
+
+    try:
+        await callback.message.edit_text(
+            "💬 <b>Configurar Mensaje de Bienvenida</b>\n\n"
+            "Envía el mensaje que se enviará automáticamente cuando un usuario "
+            "solicite acceso al canal Free.\n\n"
+            "<b>Variables disponibles:</b>\n"
+            "• <code>{user_name}</code> - Nombre del usuario\n"
+            "• <code>{channel_name}</code> - Nombre del canal\n"
+            "• <code>{wait_time}</code> - Tiempo de espera en minutos\n\n"
+            f"<b>Mensaje actual:</b>\n"
+            f"<code>{current_message}</code>\n\n"
+            "📝 <i>Envía el nuevo mensaje (10-1000 caracteres):</i>",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            logger.error(f"Error editando mensaje: {e}")
+
+    await callback.answer()
+
+
+@admin_router.message(FreeMessageSetupStates.waiting_for_message)
+async def process_welcome_message_input(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Procesa el mensaje de bienvenida enviado por admin.
+
+    Args:
+        message: Mensaje del admin
+        state: FSM context
+        session: Sesión de BD
+    """
+    new_message = message.text.strip() if message.text else ""
+
+    logger.debug(f"💬 Admin {message.from_user.id} enviando mensaje: {new_message[:50]}...")
+
+    container = ServiceContainer(session, message.bot)
+
+    try:
+        # Validar y guardar
+        await container.config.set_free_welcome_message(new_message)
+
+        await state.clear()
+
+        await message.answer(
+            f"✅ <b>Mensaje Actualizado</b>\n\n"
+            f"El mensaje de bienvenida Free ha sido configurado:\n\n"
+            f"<code>{new_message}</code>\n\n"
+            f"Los usuarios recibirán este mensaje cuando soliciten acceso al canal.",
+            parse_mode="HTML",
+            reply_markup=free_menu_keyboard(True)
+        )
+
+        logger.info(f"✅ Mensaje Free configurado por admin {message.from_user.id}")
+
+    except ValueError as e:
+        # Validación falló - mantener estado
+        await message.answer(
+            f"❌ <b>Mensaje Inválido</b>\n\n"
+            f"{str(e)}\n\n"
+            f"Envía un mensaje válido (10-1000 caracteres):",
+            parse_mode="HTML"
+        )
+        logger.warning(f"⚠️ Mensaje inválido: {e}")

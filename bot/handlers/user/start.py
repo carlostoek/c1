@@ -290,7 +290,6 @@ async def _send_welcome_message(
     # Usuario no es VIP: mostrar opciones
     keyboard = create_inline_keyboard([
         [{"text": "🎟️ Canjear Token VIP", "callback_data": "user:redeem_token"}],
-        [{"text": "📺 Solicitar Acceso Free", "callback_data": "user:request_free"}],
     ])
 
     await message.answer(
@@ -299,9 +298,10 @@ async def _send_welcome_message(
         f"<b>Opciones disponibles:</b>\n\n"
         f"🎟️ <b>Canjear Token VIP</b>\n"
         f"Si tienes un token de invitación, canjéalo para acceso VIP.\n\n"
-        f"📺 <b>Solicitar Acceso Free</b>\n"
-        f"Solicita acceso al canal gratuito (con tiempo de espera).\n\n"
-        f"👉 Selecciona una opción:",
+        f"📺 <b>Acceso al Canal Free</b>\n"
+        f"Para acceder al canal gratuito, ve directamente al canal y solicita unirte. "
+        f"Serás aprobado automáticamente después del tiempo de espera configurado.\n\n"
+        f"👉 Canjea tu token VIP:",
         reply_markup=keyboard,
         parse_mode="HTML"
     )
