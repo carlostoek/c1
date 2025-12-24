@@ -69,6 +69,8 @@ class RewardWizardStates(StatesGroup):
 
     # Paso 1: Tipo
     select_type = State()
+    enter_reward_name = State()
+    enter_reward_description = State()
 
     # Paso 2: Metadata (según tipo)
     enter_badge_icon = State()
