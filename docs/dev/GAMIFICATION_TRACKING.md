@@ -1,8 +1,8 @@
 # 🎮 TRACKING: Implementación Módulo Gamificación
 
 **Inicio:** Diciembre 2024
-**Estado General:** 🟡 FASE 4 EN PROGRESO
-**Progreso Total:** 20/30 tareas (66.7%)
+**Estado General:** 🟢 FASE 4 COMPLETADA
+**Progreso Total:** 21/30 tareas (70.0%)
 
 ---
 
@@ -46,15 +46,15 @@
 
 ---
 
-### **FASE 4: Handlers y FSM (5 tareas)** 🟡 En progreso
+### **FASE 4: Handlers y FSM (5 tareas)** 🟢 COMPLETADA
 - [x] G4.1 - Estados FSM (Wizards) ✅
 - [x] G4.2 - Handler menú admin gamification ✅
 - [x] G4.3 - Wizard crear misión ✅
 - [x] G4.4 - Wizard crear recompensa ✅
-- [ ] G4.5 - Handlers usuarios (perfil, misiones, leaderboard)
+- [x] G4.5 - Handlers usuarios (perfil, misiones, leaderboard) ✅
 
 **Estimado:** 2-3 semanas
-**Progreso:** 4/5 (80%)
+**Progreso:** 5/5 (100%)
 
 ---
 
@@ -89,10 +89,10 @@
 
 ## 🎯 PRÓXIMA TAREA
 
-**Tarea actual:** G4.5 - Handlers usuarios (perfil, misiones, leaderboard)
+**Tarea actual:** G5.1 - Background job: auto-progression
 **Prompt generado:** ✅ Listo para ejecutar
 **Bloqueadores:** Ninguno
-**Estado:** G4.4 COMPLETADO ✅ - FASE 4 EN PROGRESO (4/5)
+**Estado:** G4.5 COMPLETADO ✅ - FASE 4 COMPLETADA (5/5) - INICIANDO FASE 5
 
 ---
 
@@ -338,34 +338,42 @@ _Ninguno por ahora_
 
 ---
 
-## 📊 MÉTRICAS FASE 4 (EN PROGRESO)
+## 📊 MÉTRICAS FASE 4 (COMPLETADA)
 
-- **Commits realizados:** 4 (G4.1, G4.2, G4.3, G4.4)
+- **Commits realizados:** 5 (G4.1, G4.2, G4.3, G4.4, G4.5)
   - 87c2f51: G4.1 Estados FSM para wizards
   - 9d7d697: G4.2 Handler menú admin gamificación
   - 8a48c38: G4.3 Wizard crear misión
-  - bdb88a9: G4.4 Wizard crear recompensa ✨ NUEVO
+  - bdb88a9: G4.4 Wizard crear recompensa
+  - c34b2c3: G4.5 Handlers usuarios ✨ NUEVO
 
 - **Archivos creados:**
   - bot/gamification/states/admin.py (123 líneas, 5 StatesGroup)
   - bot/gamification/handlers/admin/main.py (289 líneas)
   - bot/gamification/handlers/admin/mission_wizard.py (672 líneas)
-  - bot/gamification/handlers/admin/reward_wizard.py (557 líneas) ✨ NUEVO
+  - bot/gamification/handlers/admin/reward_wizard.py (557 líneas)
+  - bot/gamification/handlers/user/profile.py (88 líneas) ✨ NUEVO
+  - bot/gamification/handlers/user/missions.py (192 líneas) ✨ NUEVO
+  - bot/gamification/handlers/user/rewards.py (117 líneas) ✨ NUEVO
+  - bot/gamification/handlers/user/leaderboard.py (77 líneas) ✨ NUEVO
   - tests/gamification/test_states.py (79 tests)
   - tests/gamification/test_admin_handlers.py (124 tests)
   - tests/gamification/test_mission_wizard.py (42 tests)
-  - tests/gamification/test_reward_wizard.py (44 tests) ✨ NUEVO
+  - tests/gamification/test_reward_wizard.py (44 tests)
+  - tests/gamification/test_user_handlers.py (24 tests) ✨ NUEVO
 
-- **Handlers implementados:** 45
+- **Handlers implementados:** 53
   - Main admin menu: 11 handlers (menús, listados)
   - Mission wizard: 23 handlers (flujo completo 6 pasos)
-  - Reward wizard: 19 handlers (flujo completo 4 pasos) ✨ NUEVO
+  - Reward wizard: 19 handlers (flujo completo 4 pasos)
+  - User handlers: 8 handlers (perfil, misiones, recompensas, leaderboard) ✨ NUEVO
 
-- **Tests unitarios:** 289/289 (100% pasando ✅)
+- **Tests unitarios:** 313/313 (100% pasando ✅)
   - 79 tests estados FSM
   - 124 tests admin handlers
   - 42 tests mission wizard
-  - 44 tests reward wizard ✨ NUEVO
+  - 44 tests reward wizard
+  - 24 tests user handlers ✨ NUEVO
 
 - **Características clave:**
   - Type hints: 100%
@@ -374,15 +382,20 @@ _Ninguno por ahora_
   - Almacenamiento incremental en state
   - Integración con ConfigurationOrchestrator y RewardOrchestrator
   - Soporte todos tipos de misión (ONE_TIME, DAILY, WEEKLY, STREAK)
-  - Soporte todos tipos de recompensa (BADGE, ITEM, PERMISSION, BESITOS) ✨
+  - Soporte todos tipos de recompensa (BADGE, ITEM, PERMISSION, BESITOS)
   - Auto level-up (crear nuevo o seleccionar existente)
-  - Unlock conditions opcionales (misión, nivel, besitos) ✨
-  - Metadata específica por tipo de recompensa ✨
+  - Unlock conditions opcionales (misión, nivel, besitos)
+  - Metadata específica por tipo de recompensa
   - Creación múltiples recompensas
   - Resumen antes de confirmar
   - Cancelación en cualquier punto
+  - Comandos /profile y /perfil para usuarios ✨
+  - Navegación completa entre secciones de usuario ✨
+  - Reclamación de recompensas de misiones ✨
+  - Compra de recompensas con besitos ✨
+  - Leaderboard con medallas (🥇🥈🥉) ✨
 
-**Estado:** 🟡 FASE 4 EN PROGRESO - 4/5 tareas (80%)
+**Estado:** 🟢 FASE 4 COMPLETADA - 5/5 tareas (100%)
 
 ---
 
