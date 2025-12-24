@@ -28,6 +28,7 @@ class GamificationContainer:
         self._mission_service = None
         self._reward_service = None
         self._user_gamification_service = None
+        self._stats_service = None
 
         # Orchestrators (lazy loaded)
         self._mission_orchestrator = None
@@ -87,6 +88,14 @@ class GamificationContainer:
         return self._user_gamification_service
 
     @property
+    def stats(self):
+        """Servicio de estadísticas."""
+        if self._stats_service is None:
+            from bot.gamification.services.stats import StatsService
+            self._stats_service = StatsService(self._session)
+        return self._stats_service
+
+    @property
     def mission_orchestrator(self):
         """Orquestador de creación de misiones."""
         if self._mission_orchestrator is None:
@@ -129,6 +138,8 @@ class GamificationContainer:
             loaded.append('reward')
         if self._user_gamification_service is not None:
             loaded.append('user_gamification')
+        if self._stats_service is not None:
+            loaded.append('stats')
         if self._mission_orchestrator is not None:
             loaded.append('mission_orchestrator')
         if self._reward_orchestrator is not None:
@@ -145,6 +156,7 @@ class GamificationContainer:
         self._mission_service = None
         self._reward_service = None
         self._user_gamification_service = None
+        self._stats_service = None
         self._mission_orchestrator = None
         self._reward_orchestrator = None
         self._configuration_orchestrator = None
