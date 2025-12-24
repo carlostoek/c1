@@ -20,6 +20,7 @@ from config import Config
 
 # Importar jobs de gamificación
 from bot.gamification.background.auto_progression_checker import check_all_users_progression
+from bot.gamification.background.streak_expiration_checker import check_expired_streaks
 
 logger = logging.getLogger(__name__)
 
@@ -276,6 +277,23 @@ def start_background_tasks(bot: Bot):
         max_instances=1
     )
     logger.info("✅ Tarea programada: Auto-progression (cada 6 horas)")
+
+    # Tarea 5: Streak expiration checker (Gamificación)
+    # Frecuencia: Cada 1 hora
+    async def streak_expiration_job():
+        """Job wrapper para streak expiration con session management."""
+        async with get_session() as session:
+            await check_expired_streaks(session, bot)
+
+    _scheduler.add_job(
+        streak_expiration_job,
+        trigger=IntervalTrigger(hours=1),
+        id="streak_expiration_checker",
+        name="Streak expiration checker (Gamificación)",
+        replace_existing=True,
+        max_instances=1
+    )
+    logger.info("✅ Tarea programada: Streak expiration (cada 1 hora)")
 
     # Iniciar scheduler
     _scheduler.start()
