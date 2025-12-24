@@ -14,6 +14,10 @@ from bot.gamification.handlers import (
     gamification_admin_router,
     gamification_mission_wizard_router,
     gamification_reward_wizard_router,
+    gamification_user_profile_router,
+    gamification_user_missions_router,
+    gamification_user_rewards_router,
+    gamification_user_leaderboard_router,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,10 +36,16 @@ def register_all_handlers(dispatcher: Dispatcher) -> None:
     dispatcher.include_router(admin_router)
     dispatcher.include_router(user_router)
 
-    # Registrar routers de gamificación
+    # Registrar routers de gamificación (admin)
     dispatcher.include_router(gamification_admin_router)
     dispatcher.include_router(gamification_mission_wizard_router)
     dispatcher.include_router(gamification_reward_wizard_router)
+
+    # Registrar routers de gamificación (user)
+    dispatcher.include_router(gamification_user_profile_router)
+    dispatcher.include_router(gamification_user_missions_router)
+    dispatcher.include_router(gamification_user_rewards_router)
+    dispatcher.include_router(gamification_user_leaderboard_router)
 
     logger.info("Handlers registrados correctamente")
 
