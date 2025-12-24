@@ -82,6 +82,7 @@ class Reaction(Base):
     """Catálogo de reacciones configuradas en el sistema.
 
     Almacena emojis disponibles y cuántos besitos otorga cada uno.
+    Incluye campos de UI para botones de reacción personalizados.
     """
     __tablename__ = "reactions"
 
@@ -92,6 +93,15 @@ class Reaction(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
     )
+
+    # Campos de UI para botones personalizados
+    button_emoji: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True
+    )
+    button_label: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relaciones
     user_reactions: Mapped[List["UserReaction"]] = relationship(
@@ -437,4 +447,66 @@ class GamificationConfig(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC)
+    )
+
+
+class CustomReaction(Base):
+    """Registro de reacciones personalizadas en mensajes de broadcasting.
+
+    Almacena cada vez que un usuario presiona un botón de reacción
+    en un mensaje de broadcasting con gamificación habilitada.
+
+    Attributes:
+        id: ID único del registro
+        broadcast_message_id: ID del mensaje de broadcasting
+        user_id: ID del usuario que reaccionó
+        reaction_type_id: ID del tipo de reacción (Reaction)
+        emoji: Emoji de la reacción
+        besitos_earned: Cantidad de besitos ganados con esta reacción
+        created_at: Timestamp de cuando se realizó la reacción
+
+    Relaciones:
+        user: Usuario que reaccionó (via users table)
+        reaction_type: Tipo de reacción seleccionada
+    """
+    __tablename__ = "custom_reactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    broadcast_message_id: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id"),
+        nullable=False
+    )
+    reaction_type_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("reactions.id"),
+        nullable=False
+    )
+    emoji: Mapped[str] = mapped_column(String(10), nullable=False)
+    besitos_earned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        nullable=False
+    )
+
+    # Relaciones
+    reaction_type: Mapped["Reaction"] = relationship(
+        "Reaction",
+        foreign_keys=[reaction_type_id]
+    )
+
+    # Índices para optimización
+    __table_args__ = (
+        Index(
+            'idx_unique_reaction',
+            'broadcast_message_id', 'user_id', 'reaction_type_id',
+            unique=True
+        ),
+        Index('idx_user_created', 'user_id', 'created_at'),
+        Index('idx_broadcast_message', 'broadcast_message_id'),
     )

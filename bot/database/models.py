@@ -8,6 +8,7 @@ Tablas:
 - invitation_tokens: Tokens de invitación generados
 - free_channel_requests: Solicitudes de acceso al canal Free
 - subscription_plans: Planes de suscripción/tarifas configurables
+- broadcast_messages: Mensajes de broadcasting con gamificación
 """
 import logging
 from datetime import datetime
@@ -341,3 +342,56 @@ class FreeChannelRequest(Base):
     def __repr__(self):
         status = "PROCESADA" if self.processed else f"PENDIENTE ({self.minutes_since_request()}min)"
         return f"<FreeRequest(user={self.user_id}, {status})>"
+
+
+class BroadcastMessage(Base):
+    """
+    Registro de mensajes de broadcasting enviados con gamificación.
+
+    Cada registro:
+    - Almacena información del mensaje enviado (texto, media)
+    - Configuración de gamificación (botones de reacción)
+    - Protección de contenido
+    - Cache de estadísticas de reacciones
+    """
+    __tablename__ = "broadcast_messages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Identificación del mensaje
+    message_id = Column(BigInteger, nullable=False)  # ID del mensaje en Telegram
+    chat_id = Column(BigInteger, nullable=False)  # ID del canal donde se envió
+
+    # Contenido
+    content_type = Column(String(20), nullable=False)  # "text", "photo", "video"
+    content_text = Column(String(4096), nullable=True)  # Texto del mensaje
+    media_file_id = Column(String(200), nullable=True)  # File ID de Telegram (si es media)
+
+    # Auditoría
+    sent_by = Column(BigInteger, ForeignKey("users.user_id"), nullable=False)  # Admin que envió
+    sent_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Gamificación
+    gamification_enabled = Column(Boolean, default=False, nullable=False)
+    reaction_buttons = Column(JSON, default=list)  # Lista de configs: [{"emoji": "👍", "label": "...", "reaction_type_id": 1, "besitos": 10}]
+    content_protected = Column(Boolean, default=False, nullable=False)  # Protección anti-forward
+
+    # Cache de estadísticas
+    total_reactions = Column(Integer, default=0, nullable=False)
+    unique_reactors = Column(Integer, default=0, nullable=False)
+
+    # Relación con usuario
+    sender = relationship("User", uselist=False, lazy="selectin")
+
+    # Índices para optimización
+    __table_args__ = (
+        Index('idx_chat_message', 'chat_id', 'message_id', unique=True),
+        Index('idx_sent_at', 'sent_at'),
+        Index('idx_gamification_enabled', 'gamification_enabled'),
+    )
+
+    def __repr__(self):
+        return (
+            f"<BroadcastMessage(id={self.id}, chat_id={self.chat_id}, "
+            f"message_id={self.message_id}, gamification={self.gamification_enabled})>"
+        )
