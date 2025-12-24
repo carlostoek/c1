@@ -13,9 +13,14 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram import F
 
+from bot.middlewares import DatabaseMiddleware
 from bot.gamification.services.container import GamificationContainer
 
 router = Router()
+
+# Registrar middleware para inyectar session y gamification
+router.message.middleware(DatabaseMiddleware())
+router.callback_query.middleware(DatabaseMiddleware())
 
 
 @router.message(Command("profile"))

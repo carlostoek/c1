@@ -6,10 +6,14 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 
 from bot.filters.admin import IsAdmin
+from bot.middlewares import DatabaseMiddleware
 from bot.gamification.services.container import GamificationContainer
 
 router = Router()
 router.callback_query.filter(IsAdmin())
+
+# Registrar middleware para inyectar session y gamification
+router.callback_query.middleware(DatabaseMiddleware())
 
 
 @router.callback_query(F.data == "gamif:admin:stats")

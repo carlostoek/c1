@@ -11,10 +11,14 @@ Funcionalidades:
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
+from bot.middlewares import DatabaseMiddleware
 from bot.gamification.services.container import GamificationContainer
 from bot.gamification.database.enums import MissionStatus
 
 router = Router()
+
+# Registrar middleware para inyectar session y gamification
+router.callback_query.middleware(DatabaseMiddleware())
 
 
 @router.callback_query(F.data == "user:missions")

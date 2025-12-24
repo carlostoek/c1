@@ -15,6 +15,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 
 from bot.filters.admin import IsAdmin
+from bot.middlewares import DatabaseMiddleware
 from bot.gamification.states.admin import MissionWizardStates
 from bot.gamification.services.container import GamificationContainer
 from bot.gamification.database.enums import MissionType
@@ -22,6 +23,10 @@ from bot.gamification.database.enums import MissionType
 router = Router()
 router.message.filter(IsAdmin())
 router.callback_query.filter(IsAdmin())
+
+# Registrar middleware para inyectar session y gamification
+router.message.middleware(DatabaseMiddleware())
+router.callback_query.middleware(DatabaseMiddleware())
 
 
 # ========================================
