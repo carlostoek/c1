@@ -5,7 +5,7 @@ Integra reacciones de Telegram con sistema de gamificación.
 """
 
 from datetime import datetime, UTC
-from aiogram import Router
+from aiogram import Router, Bot
 from aiogram.types import MessageReactionUpdated
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -19,7 +19,8 @@ router = Router(name="gamification_reactions")
 @router.message_reaction()
 async def on_reaction_event(
     update: MessageReactionUpdated,
-    session: AsyncSession
+    session: AsyncSession,
+    bot: Bot
 ):
     """
     Procesa evento de reacción.
@@ -53,7 +54,7 @@ async def on_reaction_event(
         return
 
     # Crear container de gamificación
-    gamification = GamificationContainer(session)
+    gamification = GamificationContainer(session, bot)
 
     # Procesar cada emoji añadido
     for reaction in new_reactions:
@@ -85,19 +86,29 @@ async def on_reaction_event(
                             f"Auto level-up triggered: User {user_id} "
                             f"{old_level.name} → {new_level.name}"
                         )
+                        # Notificar level-up
+                        await gamification.notifications.notify_level_up(
+                            user_id, old_level, new_level
+                        )
 
                     # Actualizar progreso de misiones
-                    updated_missions = await gamification.mission.on_user_reaction(
+                    completed_missions = await gamification.mission.on_user_reaction(
                         user_id=user_id,
                         emoji=emoji,
                         reacted_at=datetime.now(UTC)
                     )
 
-                    if updated_missions:
+                    # Notificar misiones completadas
+                    if completed_missions:
                         logger.info(
-                            f"Mission progress updated: User {user_id} "
-                            f"({len(updated_missions)} mission(s) updated)"
+                            f"Missions completed: User {user_id} "
+                            f"({len(completed_missions)} mission(s) completed)"
                         )
+
+                        for user_mission, mission in completed_missions:
+                            await gamification.notifications.notify_mission_completed(
+                                user_id, mission
+                            )
 
                 else:
                     logger.warning(

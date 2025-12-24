@@ -12,10 +12,9 @@ import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from bot.gamification.database.models import UserGamification, Level
+from bot.gamification.database.models import UserGamification, Level, GamificationConfig
 from bot.gamification.background.auto_progression_checker import (
-    check_all_users_progression,
-    notify_level_up
+    check_all_users_progression
 )
 from bot.gamification.services.level import LevelService
 
@@ -23,6 +22,12 @@ from bot.gamification.services.level import LevelService
 @pytest_asyncio.fixture
 async def levels(db_session):
     """Crea niveles de prueba."""
+    # Crear configuración de gamificación con notificaciones habilitadas
+    config = GamificationConfig()
+    config.id = 1
+    config.notifications_enabled = True
+    db_session.add(config)
+
     level1 = Level(name="Novato", min_besitos=0, order=1, active=True)
     level2 = Level(name="Intermedio", min_besitos=100, order=2, active=True)
     level3 = Level(name="Avanzado", min_besitos=500, order=3, active=True)
@@ -109,46 +114,6 @@ async def test_check_all_users_sends_notifications(
     assert calls[1][0][0] == 1003
     assert "Subiste de nivel" in calls[1][0][1]
     assert "Avanzado" in calls[1][0][1]
-
-
-@pytest.mark.asyncio
-async def test_notify_level_up_sends_correct_message(db_session, levels):
-    """Verifica que notify_level_up envía el mensaje correcto."""
-    # Mock del bot
-    mock_bot = AsyncMock()
-    mock_bot.send_message = AsyncMock()
-
-    # Llamar a notify_level_up
-    await notify_level_up(mock_bot, 12345, levels[0], levels[1])
-
-    # Verificar llamada
-    mock_bot.send_message.assert_called_once()
-
-    # Verificar contenido del mensaje
-    call_args = mock_bot.send_message.call_args
-    # call_args[0] = argumentos posicionales, call_args[1] = kwargs
-    assert call_args[0][0] == 12345  # user_id
-    message_text = call_args[0][1]   # message text
-    assert "🎉" in message_text
-    assert "Subiste de nivel" in message_text
-    assert levels[0].name in message_text  # Nivel anterior
-    assert levels[1].name in message_text  # Nivel nuevo
-    assert str(levels[1].min_besitos) in message_text
-    assert call_args[1]["parse_mode"] == "HTML"
-
-
-@pytest.mark.asyncio
-async def test_notify_level_up_handles_send_error(db_session, levels):
-    """Verifica que notify_level_up maneja errores al enviar mensajes."""
-    # Mock del bot que falla al enviar
-    mock_bot = AsyncMock()
-    mock_bot.send_message = AsyncMock(side_effect=Exception("User blocked bot"))
-
-    # No debería lanzar excepción
-    await notify_level_up(mock_bot, 12345, levels[0], levels[1])
-
-    # Verificar que intentó enviar
-    mock_bot.send_message.assert_called_once()
 
 
 @pytest.mark.asyncio

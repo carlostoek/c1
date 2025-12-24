@@ -5,21 +5,26 @@ Implementa Dependency Injection con lazy loading para gestionar
 el ciclo de vida de los servicios del módulo.
 """
 
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from aiogram import Bot
 
 
 class GamificationContainer:
     """Contenedor de servicios con lazy loading."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, bot: Optional["Bot"] = None):
         """
         Inicializa container.
 
         Args:
             session: Sesión async de SQLAlchemy
+            bot: Instancia del bot de Telegram (opcional, requerido para notificaciones)
         """
         self._session = session
+        self._bot = bot
 
         # Servicios (lazy loaded)
         self._reaction_service = None
@@ -29,6 +34,7 @@ class GamificationContainer:
         self._reward_service = None
         self._user_gamification_service = None
         self._stats_service = None
+        self._notification_service = None
 
         # Orchestrators (lazy loaded)
         self._mission_orchestrator = None
@@ -96,6 +102,19 @@ class GamificationContainer:
         return self._stats_service
 
     @property
+    def notifications(self):
+        """Servicio de notificaciones."""
+        if self._notification_service is None:
+            if self._bot is None:
+                raise RuntimeError(
+                    "NotificationService requires a Bot instance. "
+                    "Initialize GamificationContainer with bot parameter."
+                )
+            from bot.gamification.services.notifications import NotificationService
+            self._notification_service = NotificationService(self._bot, self._session)
+        return self._notification_service
+
+    @property
     def mission_orchestrator(self):
         """Orquestador de creación de misiones."""
         if self._mission_orchestrator is None:
@@ -140,6 +159,8 @@ class GamificationContainer:
             loaded.append('user_gamification')
         if self._stats_service is not None:
             loaded.append('stats')
+        if self._notification_service is not None:
+            loaded.append('notifications')
         if self._mission_orchestrator is not None:
             loaded.append('mission_orchestrator')
         if self._reward_orchestrator is not None:
@@ -157,6 +178,7 @@ class GamificationContainer:
         self._reward_service = None
         self._user_gamification_service = None
         self._stats_service = None
+        self._notification_service = None
         self._mission_orchestrator = None
         self._reward_orchestrator = None
         self._configuration_orchestrator = None

@@ -12,7 +12,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
 
 from bot.gamification.database.models import UserGamification
-from bot.gamification.services.level import LevelService
+from bot.gamification.services.container import GamificationContainer
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,8 @@ async def check_all_users_progression(session: AsyncSession, bot: Bot):
         session: AsyncSession de SQLAlchemy
         bot: Instancia del Bot de aiogram
     """
-    level_service = LevelService(session)
+    # Crear container de gamificación
+    gamification = GamificationContainer(session, bot)
 
     # Obtener todos los usuarios
     stmt = select(UserGamification)
@@ -51,7 +52,7 @@ async def check_all_users_progression(session: AsyncSession, bot: Bot):
 
         for user_gamif in batch:
             try:
-                changed, old_level, new_level = await level_service.check_and_apply_level_up(
+                changed, old_level, new_level = await gamification.level.check_and_apply_level_up(
                     user_gamif.user_id
                 )
 
@@ -62,8 +63,10 @@ async def check_all_users_progression(session: AsyncSession, bot: Bot):
                         f"{old_level.name} → {new_level.name}"
                     )
 
-                    # Notificar
-                    await notify_level_up(bot, user_gamif.user_id, old_level, new_level)
+                    # Notificar usando servicio de notificaciones
+                    await gamification.notifications.notify_level_up(
+                        user_gamif.user_id, old_level, new_level
+                    )
 
                 processed += 1
 
@@ -77,33 +80,6 @@ async def check_all_users_progression(session: AsyncSession, bot: Bot):
         f"Auto-progression check completed: "
         f"{processed} users processed, {level_ups} level-ups applied"
     )
-
-
-async def notify_level_up(bot: Bot, user_id: int, old_level, new_level):
-    """
-    Notifica level-up al usuario.
-
-    Envía mensaje privado informando sobre el cambio de nivel
-    y los nuevos beneficios desbloqueados.
-
-    Args:
-        bot: Instancia del Bot de aiogram
-        user_id: ID del usuario de Telegram
-        old_level: Nivel anterior (Level model)
-        new_level: Nivel nuevo (Level model)
-    """
-    try:
-        message = (
-            f"🎉 <b>¡Subiste de nivel!</b>\n\n"
-            f"Nivel anterior: {old_level.name}\n"
-            f"<b>Nivel nuevo: {new_level.name}</b>\n\n"
-            f"Mínimo de besitos: {new_level.min_besitos}"
-        )
-
-        await bot.send_message(user_id, message, parse_mode="HTML")
-
-    except Exception as e:
-        logger.error(f"Failed to notify user {user_id}: {e}")
 
 
 def setup_auto_progression_scheduler(

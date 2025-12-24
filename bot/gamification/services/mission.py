@@ -290,6 +290,9 @@ class MissionService:
             user_id: ID del usuario
             emoji: Emoji de la reacción
             reacted_at: Timestamp de la reacción
+
+        Returns:
+            Lista de tuplas (user_mission, mission) de las misiones completadas
         """
         # Obtener misiones IN_PROGRESS
         active_missions = await self.get_user_missions(
@@ -302,21 +305,29 @@ class MissionService:
         result = await self.session.execute(stmt)
         user_streak = result.scalar_one_or_none()
 
+        completed_missions = []
+
         for user_mission in active_missions:
             mission = await self.session.get(Mission, user_mission.mission_id)
+
+            completed = False
 
             # Actualizar según tipo
             if mission.mission_type == MissionType.STREAK.value:
                 if user_streak:
-                    await self._update_streak_progress(user_mission, user_streak, mission)
+                    completed = await self._update_streak_progress(user_mission, user_streak, mission)
 
             elif mission.mission_type == MissionType.DAILY.value:
-                await self._update_daily_progress(user_mission, emoji, reacted_at, mission)
+                completed = await self._update_daily_progress(user_mission, emoji, reacted_at, mission)
 
             elif mission.mission_type == MissionType.WEEKLY.value:
-                await self._update_weekly_progress(user_mission, emoji, reacted_at, mission)
+                completed = await self._update_weekly_progress(user_mission, emoji, reacted_at, mission)
+
+            if completed:
+                completed_missions.append((user_mission, mission))
 
         await self.session.commit()
+        return completed_missions
 
     async def _update_streak_progress(
         self,

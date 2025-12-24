@@ -16,16 +16,30 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock
 
 from aiogram.types import MessageReactionUpdated, User, Chat, ReactionTypeEmoji
 
-from bot.gamification.database.models import Reaction, Level, UserGamification
+from bot.gamification.database.models import Reaction, Level, UserGamification, GamificationConfig
 from bot.gamification.background.reaction_hook import (
     on_reaction_event,
     is_valid_reaction
 )
 
 
+@pytest.fixture
+def mock_bot():
+    """Mock del bot de Telegram."""
+    bot = AsyncMock()
+    bot.send_message = AsyncMock()
+    return bot
+
+
 @pytest_asyncio.fixture
 async def reaction_data(db_session):
     """Crea reacción y nivel de prueba."""
+    # Crear configuración de gamificación
+    config = GamificationConfig()
+    config.id = 1
+    config.notifications_enabled = True
+    db_session.add(config)
+
     # Crear reacción activa
     reaction = Reaction(emoji="❤️", besitos_value=5, active=True)
     db_session.add(reaction)
@@ -89,7 +103,7 @@ def create_mock_reaction_update(
 
 
 @pytest.mark.asyncio
-async def test_on_reaction_event_records_besitos(db_session, reaction_data):
+async def test_on_reaction_event_records_besitos(db_session, reaction_data, mock_bot):
     """Verifica que se registren besitos correctamente."""
     # Crear mock update
     update = create_mock_reaction_update(
@@ -100,7 +114,7 @@ async def test_on_reaction_event_records_besitos(db_session, reaction_data):
     )
 
     # Procesar evento
-    await on_reaction_event(update, db_session)
+    await on_reaction_event(update, db_session, mock_bot)
 
     # Verificar que se registraron besitos
     await db_session.refresh(reaction_data["user"])
@@ -108,7 +122,7 @@ async def test_on_reaction_event_records_besitos(db_session, reaction_data):
 
 
 @pytest.mark.asyncio
-async def test_on_reaction_event_triggers_level_up(db_session, reaction_data):
+async def test_on_reaction_event_triggers_level_up(db_session, reaction_data, mock_bot):
     """Verifica que se dispare level-up automáticamente."""
     # Crear mock update
     update = create_mock_reaction_update(
@@ -119,7 +133,7 @@ async def test_on_reaction_event_triggers_level_up(db_session, reaction_data):
     )
 
     # Procesar evento
-    await on_reaction_event(update, db_session)
+    await on_reaction_event(update, db_session, mock_bot)
 
     # Verificar level-up
     await db_session.refresh(reaction_data["user"])
@@ -128,14 +142,14 @@ async def test_on_reaction_event_triggers_level_up(db_session, reaction_data):
 
 
 @pytest.mark.asyncio
-async def test_on_reaction_event_without_user(db_session, reaction_data):
+async def test_on_reaction_event_without_user(db_session, reaction_data, mock_bot):
     """Verifica que se maneje correctamente evento sin usuario."""
     # Crear update sin usuario
     mock_update = MagicMock(spec=MessageReactionUpdated)
     mock_update.user = None
 
     # No debería causar error
-    await on_reaction_event(mock_update, db_session)
+    await on_reaction_event(mock_update, db_session, mock_bot)
 
     # Besitos del usuario no deberían cambiar
     await db_session.refresh(reaction_data["user"])
@@ -143,7 +157,7 @@ async def test_on_reaction_event_without_user(db_session, reaction_data):
 
 
 @pytest.mark.asyncio
-async def test_on_reaction_event_without_new_reactions(db_session, reaction_data):
+async def test_on_reaction_event_without_new_reactions(db_session, reaction_data, mock_bot):
     """Verifica que se maneje evento sin reacciones nuevas."""
     # Crear update sin reacciones
     mock_user = MagicMock(spec=User)
@@ -159,7 +173,7 @@ async def test_on_reaction_event_without_new_reactions(db_session, reaction_data
     mock_update.new_reaction = []  # Sin reacciones
 
     # No debería causar error
-    await on_reaction_event(mock_update, db_session)
+    await on_reaction_event(mock_update, db_session, mock_bot)
 
     # Besitos no deberían cambiar
     await db_session.refresh(reaction_data["user"])
@@ -167,7 +181,7 @@ async def test_on_reaction_event_without_new_reactions(db_session, reaction_data
 
 
 @pytest.mark.asyncio
-async def test_on_reaction_event_with_inactive_emoji(db_session, reaction_data):
+async def test_on_reaction_event_with_inactive_emoji(db_session, reaction_data, mock_bot):
     """Verifica que reacciones con emoji inactivo se manejen correctamente."""
     # Crear mock update con emoji no configurado
     update = create_mock_reaction_update(
@@ -178,7 +192,7 @@ async def test_on_reaction_event_with_inactive_emoji(db_session, reaction_data):
     )
 
     # Procesar evento (no debería dar error, pero no debe registrar besitos)
-    await on_reaction_event(update, db_session)
+    await on_reaction_event(update, db_session, mock_bot)
 
     # Besitos no deberían cambiar (emoji no configurado)
     await db_session.refresh(reaction_data["user"])
@@ -247,7 +261,7 @@ async def test_is_valid_reaction_with_only_custom_emojis():
 
 
 @pytest.mark.asyncio
-async def test_on_reaction_event_handles_errors_gracefully(db_session, reaction_data):
+async def test_on_reaction_event_handles_errors_gracefully(db_session, reaction_data, mock_bot):
     """Verifica que errores en procesamiento se manejen sin crashear."""
     # Crear update que causará error (usuario no existe en BD)
     update = create_mock_reaction_update(
@@ -258,7 +272,7 @@ async def test_on_reaction_event_handles_errors_gracefully(db_session, reaction_
     )
 
     # No debería crashear (error es capturado y logueado)
-    await on_reaction_event(update, db_session)
+    await on_reaction_event(update, db_session, mock_bot)
 
     # Usuario original no debería verse afectado
     await db_session.refresh(reaction_data["user"])
