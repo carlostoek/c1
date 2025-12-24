@@ -19,6 +19,8 @@ from bot.gamification.services.container import GamificationContainer
 from bot.gamification.database.enums import RewardType, BadgeRarity
 from bot.gamification.utils.validators import is_valid_emoji
 
+PAGE_SIZE = 5
+
 router = Router()
 router.message.filter(IsAdmin())
 router.callback_query.filter(IsAdmin())
@@ -114,7 +116,7 @@ async def enter_reward_description(message: Message, state: FSMContext):
     await state.update_data(reward_description=message.text.strip())
 
     data = await state.get_data()
-    reward_type = data['reward_type']
+    reward_type = RewardType(data['reward_type'])
 
     # Redirigir según tipo
     if reward_type == RewardType.BADGE:
@@ -373,31 +375,46 @@ async def skip_unlock(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(RewardWizardStates.choose_unlock_type, F.data == "wizard:unlock:mission")
+@router.callback_query(RewardWizardStates.choose_unlock_type, F.data.startswith("wizard:unlock:mission"))
 async def unlock_by_mission(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
-    """Seleccionar misión requerida."""
+    """Seleccionar misión requerida con paginación."""
+    parts = callback.data.split(":")
+    page = int(parts[3]) if len(parts) > 3 else 1
+
     missions = await gamification.mission.get_all_missions()
 
     if not missions:
         await callback.answer("⚠️ No hay misiones creadas. Crea una primero.", show_alert=True)
         return
 
-    keyboard_buttons = []
-    for mission in missions[:10]:  # Máximo 10 misiones
-        keyboard_buttons.append([
+    start_index = (page - 1) * PAGE_SIZE
+    end_index = start_index + PAGE_SIZE
+    missions_on_page = missions[start_index:end_index]
+
+    keyboard_rows = []
+    for mission in missions_on_page:
+        keyboard_rows.append([
             InlineKeyboardButton(
                 text=f"{mission.name}",
                 callback_data=f"wizard:select_mission:{mission.id}"
             )
         ])
-    keyboard_buttons.append([
-        InlineKeyboardButton(text="❌ Cancelar", callback_data="wizard:cancel")
-    ])
+    
+    total_pages = (len(missions) + PAGE_SIZE - 1) // PAGE_SIZE
+    nav_buttons = []
+    if page > 1:
+        nav_buttons.append(InlineKeyboardButton(text="⬅️ Anterior", callback_data=f"wizard:unlock:mission:page:{page-1}"))
+    if page < total_pages:
+        nav_buttons.append(InlineKeyboardButton(text="➡️ Siguiente", callback_data=f"wizard:unlock:mission:page:{page+1}"))
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    if nav_buttons:
+        keyboard_rows.append(nav_buttons)
+
+    keyboard_rows.append([InlineKeyboardButton(text="❌ Cancelar", callback_data="wizard:cancel")])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
 
     await callback.message.edit_text(
-        "📋 <b>Seleccionar Misión</b>\n\n"
+        f"📋 <b>Seleccionar Misión</b> (Página {page}/{total_pages})\n\n"
         "Elige la misión que desbloqueará esta recompensa:",
         reply_markup=keyboard,
         parse_mode="HTML"
@@ -411,8 +428,7 @@ async def select_mission(callback: CallbackQuery, state: FSMContext, gamificatio
     """Procesa selección de misión."""
     mission_id = int(callback.data.split(":")[-1])
 
-    # Obtener nombre de misión para mostrar
-    mission = await gamification.mission.get_mission(mission_id)
+    mission = await gamification.mission.get_mission_by_id(mission_id)
     if not mission:
         await callback.answer("❌ Misión no encontrada", show_alert=True)
         return
@@ -434,31 +450,46 @@ async def select_mission(callback: CallbackQuery, state: FSMContext, gamificatio
     await callback.answer()
 
 
-@router.callback_query(RewardWizardStates.choose_unlock_type, F.data == "wizard:unlock:level")
+@router.callback_query(RewardWizardStates.choose_unlock_type, F.data.startswith("wizard:unlock:level"))
 async def unlock_by_level(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
-    """Seleccionar nivel requerido."""
+    """Seleccionar nivel requerido con paginación."""
+    parts = callback.data.split(":")
+    page = int(parts[3]) if len(parts) > 3 else 1
+    
     levels = await gamification.level.get_all_levels()
 
     if not levels:
         await callback.answer("⚠️ No hay niveles creados. Crea uno primero.", show_alert=True)
         return
 
+    start_index = (page - 1) * PAGE_SIZE
+    end_index = start_index + PAGE_SIZE
+    levels_on_page = levels[start_index:end_index]
+
     keyboard_buttons = []
-    for level in levels[:10]:  # Máximo 10 niveles
+    for level in levels_on_page:
         keyboard_buttons.append([
             InlineKeyboardButton(
-                text=f"{level.name} (orden {level.level_order})",
+                text=f"{level.name} (orden {level.order})",
                 callback_data=f"wizard:select_level:{level.id}"
             )
         ])
-    keyboard_buttons.append([
-        InlineKeyboardButton(text="❌ Cancelar", callback_data="wizard:cancel")
-    ])
 
+    total_pages = (len(levels) + PAGE_SIZE - 1) // PAGE_SIZE
+    nav_buttons = []
+    if page > 1:
+        nav_buttons.append(InlineKeyboardButton(text="⬅️ Anterior", callback_data=f"wizard:unlock:level:page:{page-1}"))
+    if page < total_pages:
+        nav_buttons.append(InlineKeyboardButton(text="➡️ Siguiente", callback_data=f"wizard:unlock:level:page:{page+1}"))
+    
+    if nav_buttons:
+        keyboard_buttons.append(nav_buttons)
+
+    keyboard_buttons.append([InlineKeyboardButton(text="❌ Cancelar", callback_data="wizard:cancel")])
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
     await callback.message.edit_text(
-        "⭐ <b>Seleccionar Nivel</b>\n\n"
+        f"⭐ <b>Seleccionar Nivel</b> (Página {page}/{total_pages})\n\n"
         "Elige el nivel que desbloqueará esta recompensa:",
         reply_markup=keyboard,
         parse_mode="HTML"
@@ -472,8 +503,7 @@ async def select_level(callback: CallbackQuery, state: FSMContext, gamification:
     """Procesa selección de nivel."""
     level_id = int(callback.data.split(":")[-1])
 
-    # Obtener nombre de nivel para mostrar
-    level = await gamification.level.get_level(level_id)
+    level = await gamification.level.get_level_by_id(level_id)
     if not level:
         await callback.answer("❌ Nivel no encontrado", show_alert=True)
         return
@@ -551,7 +581,7 @@ async def confirm_reward(callback: CallbackQuery, state: FSMContext, gamificatio
         reward_data = {
             'name': data['reward_name'],
             'description': data['reward_description'],
-            'reward_type': data['reward_type'],
+            'reward_type': RewardType(data['reward_type']),
             'metadata': data.get('metadata', {}),
             'cost_besitos': data.get('cost_besitos')
         }
@@ -575,7 +605,7 @@ async def confirm_reward(callback: CallbackQuery, state: FSMContext, gamificatio
             await callback.message.edit_text(
                 f"✅ <b>Recompensa Creada Exitosamente</b>\n\n"
                 f"🎁 <b>{reward.name}</b>\n"
-                f"Tipo: {reward.reward_type.value.title()}\n\n"
+                f"Tipo: {str(reward.reward_type).title()}\n\n"
                 f"Los usuarios ahora pueden desbloquearla según las condiciones configuradas.",
                 parse_mode="HTML"
             )
@@ -612,7 +642,7 @@ def _generate_summary(data: dict) -> str:
     summary = f"""🎁 <b>RESUMEN DE RECOMPENSA</b>
 
 <b>Nombre:</b> {data['reward_name']}
-<b>Tipo:</b> {data['reward_type'].value.title()}
+<b>Tipo:</b> {data['reward_type'].title()}
 <b>Descripción:</b> {data['reward_description']}
 """
 

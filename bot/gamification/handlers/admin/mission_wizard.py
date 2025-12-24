@@ -20,6 +20,8 @@ from bot.gamification.states.admin import MissionWizardStates
 from bot.gamification.services.container import GamificationContainer
 from bot.gamification.database.enums import MissionType
 
+PAGE_SIZE = 5
+
 router = Router()
 router.message.filter(IsAdmin())
 router.callback_query.filter(IsAdmin())
@@ -285,6 +287,7 @@ async def skip_auto_level(callback: CallbackQuery, state: FSMContext):
     """Saltar auto level."""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="➕ Crear Recompensa", callback_data="wizard:reward:new")],
+        [InlineKeyboardButton(text="🔍 Seleccionar Existente", callback_data="wizard:reward:select")],
         [InlineKeyboardButton(text="✅ Finalizar", callback_data="wizard:finish")]
     ])
 
@@ -373,6 +376,7 @@ async def enter_level_order(message: Message, state: FSMContext):
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="➕ Crear Recompensa", callback_data="wizard:reward:new")],
+        [InlineKeyboardButton(text="🔍 Seleccionar Existente", callback_data="wizard:reward:select")],
         [InlineKeyboardButton(text="✅ Finalizar", callback_data="wizard:finish")]
     ])
 
@@ -385,31 +389,47 @@ async def enter_level_order(message: Message, state: FSMContext):
     await state.set_state(MissionWizardStates.choose_rewards)
 
 
-@router.callback_query(MissionWizardStates.choose_auto_level, F.data == "wizard:level:select")
+@router.callback_query(MissionWizardStates.choose_auto_level, F.data.startswith("wizard:level:select"))
 async def choose_select_existing_level(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
-    """Mostrar niveles existentes para selección."""
-    # Obtener niveles existentes
+    """Mostrar niveles existentes para selección con paginación."""
+    parts = callback.data.split(":")
+    page = int(parts[3]) if len(parts) > 3 else 1
+
     levels = await gamification.level.get_all_levels()
 
     if not levels:
         await callback.answer("⚠️ No hay niveles existentes. Crea uno nuevo.", show_alert=True)
         return
 
-    # Crear keyboard con niveles
+    start_index = (page - 1) * PAGE_SIZE
+    end_index = start_index + PAGE_SIZE
+    levels_on_page = levels[start_index:end_index]
+
     keyboard_rows = []
-    for level in levels[:10]:  # Máximo 10 niveles
+    for level in levels_on_page:
         keyboard_rows.append([
             InlineKeyboardButton(
                 text=f"{level.name} (orden {level.order})",
                 callback_data=f"wizard:level:id:{level.id}"
             )
         ])
-    keyboard_rows.append([InlineKeyboardButton(text="❌ Cancelar", callback_data="wizard:level:skip")])
 
+    # Paginación
+    total_pages = (len(levels) + PAGE_SIZE - 1) // PAGE_SIZE
+    nav_buttons = []
+    if page > 1:
+        nav_buttons.append(InlineKeyboardButton(text="⬅️ Anterior", callback_data=f"wizard:level:select:page:{page-1}"))
+    if page < total_pages:
+        nav_buttons.append(InlineKeyboardButton(text="➡️ Siguiente", callback_data=f"wizard:level:select:page:{page+1}"))
+
+    if nav_buttons:
+        keyboard_rows.append(nav_buttons)
+
+    keyboard_rows.append([InlineKeyboardButton(text="❌ Cancelar", callback_data="wizard:level:skip")])
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
 
     await callback.message.edit_text(
-        "🔍 <b>Seleccionar Nivel Existente</b>\n\n"
+        f"🔍 <b>Seleccionar Nivel Existente</b> (Página {page}/{total_pages})\n\n"
         "Elige un nivel:",
         reply_markup=keyboard,
         parse_mode="HTML"
@@ -422,13 +442,11 @@ async def select_existing_level(callback: CallbackQuery, state: FSMContext, gami
     """Procesa selección de nivel existente."""
     level_id = int(callback.data.split(":")[-1])
 
-    # Obtener datos del nivel
-    level = await gamification.level.get_level(level_id)
+    level = await gamification.level.get_level_by_id(level_id)
     if not level:
         await callback.answer("❌ Nivel no encontrado", show_alert=True)
         return
 
-    # Guardar nivel seleccionado
     auto_level = {
         'level_id': level.id,
         'name': level.name,
@@ -438,6 +456,7 @@ async def select_existing_level(callback: CallbackQuery, state: FSMContext, gami
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="➕ Crear Recompensa", callback_data="wizard:reward:new")],
+        [InlineKeyboardButton(text="🔍 Seleccionar Existente", callback_data="wizard:reward:select")],
         [InlineKeyboardButton(text="✅ Finalizar", callback_data="wizard:finish")]
     ])
 
@@ -468,6 +487,98 @@ async def choose_create_reward(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+@router.callback_query(MissionWizardStates.choose_rewards, F.data.startswith("wizard:reward:select"))
+async def choose_select_existing_reward(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
+    """Mostrar recompensas existentes para selección con paginación."""
+    parts = callback.data.split(":")
+    page = int(parts[3]) if len(parts) > 3 else 1
+
+    rewards = await gamification.reward.get_all_rewards()
+
+    if not rewards:
+        await callback.answer("⚠️ No hay recompensas existentes. Crea una nueva.", show_alert=True)
+        return
+
+    start_index = (page - 1) * PAGE_SIZE
+    end_index = start_index + PAGE_SIZE
+    rewards_on_page = rewards[start_index:end_index]
+
+    keyboard_rows = []
+    for reward in rewards_on_page:
+        keyboard_rows.append([
+            InlineKeyboardButton(
+                text=f"{reward.name}",
+                callback_data=f"wizard:reward:id:{reward.id}"
+            )
+        ])
+
+    # Paginación
+    total_pages = (len(rewards) + PAGE_SIZE - 1) // PAGE_SIZE
+    nav_buttons = []
+    if page > 1:
+        nav_buttons.append(InlineKeyboardButton(text="⬅️ Anterior", callback_data=f"wizard:reward:select:page:{page-1}"))
+    if page < total_pages:
+        nav_buttons.append(InlineKeyboardButton(text="➡️ Siguiente", callback_data=f"wizard:reward:select:page:{page+1}"))
+
+    if nav_buttons:
+        keyboard_rows.append(nav_buttons)
+
+    keyboard_rows.append([InlineKeyboardButton(text="🔙 Volver", callback_data="wizard:finish")])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+
+    await callback.message.edit_text(
+        f"🔍 <b>Seleccionar Recompensa Existente</b> (Página {page}/{total_pages})\n\n"
+        "Elige una recompensa para desbloquear:",
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.callback_query(MissionWizardStates.choose_rewards, F.data.startswith("wizard:reward:id:"))
+async def select_existing_reward(callback: CallbackQuery, state: FSMContext, gamification: GamificationContainer):
+    """Procesa selección de recompensa existente."""
+    reward_id = int(callback.data.split(":")[-1])
+
+    reward = await gamification.reward.get_reward_by_id(reward_id)
+    if not reward:
+        await callback.answer("❌ Recompensa no encontrada", show_alert=True)
+        return
+
+    data = await state.get_data()
+    rewards = data.get('rewards', [])
+    
+    # Evitar duplicados
+    if not any(r.get('reward_id') == reward.id for r in rewards):
+        rewards.append({
+            'mode': 'select',
+            'reward_id': reward.id,
+            'name': reward.name
+        })
+        await state.update_data(rewards=rewards)
+        message_text = f"✅ Recompensa '{reward.name}' agregada."
+    else:
+        message_text = f"⚠️ Ya has agregado la recompensa '{reward.name}'."
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➕ Crear Otra", callback_data="wizard:reward:new")],
+        [InlineKeyboardButton(text="🔍 Seleccionar Otra", callback_data="wizard:reward:select:page:1")],
+        [InlineKeyboardButton(text="✅ Finalizar", callback_data="wizard:finish")]
+    ])
+
+    await callback.message.edit_text(
+        f"{message_text}\n\n"
+        f"Total de recompensas: <b>{len(rewards)}</b>\n\n"
+        f"¿Deseas agregar más recompensas?",
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await state.set_state(MissionWizardStates.choose_rewards)
+    await callback.answer()
+
+
+
+
 @router.message(MissionWizardStates.enter_reward_name)
 async def enter_reward_name(message: Message, state: FSMContext):
     """Recibe nombre de recompensa."""
@@ -496,21 +607,26 @@ async def enter_reward_description(message: Message, state: FSMContext):
 
     # Agregar recompensa a la lista
     rewards = data.get('rewards', [])
-    rewards.append({
+    new_reward_data = {
         'name': data['reward_name'],
         'description': message.text.strip(),
         'reward_type': 'badge',  # Por defecto badge
         'metadata': {'icon': '🏆', 'rarity': 'epic'}
+    }
+    rewards.append({
+        'mode': 'create',
+        'data': new_reward_data
     })
     await state.update_data(rewards=rewards)
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="➕ Crear Otra", callback_data="wizard:reward:new")],
+        [InlineKeyboardButton(text="🔍 Seleccionar Otra", callback_data="wizard:reward:select")],
         [InlineKeyboardButton(text="✅ Finalizar", callback_data="wizard:finish")]
     ])
 
     await message.answer(
-        f"✅ Recompensa agregada\n\n"
+        f"✅ Recompensa '{data['reward_name']}' configurada para ser creada.\n\n"
         f"Total de recompensas: <b>{len(rewards)}</b>\n\n"
         f"¿Deseas agregar más recompensas?",
         reply_markup=keyboard,
@@ -532,7 +648,7 @@ async def finish_wizard(callback: CallbackQuery, state: FSMContext):
     summary = f"""📋 <b>RESUMEN DE CONFIGURACIÓN</b>
 
 <b>Misión:</b> {data['mission_name']}
-<b>Tipo:</b> {data['mission_type'].value.replace('_', ' ').title()}
+<b>Tipo:</b> {data['mission_type'].replace('_', ' ').title()}
 <b>Descripción:</b> {data['mission_description']}
 <b>Criterio:</b> {_format_criteria(data['criteria'])}
 <b>Recompensa:</b> {data['besitos_reward']} besitos
@@ -546,7 +662,12 @@ async def finish_wizard(callback: CallbackQuery, state: FSMContext):
             summary += f"\n<b>Nivel auto:</b> {level_info['name']} (nuevo, orden {level_info['order']})"
 
     if data.get('rewards'):
-        summary += f"\n<b>Recompensas:</b> {len(data['rewards'])} configuradas"
+        summary += "\n\n<b>Recompensas a Desbloquear:</b>"
+        for reward in data['rewards']:
+            if reward['mode'] == 'create':
+                summary += f"\n • {reward['data']['name']} (Nueva)"
+            else: # mode == 'select'
+                summary += f"\n • {reward['name']} (Existente)"
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
@@ -593,9 +714,15 @@ async def confirm_mission(callback: CallbackQuery, state: FSMContext, gamificati
                     'order': level_info['order']
                 }
 
-        # Agregar recompensas si existen
+        # Procesar recompensas
         if data.get('rewards'):
-            config['rewards'] = data['rewards']
+            rewards_to_create = [r['data'] for r in data['rewards'] if r['mode'] == 'create']
+            reward_ids_to_link = [r['reward_id'] for r in data['rewards'] if r['mode'] == 'select']
+            
+            if rewards_to_create:
+                config['rewards_to_create'] = rewards_to_create
+            if reward_ids_to_link:
+                config['reward_ids_to_link'] = reward_ids_to_link
 
         # Crear usando orchestrator
         result = await gamification.configuration_orchestrator.create_complete_mission_system(

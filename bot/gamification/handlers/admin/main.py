@@ -206,7 +206,7 @@ async def list_missions(callback: CallbackQuery, gamification: GamificationConta
             MissionType.DAILY: "📅",
             MissionType.WEEKLY: "📆",
             MissionType.STREAK: "🔥"
-        }.get(mission.mission_type, "📋")
+        }.get(MissionType(mission.mission_type), "📋")
 
         text += f"{type_icon} <b>{mission.name}</b>\n"
         text += f"   Recompensa: {mission.besitos_reward} besitos\n\n"
@@ -246,10 +246,10 @@ async def list_rewards(callback: CallbackQuery, gamification: GamificationContai
             RewardType.PERMISSION: "🔑",
             RewardType.BESITOS: "💰",
             RewardType.ITEM: "🎁"
-        }.get(reward.reward_type, "🎁")
+        }.get(RewardType(reward.reward_type), "🎁")
 
         text += f"{type_icon} <b>{reward.name}</b>\n"
-        text += f"   Tipo: {reward.reward_type.value}\n\n"
+        text += f"   Tipo: {reward.reward_type.title()}\n\n"
 
         keyboard_buttons.append([
             InlineKeyboardButton(
@@ -280,8 +280,8 @@ async def list_levels(callback: CallbackQuery, gamification: GamificationContain
     text = "⭐ <b>Niveles Configurados</b>\n\n"
 
     for level in levels:
-        text += f"<b>{level.level_order}. {level.name}</b>\n"
-        text += f"   Requiere: {level.required_besitos} besitos\n\n"
+        text += f"<b>{level.order}. {level.name}</b>\n"
+        text += f"   Requiere: {level.min_besitos} besitos\n\n"
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
