@@ -2,7 +2,7 @@
 
 **Inicio:** Diciembre 2024
 **Estado General:** 🟡 FASE 5 EN PROGRESO
-**Progreso Total:** 22/30 tareas (73.3%)
+**Progreso Total:** 23/30 tareas (76.7%)
 
 ---
 
@@ -60,11 +60,11 @@
 
 ### **FASE 5: Background Jobs y Hooks (3 tareas)** 🟡 En progreso
 - [x] G5.1 - Background job: auto-progression ✅
-- [ ] G5.2 - Background job: expiración rachas
+- [x] G5.2 - Background job: expiración rachas ✅
 - [ ] G5.3 - Hooks en sistema de reacciones existente
 
 **Estimado:** 1 semana
-**Progreso:** 1/3 (33.3%)
+**Progreso:** 2/3 (66.7%)
 
 ---
 
@@ -89,10 +89,10 @@
 
 ## 🎯 PRÓXIMA TAREA
 
-**Tarea actual:** G5.2 - Background job: expiración rachas
+**Tarea actual:** G5.3 - Hooks en sistema de reacciones existente
 **Prompt generado:** ✅ Listo para ejecutar
 **Bloqueadores:** Ninguno
-**Estado:** G5.1 COMPLETADO ✅ - FASE 5 EN PROGRESO (1/3)
+**Estado:** G5.2 COMPLETADO ✅ - FASE 5 EN PROGRESO (2/3)
 
 ---
 
@@ -401,31 +401,45 @@ _Ninguno por ahora_
 
 ## 📊 MÉTRICAS FASE 5 (EN PROGRESO)
 
-- **Commits realizados:** 1 (G5.1)
+- **Commits realizados:** 2 (G5.1, G5.2)
   - 9eb60af: G5.1 Background job auto-progression checker
+  - 031c9a8: G5.2 Background job streak expiration checker
 
 - **Archivos creados:**
   - bot/gamification/background/auto_progression_checker.py (138 líneas)
+  - bot/gamification/background/streak_expiration_checker.py (134 líneas)
   - tests/gamification/test_auto_progression.py (7 tests)
+  - tests/gamification/test_streak_expiration.py (8 tests)
 
 - **Archivos modificados:**
   - bot/gamification/background/__init__.py (exports)
-  - bot/background/tasks.py (integración scheduler)
+  - bot/background/tasks.py (integración scheduler - 2 jobs)
 
-- **Background Jobs implementados:** 1
+- **Background Jobs implementados:** 2
   - Auto-progression checker: Verifica level-ups cada 6 horas
-  - Procesamiento en batch (100 usuarios por lote)
-  - Notificaciones HTML al usuario
-  - Integrado con scheduler global
+    - Procesamiento en batch (100 usuarios por lote)
+    - Notificaciones HTML al usuario
+    - Integrado con scheduler global
+  - Streak expiration checker: Resetea rachas cada 1 hora
+    - Threshold configurable desde DB
+    - Notificaciones opcionales
+    - Query eficiente con WHERE threshold
 
-- **Tests unitarios:** 7/7 (100% pasando ✅)
-  - Aplicación de level-ups automáticos
-  - Envío de notificaciones
-  - Mensaje correcto con formato HTML
-  - Manejo de errores al enviar
-  - Batch processing (250+ usuarios)
-  - Errores individuales no detienen proceso
-  - Sin level-ups si ya está correcto
+- **Tests unitarios:** 15/15 (100% pasando ✅)
+  - Auto-progression (7 tests):
+    - Aplicación de level-ups automáticos
+    - Envío de notificaciones
+    - Mensaje correcto con formato HTML
+    - Manejo de errores al enviar
+    - Batch processing (250+ usuarios)
+    - Errores individuales no detienen proceso
+    - Sin level-ups si ya está correcto
+  - Streak expiration (8 tests):
+    - Reseteo solo rachas expiradas
+    - Notificaciones condicionales
+    - Threshold de config
+    - Manejo de config inexistente
+    - Mensajes motivacionales
 
 - **Características clave:**
   - Type hints: 100%
@@ -433,10 +447,11 @@ _Ninguno por ahora_
   - Error handling robusto
   - Notificaciones emoji HTML
   - Estadísticas de procesamiento
-  - Frecuencia: Cada 6 horas
+  - Frecuencias: 6h (progression), 1h (streaks)
   - Batch size: 100 usuarios
+  - Configuración desde DB (streak_reset_hours)
 
-**Estado:** 🟡 FASE 5 EN PROGRESO - 1/3 tareas (33.3%)
+**Estado:** 🟡 FASE 5 EN PROGRESO - 2/3 tareas (66.7%)
 
 ---
 
