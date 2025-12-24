@@ -1,8 +1,8 @@
 # 🎮 TRACKING: Implementación Módulo Gamificación
 
 **Inicio:** Diciembre 2024
-**Estado General:** 🟢 FASE 4 COMPLETADA
-**Progreso Total:** 21/30 tareas (70.0%)
+**Estado General:** 🟡 FASE 5 EN PROGRESO
+**Progreso Total:** 22/30 tareas (73.3%)
 
 ---
 
@@ -58,13 +58,13 @@
 
 ---
 
-### **FASE 5: Background Jobs y Hooks (3 tareas)** 🔴 No iniciado
-- [ ] G5.1 - Background job: auto-progression
+### **FASE 5: Background Jobs y Hooks (3 tareas)** 🟡 En progreso
+- [x] G5.1 - Background job: auto-progression ✅
 - [ ] G5.2 - Background job: expiración rachas
 - [ ] G5.3 - Hooks en sistema de reacciones existente
 
-**Estimado:** 1 semana  
-**Progreso:** 0/3 (0%)
+**Estimado:** 1 semana
+**Progreso:** 1/3 (33.3%)
 
 ---
 
@@ -89,10 +89,10 @@
 
 ## 🎯 PRÓXIMA TAREA
 
-**Tarea actual:** G5.1 - Background job: auto-progression
+**Tarea actual:** G5.2 - Background job: expiración rachas
 **Prompt generado:** ✅ Listo para ejecutar
 **Bloqueadores:** Ninguno
-**Estado:** G4.5 COMPLETADO ✅ - FASE 4 COMPLETADA (5/5) - INICIANDO FASE 5
+**Estado:** G5.1 COMPLETADO ✅ - FASE 5 EN PROGRESO (1/3)
 
 ---
 
@@ -396,6 +396,47 @@ _Ninguno por ahora_
   - Leaderboard con medallas (🥇🥈🥉) ✨
 
 **Estado:** 🟢 FASE 4 COMPLETADA - 5/5 tareas (100%)
+
+---
+
+## 📊 MÉTRICAS FASE 5 (EN PROGRESO)
+
+- **Commits realizados:** 1 (G5.1)
+  - 9eb60af: G5.1 Background job auto-progression checker
+
+- **Archivos creados:**
+  - bot/gamification/background/auto_progression_checker.py (138 líneas)
+  - tests/gamification/test_auto_progression.py (7 tests)
+
+- **Archivos modificados:**
+  - bot/gamification/background/__init__.py (exports)
+  - bot/background/tasks.py (integración scheduler)
+
+- **Background Jobs implementados:** 1
+  - Auto-progression checker: Verifica level-ups cada 6 horas
+  - Procesamiento en batch (100 usuarios por lote)
+  - Notificaciones HTML al usuario
+  - Integrado con scheduler global
+
+- **Tests unitarios:** 7/7 (100% pasando ✅)
+  - Aplicación de level-ups automáticos
+  - Envío de notificaciones
+  - Mensaje correcto con formato HTML
+  - Manejo de errores al enviar
+  - Batch processing (250+ usuarios)
+  - Errores individuales no detienen proceso
+  - Sin level-ups si ya está correcto
+
+- **Características clave:**
+  - Type hints: 100%
+  - Logging completo (INFO, ERROR)
+  - Error handling robusto
+  - Notificaciones emoji HTML
+  - Estadísticas de procesamiento
+  - Frecuencia: Cada 6 horas
+  - Batch size: 100 usuarios
+
+**Estado:** 🟡 FASE 5 EN PROGRESO - 1/3 tareas (33.3%)
 
 ---
 
