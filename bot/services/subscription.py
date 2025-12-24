@@ -551,6 +551,175 @@ class SubscriptionService:
         )
         return result.scalar_one_or_none()
 
+    async def create_free_request_from_join_request(
+        self,
+        user_id: int,
+        from_chat_id: str
+    ) -> tuple[bool, str, Optional[FreeChannelRequest]]:
+        """
+        Crea solicitud Free desde ChatJoinRequest.
+
+        Valida que la solicitud viene del canal correcto (seguridad)
+        y verifica que no haya solicitudes duplicadas.
+
+        Args:
+            user_id: ID del usuario que solicita
+            from_chat_id: ID del chat desde donde solicita
+
+        Returns:
+            tuple: (success, message, request)
+                - success: True si creó nueva solicitud
+                - message: Descripción del resultado
+                - request: FreeChannelRequest (nueva o existente)
+        """
+        from bot.database.models import BotConfig
+
+        # Verificar canal configurado
+        config = await self.session.get(BotConfig, 1)
+
+        if not config or not config.free_channel_id:
+            return False, "Canal Free no configurado", None
+
+        # Validar canal correcto (SEGURIDAD)
+        if config.free_channel_id != from_chat_id:
+            logger.warning(
+                f"⚠️ Intento de solicitud desde canal no autorizado: "
+                f"{from_chat_id} (esperado: {config.free_channel_id})"
+            )
+            return False, "Solicitud desde canal no autorizado", None
+
+        # Verificar duplicados
+        existing = await self.get_free_request(user_id)
+
+        if existing and not existing.processed:
+            minutes_since = existing.minutes_since_request()
+            logger.info(
+                f"ℹ️ Usuario {user_id} ya tiene solicitud Free pendiente "
+                f"({minutes_since} min transcurridos)"
+            )
+            return False, f"Ya tienes solicitud pendiente ({minutes_since} minutos)", existing
+
+        # Crear nueva solicitud
+        request = await self.create_free_request(user_id)
+
+        return True, "Solicitud creada exitosamente", request
+
+    async def approve_ready_free_requests(
+        self,
+        wait_time_minutes: int,
+        free_channel_id: str
+    ) -> tuple[int, int]:
+        """
+        Aprueba solicitudes Free que cumplieron el tiempo de espera.
+
+        NUEVO: Usa approve_chat_join_request en vez de enviar invite links.
+
+        Args:
+            wait_time_minutes: Tiempo de espera en minutos
+            free_channel_id: ID del canal Free
+
+        Returns:
+            tuple: (success_count, error_count)
+        """
+        # Obtener solicitudes listas
+        ready_requests = await self.process_free_queue(wait_time_minutes)
+
+        if not ready_requests:
+            return 0, 0
+
+        success_count = 0
+        error_count = 0
+
+        for request in ready_requests:
+            try:
+                # APROBAR la solicitud directamente
+                await self.bot.approve_chat_join_request(
+                    chat_id=free_channel_id,
+                    user_id=request.user_id
+                )
+
+                # Marcar como procesada
+                request.processed = True
+                request.processed_at = datetime.utcnow()
+
+                success_count += 1
+                logger.info(f"✅ Solicitud Free aprobada: user {request.user_id}")
+
+            except Exception as e:
+                error_count += 1
+                logger.error(
+                    f"❌ Error aprobando solicitud user {request.user_id}: {e}",
+                    exc_info=True
+                )
+                # Continuar con siguiente usuario
+
+        if success_count > 0:
+            await self.session.commit()
+
+        return success_count, error_count
+
+    async def send_free_request_notification(
+        self,
+        user_id: int,
+        user_name: str,
+        channel_name: str,
+        wait_time_minutes: int,
+        custom_message: Optional[str] = None
+    ) -> bool:
+        """
+        Envía notificación automática cuando usuario solicita acceso Free.
+
+        Reemplaza variables en el mensaje:
+        - {user_name} → Nombre del usuario
+        - {channel_name} → Nombre del canal
+        - {wait_time} → Tiempo de espera en minutos
+
+        Args:
+            user_id: ID del usuario
+            user_name: Nombre del usuario
+            channel_name: Nombre del canal
+            wait_time_minutes: Tiempo de espera
+            custom_message: Mensaje personalizado (opcional)
+
+        Returns:
+            bool: True si envío exitoso, False si error
+        """
+        try:
+            # Obtener template
+            if not custom_message:
+                from bot.database.models import BotConfig
+                config = await self.session.get(BotConfig, 1)
+                template = config.free_welcome_message if config and config.free_welcome_message else (
+                    "Hola {user_name}, tu solicitud de acceso a {channel_name} ha sido registrada. "
+                    "Debes esperar {wait_time} minutos antes de ser aprobado."
+                )
+            else:
+                template = custom_message
+
+            # Reemplazar variables
+            message = template.format(
+                user_name=user_name,
+                channel_name=channel_name,
+                wait_time=wait_time_minutes
+            )
+
+            # Enviar mensaje (sin parse_mode para prevenir inyección HTML)
+            await self.bot.send_message(
+                chat_id=user_id,
+                text=message,
+                parse_mode=None
+            )
+
+            logger.info(f"✅ Notificación Free enviada a user {user_id}")
+            return True
+
+        except Exception as e:
+            logger.error(
+                f"❌ Error enviando notificación a user {user_id}: {e}",
+                exc_info=True
+            )
+            return False
+
     async def process_free_queue(self, wait_time_minutes: int) -> List[FreeChannelRequest]:
         """
         Procesa la cola de solicitudes Free que cumplieron el tiempo de espera.
