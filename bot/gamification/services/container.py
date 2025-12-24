@@ -28,6 +28,7 @@ class GamificationContainer:
 
         # Servicios (lazy loaded)
         self._reaction_service = None
+        self._custom_reaction_service = None
         self._besito_service = None
         self._level_service = None
         self._mission_service = None
@@ -52,6 +53,14 @@ class GamificationContainer:
             from bot.gamification.services.reaction import ReactionService
             self._reaction_service = ReactionService(self._session)
         return self._reaction_service
+
+    @property
+    def custom_reaction(self):
+        """Servicio de reacciones personalizadas (broadcasting)."""
+        if self._custom_reaction_service is None:
+            from bot.gamification.services.custom_reaction import CustomReactionService
+            self._custom_reaction_service = CustomReactionService(self._session)
+        return self._custom_reaction_service
 
     @property
     def besito(self):
@@ -147,6 +156,8 @@ class GamificationContainer:
         loaded = []
         if self._reaction_service is not None:
             loaded.append('reaction')
+        if self._custom_reaction_service is not None:
+            loaded.append('custom_reaction')
         if self._besito_service is not None:
             loaded.append('besito')
         if self._level_service is not None:
@@ -172,6 +183,7 @@ class GamificationContainer:
     def clear_cache(self):
         """Limpia todos los servicios cargados."""
         self._reaction_service = None
+        self._custom_reaction_service = None
         self._besito_service = None
         self._level_service = None
         self._mission_service = None

@@ -82,6 +82,7 @@ class TransactionType(str, Enum):
 
     MISSION_REWARD = "mission_reward"
     REACTION = "reaction"
+    REACTION_CUSTOM = "reaction_custom"  # Reacciones personalizadas en broadcasting
     PURCHASE = "purchase"
     ADMIN_GRANT = "admin_grant"
     ADMIN_DEDUCT = "admin_deduct"
