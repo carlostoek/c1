@@ -31,11 +31,11 @@
 
 **Fase 1:** Fundamentos de BD y Servicios - 3/3 (100%) ✅
 **Fase 2:** Extensión de Broadcasting - 2/2 (100%) ✅
-**Fase 3:** Handler de Reacciones de Usuario - 0/1 (0%)
+**Fase 3:** Handler de Reacciones de Usuario - 1/1 (100%) ✅
 **Fase 4:** Features Adicionales - 0/2 (0%)
 **Fase 5:** Testing y Refinamiento - 0/3 (0%)
 
-**TOTAL:** 5/11 tareas completadas (45%)
+**TOTAL:** 6/11 tareas completadas (55%)
 
 ---
 
@@ -273,46 +273,46 @@
 
 ### FASE 3: Handler de Reacciones de Usuario
 
-#### [ ] T6: Handler de Callbacks de Reacciones
+#### [x] T6: Handler de Callbacks de Reacciones ✅ COMPLETADO
 **Archivo:** `bot/gamification/handlers/user/reactions.py` (NUEVO)
 
 **Subtareas:**
-- [ ] Implementar `handle_reaction_button()`
-  - [ ] Callback data: "react:{reaction_type_id}"
-  - [ ] Extraer reaction_type_id del callback
-  - [ ] Obtener message_id, chat_id, user_id
-  - [ ] Query: Buscar BroadcastMessage en BD
-  - [ ] Validar que BroadcastMessage existe
-  - [ ] Llamar a `CustomReactionService.register_custom_reaction()`
-  - [ ] Manejar resultado:
+- [x] Implementar `handle_reaction_button()`
+  - [x] Callback data: "react:{reaction_type_id}"
+  - [x] Extraer reaction_type_id del callback
+  - [x] Obtener message_id, chat_id, user_id
+  - [x] Query: Buscar BroadcastMessage en BD
+  - [x] Validar que BroadcastMessage existe
+  - [x] Llamar a `CustomReactionService.register_custom_reaction()`
+  - [x] Manejar resultado:
     - Success: Mostrar alert con besitos ganados
     - Duplicado: Mostrar alert "Ya reaccionaste"
     - Error: Mostrar alert de error
-  - [ ] Actualizar keyboard con checkmark personal
+  - [x] Actualizar keyboard con checkmark personal
 
-- [ ] Implementar `build_reaction_keyboard_with_marks()`
-  - [ ] Obtener stats de reacciones (contadores públicos)
-  - [ ] Obtener reacciones del usuario (para checkmark)
-  - [ ] Construir botones:
+- [x] Implementar `build_reaction_keyboard_with_marks()`
+  - [x] Obtener stats de reacciones (contadores públicos)
+  - [x] Obtener reacciones del usuario (para checkmark)
+  - [x] Construir botones:
     - Sin reaccionar: "❤️ 33"
     - Reaccionado: "❤️ 33 ✓"
-  - [ ] Máximo 3 botones por fila
-  - [ ] Retornar InlineKeyboardMarkup
+  - [x] Máximo 3 botones por fila
+  - [x] Retornar InlineKeyboardMarkup
 
-- [ ] Implementar `get_reaction_counts()`
-  - [ ] Query: COUNT por reaction_type_id
-  - [ ] Retornar dict: {reaction_type_id: count}
+- [x] Implementar `get_reaction_counts()`
+  - [x] Query: COUNT por reaction_type_id
+  - [x] Retornar dict: {reaction_type_id: count}
 
-- [ ] Integrar router en main.py
-  - [ ] Importar gamification_reactions router
-  - [ ] Registrar en dp.include_router()
-  - [ ] Aplicar DatabaseMiddleware
+- [x] Integrar router en main.py
+  - [x] Importar gamification_reactions router
+  - [x] Registrar en dp.include_router()
+  - [x] Aplicar DatabaseMiddleware
 
-- [ ] Tests E2E
-  - [ ] Test: Usuario reacciona y gana besitos
-  - [ ] Test: Prevenir duplicados
-  - [ ] Test: Marcar botón como presionado
-  - [ ] Test: Aplicar multiplicadores
+- [x] Tests E2E
+  - [x] Test: Usuario reacciona y gana besitos
+  - [x] Test: Prevenir duplicados
+  - [x] Test: Marcar botón como presionado
+  - [x] Test: Aplicar multiplicadores
 
 **Commit:** `feat(gamification): Implement reaction button handler with besitos rewards`
 

@@ -1,7 +1,7 @@
 """Handlers de Telegram para gamificación."""
 
 from bot.gamification.handlers.admin import main, mission_wizard, reward_wizard
-from bot.gamification.handlers.user import profile, missions, rewards, leaderboard
+from bot.gamification.handlers.user import profile, missions, rewards, leaderboard, reactions
 
 # Exportar routers admin
 gamification_admin_router = main.router
@@ -13,6 +13,7 @@ gamification_user_profile_router = profile.router
 gamification_user_missions_router = missions.router
 gamification_user_rewards_router = rewards.router
 gamification_user_leaderboard_router = leaderboard.router
+gamification_user_reactions_router = reactions.router
 
 __all__ = [
     "gamification_admin_router",
@@ -22,4 +23,5 @@ __all__ = [
     "gamification_user_missions_router",
     "gamification_user_rewards_router",
     "gamification_user_leaderboard_router",
+    "gamification_user_reactions_router",
 ]

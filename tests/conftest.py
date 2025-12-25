@@ -3,12 +3,13 @@ Pytest Configuration and Shared Fixtures.
 
 Proporciona fixtures comunes para todos los tests:
 - mock_bot: Mock del bot de Telegram
+- session: Sesión async de SQLAlchemy
 """
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, Mock
 
-from bot.database import init_db, close_db
+from bot.database import init_db, close_db, get_session
 
 
 @pytest.fixture
@@ -66,3 +67,15 @@ def mock_bot():
     bot.decline_chat_join_request = AsyncMock()
 
     return bot
+
+
+@pytest.fixture
+async def session():
+    """
+    Fixture: Sesión async de SQLAlchemy.
+
+    Proporciona una sesión de BD para tests que manipulan datos.
+    La sesión se cierra automáticamente al final del test.
+    """
+    async with get_session() as session:
+        yield session

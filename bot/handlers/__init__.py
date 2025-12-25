@@ -19,6 +19,7 @@ from bot.gamification.handlers import (
     gamification_user_missions_router,
     gamification_user_rewards_router,
     gamification_user_leaderboard_router,
+    gamification_user_reactions_router,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ def register_all_handlers(dispatcher: Dispatcher) -> None:
     dispatcher.include_router(gamification_user_missions_router)
     dispatcher.include_router(gamification_user_rewards_router)
     dispatcher.include_router(gamification_user_leaderboard_router)
+    dispatcher.include_router(gamification_user_reactions_router)
 
     logger.info("Handlers registrados correctamente")
 
