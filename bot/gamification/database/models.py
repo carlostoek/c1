@@ -445,6 +445,11 @@ class GamificationConfig(Base):
     )
     streak_reset_hours: Mapped[int] = mapped_column(Integer, default=24)
     notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Configuración de regalo diario
+    daily_gift_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    daily_gift_besitos: Mapped[int] = mapped_column(Integer, default=10)
+
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC)
@@ -565,4 +570,55 @@ class BesitoTransaction(Base):
         Index('idx_user_transactions_history', 'user_id', 'created_at'),
         Index('idx_user_transaction_type', 'user_id', 'transaction_type'),
         Index('idx_reference_transaction', 'reference_id', 'transaction_type'),
+    )
+
+
+class DailyGiftClaim(Base):
+    """Registro de reclamaciones de regalo diario.
+
+    Trackea cuando cada usuario reclama su regalo diario,
+    manteniendo la racha de días consecutivos.
+
+    Attributes:
+        user_id: ID del usuario (PK, 1-to-1 con users)
+        last_claim_date: Última fecha de reclamación (solo fecha, sin hora)
+        current_streak: Racha actual de días consecutivos
+        longest_streak: Récord histórico de racha más larga
+        total_claims: Total de regalos reclamados desde el inicio
+        created_at: Fecha de creación del registro
+        updated_at: Fecha de última actualización
+
+    Relaciones:
+        user: Usuario del sistema core (via users table)
+    """
+    __tablename__ = "daily_gift_claims"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        primary_key=True
+    )
+    last_claim_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True
+    )
+    current_streak: Mapped[int] = mapped_column(Integer, default=0)
+    longest_streak: Mapped[int] = mapped_column(Integer, default=0)
+    total_claims: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False
+    )
+
+    # Índices para optimización
+    __table_args__ = (
+        Index('idx_daily_gift_last_claim', 'last_claim_date'),
+        Index('idx_daily_gift_streak', 'current_streak'),
     )

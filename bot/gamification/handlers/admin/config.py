@@ -52,15 +52,27 @@ async def show_config_menu(
     all_reactions = await container.reaction.get_all_reactions()
     active_reactions = [r for r in all_reactions if r.active]
 
+    # Obtener configuración de regalo diario
+    from bot.gamification.database.models import GamificationConfig as DBConfig
+    config = await session.get(DBConfig, 1)
+    if config:
+        daily_gift_status = "✅ Activado" if config.daily_gift_enabled else "❌ Desactivado"
+        daily_gift_besitos = config.daily_gift_besitos
+    else:
+        daily_gift_status = "❓ No configurado"
+        daily_gift_besitos = 10
+
     text = f"""⚙️ <b>Configuración de Gamificación</b>
 
 📊 <b>Estado del Sistema:</b>
 • Reacciones configuradas: {len(all_reactions)}
 • Reacciones activas: {len(active_reactions)}
+• Regalo diario: {daily_gift_status} ({daily_gift_besitos} besitos)
 
 <b>Opciones disponibles:</b>"""
 
     keyboard = [
+        [{"text": "🎁 Configurar Regalo Diario", "callback_data": "gamif:config:daily_gift"}],
         [{"text": "🎮 Gestionar Reacciones", "callback_data": "gamif:config:reactions"}],
         [{"text": "🔙 Volver al Menú", "callback_data": "gamif:menu"}]
     ]
@@ -708,3 +720,10 @@ async def cancel_reaction_wizard(
         parse_mode="HTML"
     )
     await callback.answer()
+
+
+# ========================================
+# CONFIGURACIÓN DE REGALO DIARIO
+# ========================================
+
+# (El código se agregará en los siguientes pasos)

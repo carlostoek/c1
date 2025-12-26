@@ -36,6 +36,7 @@ class GamificationContainer:
         self._user_gamification_service = None
         self._stats_service = None
         self._notification_service = None
+        self._daily_gift_service = None
 
         # Orchestrators (lazy loaded)
         self._mission_orchestrator = None
@@ -124,6 +125,14 @@ class GamificationContainer:
         return self._notification_service
 
     @property
+    def daily_gift(self):
+        """Servicio de regalo diario."""
+        if self._daily_gift_service is None:
+            from bot.gamification.services.daily_gift import DailyGiftService
+            self._daily_gift_service = DailyGiftService(self._session)
+        return self._daily_gift_service
+
+    @property
     def mission_orchestrator(self):
         """Orquestador de creación de misiones."""
         if self._mission_orchestrator is None:
@@ -172,6 +181,8 @@ class GamificationContainer:
             loaded.append('stats')
         if self._notification_service is not None:
             loaded.append('notifications')
+        if self._daily_gift_service is not None:
+            loaded.append('daily_gift')
         if self._mission_orchestrator is not None:
             loaded.append('mission_orchestrator')
         if self._reward_orchestrator is not None:
@@ -191,6 +202,7 @@ class GamificationContainer:
         self._user_gamification_service = None
         self._stats_service = None
         self._notification_service = None
+        self._daily_gift_service = None
         self._mission_orchestrator = None
         self._reward_orchestrator = None
         self._configuration_orchestrator = None

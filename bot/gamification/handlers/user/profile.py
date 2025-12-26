@@ -42,7 +42,21 @@ async def show_profile(message: Message, gamification: GamificationContainer):
             message.from_user.id
         )
 
+        # Verificar estado del regalo diario para mostrar indicador
+        daily_gift_status = await gamification.daily_gift.get_daily_gift_status(
+            message.from_user.id
+        )
+
+        # Texto del botón de regalo diario con indicador visual
+        if daily_gift_status['can_claim'] and daily_gift_status['system_enabled']:
+            daily_gift_text = "🎁 Regalo Diario ⭐"  # Indicador de disponible
+        else:
+            daily_gift_text = "🎁 Regalo Diario ✅"  # Indicador de reclamado
+
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text=daily_gift_text, callback_data="user:daily_gift")
+            ],
             [
                 InlineKeyboardButton(text="📋 Mis Misiones", callback_data="user:missions"),
                 InlineKeyboardButton(text="🎁 Recompensas", callback_data="user:rewards")
@@ -75,7 +89,21 @@ async def show_profile_callback(callback: CallbackQuery, gamification: Gamificat
             callback.from_user.id
         )
 
+        # Verificar estado del regalo diario para mostrar indicador
+        daily_gift_status = await gamification.daily_gift.get_daily_gift_status(
+            callback.from_user.id
+        )
+
+        # Texto del botón de regalo diario con indicador visual
+        if daily_gift_status['can_claim'] and daily_gift_status['system_enabled']:
+            daily_gift_text = "🎁 Regalo Diario ⭐"  # Indicador de disponible
+        else:
+            daily_gift_text = "🎁 Regalo Diario ✅"  # Indicador de reclamado
+
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text=daily_gift_text, callback_data="user:daily_gift")
+            ],
             [
                 InlineKeyboardButton(text="📋 Mis Misiones", callback_data="user:missions"),
                 InlineKeyboardButton(text="🎁 Recompensas", callback_data="user:rewards")
