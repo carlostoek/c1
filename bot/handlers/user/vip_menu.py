@@ -128,7 +128,7 @@ async def callback_vip_status(
     hours_remaining = max(0, int((expiry - now).total_seconds() / 3600))
 
     # Formatear fechas
-    start_date_str = format_datetime(subscriber.start_date, include_time=False)
+    join_date_str = format_datetime(subscriber.join_date, include_time=False)
     expiry_date_str = format_datetime(expiry, include_time=True)
 
     # Obtener info del plan si existe
@@ -156,7 +156,7 @@ async def callback_vip_status(
         f"{status_emoji} <b>Estado de Suscripción VIP</b>\n\n"
         f"{plan_info}"
         f"<b>Estado:</b> {status_text}\n"
-        f"<b>Inicio:</b> {start_date_str}\n"
+        f"<b>Inicio:</b> {join_date_str}\n"
         f"<b>Vencimiento:</b> {expiry_date_str}\n\n"
         f"⏱️ <b>Tiempo Restante:</b>\n"
         f"• <b>{days_remaining}</b> días\n"
