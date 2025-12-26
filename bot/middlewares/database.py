@@ -64,8 +64,11 @@ class DatabaseMiddleware(BaseMiddleware):
             # Inyectar sesión en data
             data["session"] = session
 
-            # Crear y configurar GamificationContainer
-            gamif_container = GamificationContainer(session)
+            # Obtener bot instance
+            bot = data.get("bot")
+
+            # Crear y configurar GamificationContainer (con bot para notificaciones)
+            gamif_container = GamificationContainer(session, bot)
             set_container(gamif_container)  # Establecer como instancia global
             data["gamification"] = gamif_container
 

@@ -158,6 +158,9 @@ async def init_db() -> None:
     # Crear registro inicial de BotConfig (singleton)
     await _ensure_bot_config_exists()
 
+    # Crear registro inicial de GamificationConfig (singleton)
+    await _ensure_gamification_config_exists()
+
     logger.info("✅ Base de datos inicializada correctamente")
 
 
@@ -187,6 +190,39 @@ async def _ensure_bot_config_exists() -> None:
             logger.info("✅ BotConfig inicial creado")
         else:
             logger.info("✅ BotConfig ya existe")
+
+
+async def _ensure_gamification_config_exists() -> None:
+    """
+    Crea el registro inicial de GamificationConfig si no existe.
+
+    GamificationConfig es singleton: solo debe haber 1 registro (id=1).
+    """
+    try:
+        from bot.gamification.database.models import GamificationConfig
+        from datetime import datetime, UTC
+
+        async with get_session() as session:
+            # Verificar si ya existe
+            result = await session.get(GamificationConfig, 1)
+
+            if result is None:
+                # Crear registro inicial con valores por defecto
+                config = GamificationConfig(
+                    id=1,
+                    besitos_per_reaction=1,
+                    max_besitos_per_day=None,
+                    streak_reset_hours=24,
+                    notifications_enabled=True,
+                    updated_at=datetime.now(UTC)
+                )
+                session.add(config)
+                await session.commit()
+                logger.info("✅ GamificationConfig inicial creado (notificaciones habilitadas)")
+            else:
+                logger.info("✅ GamificationConfig ya existe")
+    except ImportError:
+        logger.debug("Módulo de gamificación no disponible, saltando inicialización")
 
 
 async def close_db() -> None:

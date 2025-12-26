@@ -71,11 +71,31 @@ class BesitoService:
             granted = await reward_service.check_and_grant_unlocked_rewards(user_id)
 
             if granted:
-                for reward_name, msg in granted:
+                for reward, msg in granted:
                     logger.info(
-                        f"🎁 Auto-unlocked reward '{reward_name}' "
+                        f"Auto-unlocked reward '{reward.name}' "
                         f"for user {user_id} after reaching {user_gamif.total_besitos} besitos"
                     )
+
+                # Intentar notificar usando el container global
+                try:
+                    from bot.gamification.services.container import get_container
+                    container = get_container()
+                    logger.info(f"📢 Attempting to send notifications for {len(granted)} rewards")
+
+                    for reward, _ in granted:
+                        logger.info(f"📢 Sending notification for reward: {reward.name}")
+                        await container.notifications.notify_reward_unlocked(
+                            user_id, reward
+                        )
+                        logger.info(f"✅ Notification sent successfully for reward: {reward.name}")
+
+                except RuntimeError as e:
+                    # Container no inicializado (ej: en tests)
+                    logger.warning(f"❌ Container not available for notifications: {e}")
+                except Exception as e:
+                    logger.error(f"❌ Could not send reward notification: {e}", exc_info=True)
+
         except Exception as e:
             logger.error(
                 f"Error checking/granting auto-unlock rewards for user {user_id}: {e}",

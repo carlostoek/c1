@@ -391,14 +391,18 @@ class RewardService:
         result = await self.session.execute(stmt)
         user_reward = result.scalar_one()
 
-        # Si es badge, crear UserBadge
+        # Si es badge, crear UserBadge (solo si no existe)
         if reward.reward_type == RewardType.BADGE.value:
-            user_badge = UserBadge(
-                id=user_reward.id,
-                displayed=False
-            )
-            self.session.add(user_badge)
-            await self.session.commit()
+            existing_badge = await self.session.get(UserBadge, user_reward.id)
+            if not existing_badge:
+                user_badge = UserBadge(
+                    id=user_reward.id,
+                    displayed=False
+                )
+                self.session.add(user_badge)
+                await self.session.commit()
+            else:
+                logger.debug(f"UserBadge {user_reward.id} already exists, skipping creation")
 
         # Si es BESITOS, otorgar besitos extra
         if reward.reward_type == RewardType.BESITOS.value:
@@ -484,14 +488,18 @@ class RewardService:
         result = await self.session.execute(stmt)
         user_reward = result.scalar_one()
 
-        # Si es badge, crear UserBadge
+        # Si es badge, crear UserBadge (solo si no existe)
         if reward.reward_type == RewardType.BADGE.value:
-            user_badge = UserBadge(
-                id=user_reward.id,
-                displayed=False
-            )
-            self.session.add(user_badge)
-            await self.session.commit()
+            existing_badge = await self.session.get(UserBadge, user_reward.id)
+            if not existing_badge:
+                user_badge = UserBadge(
+                    id=user_reward.id,
+                    displayed=False
+                )
+                self.session.add(user_badge)
+                await self.session.commit()
+            else:
+                logger.debug(f"UserBadge {user_reward.id} already exists, skipping creation")
 
         # Si es BESITOS, otorgar besitos extra
         if reward.reward_type == RewardType.BESITOS.value:
@@ -657,7 +665,7 @@ class RewardService:
     async def check_and_grant_unlocked_rewards(
         self,
         user_id: int
-    ) -> List[Tuple[str, str]]:
+    ) -> List[Tuple["Reward", str]]:
         """Verifica y otorga automáticamente recompensas desbloqueadas.
 
         Busca TODAS las recompensas con condición tipo 'besitos' que el usuario
@@ -667,8 +675,8 @@ class RewardService:
             user_id: ID del usuario
 
         Returns:
-            Lista de (reward_name, message) de recompensas otorgadas
-            Ej: [("Badge Coleccionista", "Recompensa otorgada"), ...]
+            Lista de (Reward, message) de recompensas otorgadas
+            Ej: [(Reward(...), "Recompensa otorgada"), ...]
         """
         granted_rewards = []
 
@@ -706,9 +714,9 @@ class RewardService:
                 )
 
                 if success:
-                    granted_rewards.append((reward.name, message))
+                    granted_rewards.append((reward, message))
                     logger.info(
-                        f"✅ Automatically granted reward '{reward.name}' "
+                        f"Automatically granted reward '{reward.name}' "
                         f"to user {user_id}"
                     )
                 else:
