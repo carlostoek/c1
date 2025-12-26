@@ -145,31 +145,32 @@ class EditRewardStates(StatesGroup):
 class ReactionConfigStates(StatesGroup):
     """Estados para configuración de reacciones en gamificación.
 
-    Flujo de creación:
+    Flujo de creación (CRUD completo):
     1. Admin selecciona "Crear Reacción"
     2. Bot pide emoji → waiting_for_emoji
     3. Admin envía emoji
-    4. Bot pide valor de besitos → waiting_for_besitos
-    5. Admin envía número
-    6. Bot confirma → confirm_create
-    7. Crea reacción en BD
+    4. Bot pide nombre → waiting_for_name
+    5. Admin envía nombre
+    6. Bot pide valor de besitos → waiting_for_besitos
+    7. Admin envía número
+    8. Crea reacción en BD
 
     Flujo de edición:
     1. Admin selecciona reacción existente
-    2. Bot muestra opciones (editar besitos, activar/desactivar)
-    3. Si edita besitos → waiting_for_edit_besitos
+    2. Bot muestra opciones (editar nombre, editar besitos, activar/desactivar)
+    3. Si edita → waiting_for_edit_name / waiting_for_edit_besitos
     4. Actualiza en BD
     """
 
     # Creación de nueva reacción
     waiting_for_emoji = State()
+    waiting_for_name = State()
     waiting_for_besitos = State()
-    confirm_create = State()
+    confirm_create = State()  # Para compatibilidad con config.py
 
     # Edición de reacción existente
+    waiting_for_edit_name = State()
     waiting_for_edit_besitos = State()
-    waiting_for_button_emoji = State()
-    waiting_for_button_label = State()
 
 
 class LevelConfigStates(StatesGroup):

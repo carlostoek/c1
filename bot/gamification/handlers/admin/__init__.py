@@ -10,7 +10,8 @@ from bot.gamification.handlers.admin import (
     level_config,
     transaction_history,
     mission_config,
-    reward_config
+    reward_config,
+    reaction_config
 )
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "level_config",
     "transaction_history",
     "mission_config",
-    "reward_config"
+    "reward_config",
+    "reaction_config"
 ]

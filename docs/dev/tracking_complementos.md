@@ -57,11 +57,13 @@ Completar implementación de sistemas CRUD de gamificación según prompts G8.x
 ## FASE 5: Completar G8.1 (Opcional)
 **Duración estimada:** ~1 hora
 
-- [ ] Campo name a Reaction
-- [ ] Método get_reaction_stats()
+- [x] Campo name a Reaction
+- [x] Migración Alembic 007
+- [x] Método get_reaction_stats() (ya existía)
+- [x] Handler reaction_config.py con CRUD completo
 
-**Status:** ⏳ Pendiente
+**Status:** ✅ Completada
 
 ---
 
-**PROGRESO GLOBAL:** 4/5 fases completadas (80%)
+**PROGRESO GLOBAL:** 5/5 fases completadas (100%) ✅

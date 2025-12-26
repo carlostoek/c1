@@ -88,6 +88,7 @@ class Reaction(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     emoji: Mapped[str] = mapped_column(String(10), unique=True)
+    name: Mapped[str] = mapped_column(String(50))
     besitos_value: Mapped[int] = mapped_column(Integer, default=1)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
