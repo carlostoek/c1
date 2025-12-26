@@ -161,3 +161,22 @@ def config_menu_keyboard() -> InlineKeyboardMarkup:
         [{"text": "⚙️ Configurar Reacciones Free", "callback_data": "config:reactions:free"}],
         [{"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}],
     ])
+
+
+def vip_user_menu_keyboard() -> InlineKeyboardMarkup:
+    """
+    Keyboard del menú para usuarios VIP.
+
+    Opciones:
+    - Acceder al Canal VIP
+    - Ver Mi Suscripción
+    - Renovar Suscripción
+
+    Returns:
+        InlineKeyboardMarkup con menú VIP
+    """
+    return create_inline_keyboard([
+        [{"text": "📺 Acceder al Canal VIP", "callback_data": "user:vip_access"}],
+        [{"text": "⏱️ Ver Mi Suscripción", "callback_data": "user:vip_status"}],
+        [{"text": "🎁 Renovar Suscripción", "callback_data": "user:vip_renew"}],
+    ])

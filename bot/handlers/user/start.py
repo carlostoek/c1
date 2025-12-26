@@ -18,7 +18,7 @@ from bot.database.enums import UserRole
 from bot.middlewares import DatabaseMiddleware
 from bot.services.container import ServiceContainer
 from bot.utils.formatters import format_currency
-from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.keyboards import create_inline_keyboard, vip_user_menu_keyboard
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -282,7 +282,8 @@ async def _send_welcome_message(
             f"👋 Hola <b>{user_name}</b>!\n\n"
             f"✅ Tienes acceso VIP activo\n"
             f"⏱️ Días restantes: <b>{days_remaining}</b>\n\n"
-            f"Disfruta del contenido exclusivo! 🎉",
+            f"<b>¿Qué deseas hacer?</b>",
+            reply_markup=vip_user_menu_keyboard(),
             parse_mode="HTML"
         )
         return
