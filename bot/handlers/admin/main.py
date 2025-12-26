@@ -160,6 +160,47 @@ async def callback_admin_config(callback: CallbackQuery, session: AsyncSession):
     await callback.answer()
 
 
+@admin_router.callback_query(F.data == "admin:gamification")
+async def callback_admin_gamification(callback: CallbackQuery, session: AsyncSession):
+    """
+    Handler para acceder al menú de gamificación.
+
+    Redirige al usuario al sistema de gamificación usando /gamif.
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+    """
+    logger.debug(f"🎮 Usuario {callback.from_user.id} accediendo a gamificación")
+
+    text = (
+        "🎮 <b>Sistema de Gamificación</b>\n\n"
+        "Para acceder al menú completo de gamificación, usa el comando:\n\n"
+        "👉 /gamif\n\n"
+        "Desde ahí podrás gestionar:\n"
+        "• Niveles y rangos\n"
+        "• Misiones y desafíos\n"
+        "• Recompensas\n"
+        "• Estadísticas de usuarios\n"
+        "• Y mucho más...\n\n"
+        "<i>El menú de gamificación se abrirá en un nuevo mensaje.</i>"
+    )
+
+    try:
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=create_inline_keyboard([
+                [{"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}]
+            ]),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            logger.error(f"Error editando mensaje gamificación: {e}")
+
+    await callback.answer()
+
+
 @admin_router.callback_query(F.data == "config:status")
 async def callback_config_status(callback: CallbackQuery, session: AsyncSession):
     """

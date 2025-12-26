@@ -61,23 +61,25 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
     Keyboard del menú principal de admin.
 
     Opciones:
-    - Dashboard completo
-    - Gestión VIP
-    - Gestión Free
-    - Configuración
-    - Tarifas
-    - Estadísticas
+    - Dashboard
+    - VIP - Free (gestión de canales)
+    - Gamificación
+    - Estadísticas - Configuración
 
     Returns:
         InlineKeyboardMarkup con menú principal
     """
     return create_inline_keyboard([
-        [{"text": "📊 Dashboard Completo", "callback_data": "admin:dashboard"}],
-        [{"text": "📺 Gestión Canal VIP", "callback_data": "admin:vip"}],
-        [{"text": "📺 Gestión Canal Free", "callback_data": "admin:free"}],
-        [{"text": "⚙️ Configuración", "callback_data": "admin:config"}],
-        [{"text": "💰 Tarifas", "callback_data": "admin:pricing"}],
-        [{"text": "📊 Estadísticas", "callback_data": "admin:stats"}],
+        [{"text": "📊 Dashboard", "callback_data": "admin:dashboard"}],
+        [
+            {"text": "⭐ VIP", "callback_data": "admin:vip"},
+            {"text": "🆓 Free", "callback_data": "admin:free"}
+        ],
+        [{"text": "🎮 Gamificación", "callback_data": "admin:gamification"}],
+        [
+            {"text": "📊 Estadísticas", "callback_data": "admin:stats"},
+            {"text": "⚙️ Configuración", "callback_data": "admin:config"}
+        ],
     ])
 
 
