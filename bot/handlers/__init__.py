@@ -15,6 +15,7 @@ from bot.gamification.handlers import (
     gamification_admin_router,
     gamification_mission_wizard_router,
     gamification_reward_wizard_router,
+    gamification_config_router,
     gamification_user_profile_router,
     gamification_user_missions_router,
     gamification_user_rewards_router,
@@ -43,6 +44,7 @@ def register_all_handlers(dispatcher: Dispatcher) -> None:
     dispatcher.include_router(gamification_admin_router)
     dispatcher.include_router(gamification_mission_wizard_router)
     dispatcher.include_router(gamification_reward_wizard_router)
+    dispatcher.include_router(gamification_config_router)
 
     # Registrar routers de gamificación (user)
     dispatcher.include_router(gamification_user_profile_router)

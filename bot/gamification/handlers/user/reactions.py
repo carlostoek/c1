@@ -19,11 +19,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.database.models import BroadcastMessage
 from bot.gamification.database.models import CustomReaction
 from bot.gamification.services.container import GamificationContainer
+from bot.middlewares import DatabaseMiddleware
 
 logger = logging.getLogger(__name__)
 
 # Router para reacciones de usuario
 router = Router(name="gamification_reactions")
+
+# Registrar middleware para inyectar session
+router.callback_query.middleware(DatabaseMiddleware())
 
 
 @router.callback_query(F.data.startswith("react:"))

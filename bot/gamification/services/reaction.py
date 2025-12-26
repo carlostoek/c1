@@ -148,6 +148,20 @@ class ReactionService:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_reaction_by_id(
+        self,
+        reaction_id: int
+    ) -> Optional[Reaction]:
+        """Obtiene reacción por ID.
+
+        Args:
+            reaction_id: ID de la reacción
+
+        Returns:
+            Reacción o None si no existe
+        """
+        return await self.session.get(Reaction, reaction_id)
+
     # ========================================
     # REGISTRO DE REACCIONES
     # ========================================
