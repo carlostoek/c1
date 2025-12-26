@@ -7,6 +7,7 @@ Estados para:
 - Broadcasting a usuarios
 - Edición de misiones existentes
 - Edición de recompensas existentes
+- Configuración de reacciones
 """
 
 from aiogram.fsm.state import State, StatesGroup
@@ -139,3 +140,101 @@ class EditRewardStates(StatesGroup):
     select_field = State()
     enter_new_value = State()
     confirm = State()
+
+
+class ReactionConfigStates(StatesGroup):
+    """Estados para configuración de reacciones en gamificación.
+
+    Flujo de creación (CRUD completo):
+    1. Admin selecciona "Crear Reacción"
+    2. Bot pide emoji → waiting_for_emoji
+    3. Admin envía emoji
+    4. Bot pide nombre → waiting_for_name
+    5. Admin envía nombre
+    6. Bot pide valor de besitos → waiting_for_besitos
+    7. Admin envía número
+    8. Crea reacción en BD
+
+    Flujo de edición:
+    1. Admin selecciona reacción existente
+    2. Bot muestra opciones (editar nombre, editar besitos, activar/desactivar)
+    3. Si edita → waiting_for_edit_name / waiting_for_edit_besitos
+    4. Actualiza en BD
+    """
+
+    # Creación de nueva reacción
+    waiting_for_emoji = State()
+    waiting_for_name = State()
+    waiting_for_besitos = State()
+    confirm_create = State()  # Para compatibilidad con config.py
+
+    # Edición de reacción existente
+    waiting_for_edit_name = State()
+    waiting_for_edit_besitos = State()
+
+
+class LevelConfigStates(StatesGroup):
+    """Estados para configuración CRUD de niveles.
+
+    Flujo de edición:
+    1. Admin selecciona nivel existente
+    2. Bot muestra menú de edición
+    3. Admin selecciona campo a editar
+    4. Bot pide nuevo valor → waiting_for_field_value
+    5. Actualiza en BD
+    """
+
+    # Edición de campos
+    waiting_for_field_value = State()
+    waiting_for_reassign_level = State()  # Para reasignar usuarios al eliminar
+
+
+class MissionConfigStates(StatesGroup):
+    """Estados para configuración CRUD de misiones.
+
+    Flujo de edición:
+    1. Admin selecciona misión existente
+    2. Bot muestra menú de edición
+    3. Admin selecciona campo a editar
+    4. Bot pide nuevo valor → waiting_for_field_value
+    5. Actualiza en BD
+    """
+
+    # Edición de campos individuales
+    waiting_for_name = State()
+    waiting_for_description = State()
+    waiting_for_besitos = State()
+
+    # Edición de criterios dinámicos
+    editing_criteria = State()
+    waiting_for_streak_days = State()
+    waiting_for_daily_count = State()
+    waiting_for_weekly_target = State()
+
+
+class RewardConfigStates(StatesGroup):
+    """Estados para configuración CRUD de recompensas.
+
+    Flujo de edición:
+    1. Admin selecciona recompensa existente
+    2. Bot muestra menú de edición
+    3. Admin selecciona campo a editar
+    4. Bot pide nuevo valor
+    5. Actualiza en BD
+    """
+
+    # Edición de campos individuales
+    waiting_for_name = State()
+    waiting_for_description = State()
+    waiting_for_cost = State()
+
+    # Edición de unlock conditions
+    editing_conditions = State()
+    waiting_for_condition_type = State()
+    waiting_for_mission_id = State()
+    waiting_for_level_id = State()
+    waiting_for_min_besitos = State()
+
+    # Edición de metadata (Badge específico)
+    waiting_for_badge_icon = State()
+    waiting_for_badge_rarity = State()

@@ -7,6 +7,7 @@ Funcionalidades:
 - Comprar recompensas con besitos
 """
 
+import json
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -53,8 +54,8 @@ async def show_rewards(callback: CallbackQuery, gamification: GamificationContai
             for user_reward in obtained[:5]:  # Máximo 5
                 reward = user_reward.reward
                 icon = ""
-                if reward.reward_type.value == 'badge':
-                    metadata = reward.reward_metadata or {}
+                if reward.reward_type == 'badge':  # reward_type ya es string
+                    metadata = json.loads(reward.reward_metadata) if reward.reward_metadata else {}
                     icon = metadata.get('icon', '🏆')
                 text += f"• {icon} {reward.name}\n"
             text += "\n"

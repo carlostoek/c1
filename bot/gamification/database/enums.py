@@ -72,6 +72,7 @@ class ObtainedVia(str, Enum):
     ADMIN_GRANT = "admin_grant"
     EVENT = "event"
     LEVEL_UP = "level_up"
+    AUTO_UNLOCK = "auto_unlock"  # Desbloqueada automáticamente al cumplir condición
 
     def __str__(self) -> str:
         return self.value
@@ -82,6 +83,7 @@ class TransactionType(str, Enum):
 
     MISSION_REWARD = "mission_reward"
     REACTION = "reaction"
+    REACTION_CUSTOM = "reaction_custom"  # Reacciones personalizadas en broadcasting
     PURCHASE = "purchase"
     ADMIN_GRANT = "admin_grant"
     ADMIN_DEDUCT = "admin_deduct"

@@ -210,33 +210,6 @@ async def create_level(callback: CallbackQuery, state: FSMContext, gamification:
         await callback.answer()
 
 
-@router.message(LevelWizardStates.enter_level_benefits)
-async def enter_level_benefits(message: Message, state: FSMContext):
-    """Recibe beneficios del nivel (JSON opcional)."""
-    benefits = None
-    if message.text and message.text.strip():
-        try:
-            benefits = json.loads(message.text.strip())
-            await state.update_data(benefits=benefits)
-            message_text = f"✅ Beneficios guardados: `{message.text.strip()}`"
-        except json.JSONDecodeError:
-            await message.answer("❌ Formato JSON inválido. Por favor, inténtalo de nuevo o salta este paso.")
-            return
-    else:
-        await state.update_data(benefits=None)
-        message_text = "✅ Beneficios: Saltado"
-
-    await confirm_level_creation(message, state) # Go to confirmation step
-
-
-@router.callback_query(F.data == "wizard:skip_benefits")
-async def skip_benefits(callback: CallbackQuery, state: FSMContext):
-    """Salto el paso de beneficios."""
-    await state.update_data(benefits=None)
-    await confirm_level_creation(callback.message, state)
-    await callback.answer()
-
-
 # ========================================
 # CANCELAR
 # ========================================

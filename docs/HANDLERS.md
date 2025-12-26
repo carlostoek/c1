@@ -993,6 +993,657 @@ async def test_start_handler():
 
 ---
 
-**Última actualización:** 2025-12-13
+## Custom Reactions Handler (T11)
+
+#### gamification/handlers/user/reactions.py - Handler de Reacciones Personalizadas
+
+**Responsabilidad:** Handlers para el sistema de reacciones personalizadas que permiten a los usuarios interactuar con mensajes de broadcasting mediante botones de reacción con gamificación (ganancia de besitos).
+
+**Componentes:**
+- `bot/gamification/handlers/user/reactions.py` - Handler principal para procesar reacciones de usuarios a mensajes de broadcasting
+
+**Características:**
+- **Reacciones personalizadas:** Botones de reacción con emojis configurables
+- **Gamificación:** Usuarios ganan besitos por reaccionar a mensajes
+- **Prevención de duplicados:** No permite múltiples reacciones idénticas por usuario
+- **Visualización en tiempo real:** Actualización del botón con checkmark personal
+- **Integración con estadísticas:** Actualización de contadores de reacciones en tiempo real
+- **Feedback inmediato:** Notificaciones con cantidad de besitos ganados
+
+**Flujo principal:**
+1. Usuario hace click en botón de reacción en mensaje de broadcasting
+2. Bot recibe callback con reaction_type_id
+3. Bot identifica el mensaje de broadcasting y al usuario
+4. Bot verifica que no exista reacción duplicada
+5. Bot registra reacción y otorga besitos al usuario
+6. Bot actualiza teclado con marca personal
+7. Bot notifica al usuario besitos ganados
+
+**Estructura de callbacks:**
+- `react:{reaction_type_id}` - Callback para registrar una reacción personalizada (ej: "react:1", "react:2")
+
+**Aplicación de handler:**
+```python
+from aiogram import Router
+from aiogram.types import CallbackQuery
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from bot.database.engine import get_session
+from bot.gamification.services.custom_reaction import CustomReactionService
+from bot.services.container import ServiceContainer
+
+router = Router()
+
+@router.callback_query(lambda c: c.data.startswith("react:"))
+async def handle_reaction_button(
+    callback: CallbackQuery,
+    session: AsyncSession
+):
+    """
+    Handler para botones de reacción personalizados.
+
+    Callback data: "react:{reaction_type_id}"
+
+    Args:
+        callback: CallbackQuery con reaction_type_id
+        session: Sesión de BD (inyectada por middleware)
+    """
+    # Extraer reaction_type_id del callback
+    reaction_type_id = int(callback.data.split(":")[1])
+
+    user_id = callback.from_user.id
+    message_id = callback.message.message_id
+    chat_id = callback.message.chat.id
+
+    # Validar que el mensaje es un broadcast registrado
+    broadcast_result = await session.execute(
+        select(BroadcastMessage)
+        .where(BroadcastMessage.message_id == message_id)
+        .where(BroadcastMessage.chat_id == chat_id)
+    )
+    broadcast_msg = broadcast_result.scalar_one_or_none()
+
+    if not broadcast_msg:
+        await callback.answer(
+            text="❌ Esta publicación no tiene gamificación activa",
+            show_alert=True
+        )
+        return
+
+    # Obtener el servicio de reacciones personalizadas
+    container = ServiceContainer(session, callback.bot)
+    custom_reaction_service = container.custom_reaction
+
+    # Registrar la reacción
+    result = await custom_reaction_service.register_custom_reaction(
+        broadcast_message_id=broadcast_msg.id,
+        user_id=user_id,
+        reaction_type_id=reaction_type_id
+    )
+
+    if result["success"]:
+        # Actualizar teclado con marca personal
+        updated_keyboard = await _build_reaction_keyboard_with_marks(
+            session, broadcast_msg.id, user_id, broadcast_msg.reaction_buttons
+        )
+
+        try:
+            await callback.message.edit_reply_markup(
+                reply_markup=updated_keyboard
+            )
+        except Exception:
+            # No se puede editar el teclado, continuar sin error
+            pass
+
+        # Enviar alerta con besitos ganados
+        await callback.answer(
+            text=f"🎉 ¡Reacción registrada! Ganaste {result['besitos_earned']} besitos",
+            show_alert=False  # Mostrar como toast, no alerta
+        )
+    else:
+        if result["already_reacted"]:
+            await callback.answer(
+                text="Ya reaccionaste con este emoji a esta publicación",
+                show_alert=False
+            )
+        else:
+            await callback.answer(
+                text="Error al registrar reacción",
+                show_alert=True
+            )
+
+async def _build_reaction_keyboard_with_marks(
+    session: AsyncSession,
+    broadcast_message_id: int,
+    current_user_id: int,
+    reaction_config: List[Dict]
+) -> InlineKeyboardMarkup:
+    """
+    Construye un teclado con marcas de reacciones ya realizadas por el usuario.
+    """
+    # Obtener estadísticas de reacciones
+    reaction_stats = await get_reaction_counts(session, broadcast_message_id)
+
+    # Obtener reacciones del usuario actual
+    user_reactions = await get_user_reactions_for_message(
+        session, broadcast_message_id, current_user_id
+    )
+
+    # Ordenar reacciones por sort_order
+    sorted_reactions = sorted(
+        reaction_config,
+        key=lambda x: x.get("sort_order", 0)
+    )
+
+    buttons = []
+    current_row = []
+
+    for i, reaction in enumerate(sorted_reactions):
+        emoji = reaction["emoji"]
+        label = reaction.get("label", emoji)
+        reaction_type_id = reaction["reaction_type_id"]
+
+        # Obtener conteo para este emoji
+        count = reaction_stats.get(emoji, 0)
+
+        # Determinar si el usuario actual ya reaccionó con este tipo
+        is_reacted = reaction_type_id in user_reactions
+
+        if is_reacted:
+            # Añadir checkmark personal
+            button_text = f"{emoji} {count} ✓"
+        else:
+            button_text = f"{emoji} {count}"
+
+        callback_data = f"react:{reaction_type_id}"
+
+        current_row.append(InlineKeyboardButton(
+            text=button_text,
+            callback_data=callback_data
+        ))
+
+        # Cada 3 botones o al final, crear nueva fila
+        if len(current_row) == 3 or i == len(sorted_reactions) - 1:
+            buttons.append(current_row)
+            current_row = []
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+async def get_reaction_counts(
+    session: AsyncSession,
+    broadcast_message_id: int
+) -> Dict[str, int]:
+    """
+    Obtiene el conteo de reacciones por emoji para un mensaje.
+    """
+    result = await session.execute(
+        select(CustomReaction.emoji, func.count(CustomReaction.id))
+        .where(CustomReaction.broadcast_message_id == broadcast_message_id)
+        .group_by(CustomReaction.emoji)
+    )
+    return dict(result.fetchall())
+
+async def get_user_reactions_for_message(
+    session: AsyncSession,
+    broadcast_message_id: int,
+    user_id: int
+) -> List[int]:
+    """
+    Obtiene los IDs de reacciones ya realizadas por un usuario en un mensaje.
+    """
+    result = await session.execute(
+        select(CustomReaction.reaction_type_id)
+        .where(CustomReaction.broadcast_message_id == broadcast_message_id)
+        .where(CustomReaction.user_id == user_id)
+    )
+    return [row[0] for row in result.fetchall()]
+```
+
+**Flujo de reacción de usuario:**
+1. Usuario hace click en botón con emoji (ej: "👍 45")
+2. Bot recibe callback "react:1" con reaction_type_id
+3. Bot verifica que mensaje es broadcast con gamificación
+4. Bot verifica que usuario no haya reaccionado previamente con mismo emoji
+5. Bot registra CustomReaction en base de datos
+6. Bot otorga besitos al usuario
+7. Bot actualiza teclado con marca personal (✓)
+8. Bot notifica cantidad de besitos ganados
+
+**Integración con teclados inline:**
+- `_build_reaction_keyboard_with_marks()` - Crea teclado con contadores públicos de reacciones y checkmark personal
+- `get_reaction_counts()` - Obtiene conteo de reacciones por emoji
+- `get_user_reactions_for_message()` - Obtiene reacciones específicas de un usuario
+
+**Características del sistema:**
+- **Contadores públicos:** Muestra cantidad real de reacciones por emoji (ej: "👍 45", "❤️ 32")
+- **Checkmarks personales:** Indicador visual que muestra al usuario reacciones propias (ej: "👍 45 ✓")
+- **No cambio de reacción:** Una vez reaccionado, no se puede cambiar a otro emoji
+- **Reacciones ilimitadas:** Usuario puede reaccionar con múltiples botones diferentes
+- **Feedback inmediato:** Notificación toast con cantidad de besitos ganados
+- **Prevención de spam:** Índice único en BD previene reacciones duplicadas
+
+**Manejo de errores:**
+- Validación de existencia de mensaje de broadcasting
+- Prevención de reacciones duplicadas
+- Manejo de errores de edición de teclado
+- Logging detallado de reacciones registradas
+
+## Broadcasting Handler con Gamificación (T22 - Extensión)
+
+#### handlers/admin/broadcast.py - Extensión con Gamificación
+
+**Responsabilidad:** Extensión del sistema de broadcasting para incluir opciones de gamificación con reacciones personalizadas y protección de contenido.
+
+**Características extendidas:**
+- **Estados FSM extendidos:** Nuevo estado `configuring_options` entre `waiting_for_content` y `waiting_for_confirmation`
+- **Configuración de gamificación:** Activación/desactivación de sistema de reacciones
+- **Selección de reacciones:** Elección de emojis para botones de reacción
+- **Protección de contenido:** Opción para activar `protect_content` en mensajes
+- **Caché de estadísticas:** Actualización en tiempo real de contadores
+
+**Estados FSM extendidos:**
+```python
+class BroadcastStates(StatesGroup):
+    waiting_for_content = State()        # Ya existente
+    configuring_options = State()        # Nuevo estado
+    selecting_reactions = State()        # Ya existente
+    waiting_for_confirmation = State()   # Ya existente
+```
+
+**Flujo extendido de broadcasting:**
+1. Admin selecciona "📤 Enviar a Canal VIP" o "📤 Enviar a Canal Free"
+2. Bot entra en estado FSM `waiting_for_content`
+3. Admin envía contenido (texto, foto o video)
+4. Bot entra en estado FSM `configuring_options` (nuevo)
+5. Bot muestra opciones de configuración:
+   - Activar/desactivar gamificación
+   - Seleccionar reacciones
+   - Activar/desactivar protección de contenido
+6. Admin configura opciones
+7. Bot entra en estado `waiting_for_confirmation`
+8. Bot muestra vista previa y solicita confirmación
+9. Admin confirma o cancela envío
+10. Si confirma: Bot envía contenido al canal y registra en BD con opciones
+
+**Ejemplo de handler de configuración:**
+```python
+@router.message(BroadcastStates.waiting_for_content)
+async def process_broadcast_content(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Procesa el contenido enviado para broadcasting y pasa a opciones de configuración.
+
+    Args:
+        message: Mensaje con contenido
+        state: FSM context
+        session: Sesión de BD
+    """
+    # ... código existente para procesar contenido ...
+    content_data = {
+        'text': getattr(message, 'text', getattr(message, 'caption', '')),
+        'photo': getattr(message, 'photo', None),
+        'video': getattr(message, 'video', None),
+        'document': getattr(message, 'document', None)
+    }
+
+    # Guardar contenido en el estado para uso posterior
+    await state.update_data({
+        **content_data,
+        "gamification_enabled": False,  # Por defecto deshabilitado
+        "content_protected": False,     # Por defecto sin protección
+        "selected_reactions": []        # Reacciones seleccionadas
+    })
+
+    # Cambiar al nuevo estado de configuración
+    await state.set_state(BroadcastStates.configuring_options)
+
+    # Mostrar opciones de configuración
+    await show_broadcast_options(message, state)
+
+async def show_broadcast_options(message: Message, state: FSMContext):
+    """
+    Muestra las opciones de configuración para el broadcast.
+
+    Args:
+        message: Mensaje para responder
+        state: FSM context
+    """
+    data = await state.get_data()
+    gamification_enabled = data.get("gamification_enabled", False)
+    content_protected = data.get("content_protected", False)
+    selected_reactions = data.get("selected_reactions", [])
+
+    text = (
+        "<b>⚙️ Opciones de Broadcasting</b>\n\n"
+        f"🎮 Gamificación: {'✅ Activada' if gamification_enabled else '❌ Desactivada'}\n"
+        f"🔒 Contenido protegido: {'✅ Sí' if content_protected else '❌ No'}\n"
+        f".Reactivos seleccionados: {len(selected_reactions)}\n\n"
+        "Selecciona las opciones que deseas aplicar:"
+    )
+
+    # Crear teclado con opciones
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🎮 Configurar Reacciones" if not gamification_enabled else "🎮 Editar Reacciones",
+                callback_data="broadcast:config:reactions"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="❌ Desactivar Gamificación" if gamification_enabled else "✅ Activar Gamificación",
+                callback_data="broadcast:config:gamification_toggle"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🔒 Activar Protección" if not content_protected else "🔓 Desactivar Protección",
+                callback_data="broadcast:config:protection_toggle"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="✅ Continuar",
+                callback_data="broadcast:continue"
+            ),
+            InlineKeyboardButton(
+                text="❌ Cancelar",
+                callback_data="broadcast:cancel"
+            )
+        ]
+    ])
+
+    await message.answer(text=text, reply_markup=keyboard, parse_mode="HTML")
+
+@router.callback_query(F.data.startswith("broadcast:config:"))
+async def handle_broadcast_config_callback(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Maneja callbacks de configuración de broadcasting.
+    """
+    data = callback.data.split(":")
+
+    if data[2] == "reactions":
+        # Mostrar selección de reacciones
+        await show_reaction_selection(callback, state, session)
+    elif data[2] == "gamification_toggle":
+        # Alternar gamificación
+        current_data = await state.get_data()
+        new_state = not current_data.get("gamification_enabled", False)
+        await state.update_data({"gamification_enabled": new_state})
+
+        # Actualizar mensaje
+        await show_broadcast_options(callback.message, state)
+        await callback.answer()
+    elif data[2] == "protection_toggle":
+        # Alternar protección
+        current_data = await state.get_data()
+        new_state = not current_data.get("content_protected", False)
+        await state.update_data({"content_protected": new_state})
+
+        # Actualizar mensaje
+        await show_broadcast_options(callback.message, state)
+        await callback.answer()
+    elif data[2] == "continue":
+        # Confirmar broadcasting
+        await callback_broadcast_confirm(callback, state, session)
+    elif data[2] == "cancel":
+        # Cancelar
+        await callback.message.edit_text("❌ Envío cancelado.")
+        await state.clear()
+
+async def show_reaction_selection(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Muestra la selección de reacciones para el broadcast.
+    """
+    # Obtener todas las reacciones disponibles
+    all_reactions_result = await session.execute(
+        select(Reaction)
+        .where(Reaction.active == True)
+        .order_by(Reaction.sort_order)
+    )
+    all_reactions = all_reactions_result.scalars().all()
+
+    current_data = await state.get_data()
+    selected_reactions = current_data.get("selected_reactions", [])
+
+    # Crear teclado con todas las reacciones y checkboxes
+    keyboard_rows = []
+    current_row = []
+
+    for i, reaction in enumerate(all_reactions):
+        # Determinar si está seleccionado
+        is_selected = reaction.id in selected_reactions
+
+        # Texto del botón con checkbox
+        checkbox = "✅ " if is_selected else "☐ "
+        button_text = f"{checkbox}{reaction.emoji} {reaction.button_label or reaction.emoji}"
+
+        # Callback para alternar selección
+        callback_data = f"broadcast:react:toggle:{reaction.id}"
+
+        current_row.append(InlineKeyboardButton(
+            text=button_text,
+            callback_data=callback_data
+        ))
+
+        # Cada 2 botones o al final, crear nueva fila
+        if len(current_row) == 2 or i == len(all_reactions) - 1:
+            keyboard_rows.append(current_row)
+            current_row = []
+
+    # Añadir botones de confirmación
+    keyboard_rows.append([
+        InlineKeyboardButton(
+            text="✅ Confirmar Reacciones",
+            callback_data="broadcast:react:confirm"
+        )
+    ])
+    keyboard_rows.append([
+        InlineKeyboardButton(
+            text="❌ Volver",
+            callback_data="broadcast:back_to_options"
+        )
+    ])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+
+    await callback.message.edit_text(
+        text="<b>🎮 Selecciona Reacciones para el Broadcast</b>\n\n"
+             "Elige los emojis que se mostrarán como botones en la publicación:",
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("broadcast:react:toggle:"))
+async def toggle_reaction_selection(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+    """
+    Alterna la selección de una reacción específica.
+    """
+    reaction_id = int(callback.data.split(":")[3])
+
+    current_data = await state.get_data()
+    selected_reactions = current_data.get("selected_reactions", [])
+
+    # Alternar selección
+    if reaction_id in selected_reactions:
+        selected_reactions.remove(reaction_id)
+    else:
+        selected_reactions.append(reaction_id)
+
+    # Actualizar FSM data
+    await state.update_data({"selected_reactions": selected_reactions})
+
+    # Actualizar mensaje con selección actualizada
+    await show_reaction_selection(callback, state, callback.bot.session)
+    await callback.answer()
+
+@router.callback_query(F.data == "broadcast:react:confirm")
+async def confirm_reaction_selection(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+    """
+    Confirma la selección de reacciones.
+    """
+    current_data = await state.get_data()
+    selected_reactions = current_data.get("selected_reactions", [])
+
+    if not selected_reactions:
+        await callback.answer("❌ Debes seleccionar al menos una reacción", show_alert=True)
+        return
+
+    # Activar gamificación
+    await state.update_data({
+        "gamification_enabled": True,
+        "selected_reactions": selected_reactions
+    })
+
+    # Volver a opciones
+    await show_broadcast_options(callback.message, state)
+    await callback.answer("✅ Reacciones seleccionadas")
+
+@router.callback_query(F.data == "broadcast:continue")
+async def callback_broadcast_confirm(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Confirma y envía el mensaje al canal(es) con opciones de gamificación.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    user_id = callback.from_user.id
+
+    # Obtener data del FSM
+    data = await state.get_data()
+
+    # Determinar tipo de contenido
+    content_type = "text"  # o "photo", "video" según el contenido
+    caption = data.get('text', '')
+    file_id = data.get('photo', data.get('video', None))
+
+    # Obtener opciones de gamificación
+    gamification_enabled = data.get("gamification_enabled", False)
+    content_protected = data.get("content_protected", False)
+    selected_reactions = data.get("selected_reactions", [])
+
+    logger.info(f"📤 Usuario {user_id} confirmó broadcast "
+                f"con gamificación: {gamification_enabled}, "
+                f"contenido protegido: {content_protected}")
+
+    # Notificar que se está enviando
+    await callback.answer("📤 Enviando publicación...", show_alert=False)
+
+    container = ServiceContainer(session, callback.bot)
+
+    # Determinar canales destino
+    # ... código para obtener canales ...
+
+    # Configurar gamificación si está habilitada
+    gamification_config = None
+    if gamification_enabled and selected_reactions:
+        gamification_config = {
+            "enabled": True,
+            "reactions": selected_reactions,
+            "protected": content_protected
+        }
+
+    # Enviar usando BroadcastService con gamificación
+    result = await container.broadcast.send_broadcast_with_gamification(
+        target="vip",  # o "free", "both" según el caso
+        content_type=content_type,
+        content_text=caption,
+        media_file_id=file_id,
+        sent_by=user_id,
+        gamification_config=gamification_config or {},
+        content_protected=content_protected
+    )
+
+    # ... manejo de resultados ...
+
+    # Limpiar estado FSM
+    await state.clear()
+
+    logger.info(f"✅ Broadcasting con gamificación completado para user {user_id}")
+```
+
+**Integración con teclados inline de broadcasting con gamificación:**
+```python
+# Teclado para opciones de configuración
+options_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(
+            text="🎮 Configurar Reacciones",
+            callback_data="broadcast:config:reactions"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            text="🔒 Activar Protección",
+            callback_data="broadcast:config:protection_toggle"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            text="✅ Continuar",
+            callback_data="broadcast:continue"
+        ),
+        InlineKeyboardButton(
+            text="❌ Cancelar",
+            callback_data="broadcast:cancel"
+        )
+    ]
+])
+
+# Teclado para selección de reacciones
+reactions_selection_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    # Botones con checkboxes para cada reacción
+    # [InlineKeyboardButton(text="✅ 👍 Me Gusta", callback_data="broadcast:react:toggle:1")],
+    # [InlineKeyboardButton(text="☐ ❤️ Me Encanta", callback_data="broadcast:react:toggle:2")],
+    # ...
+    [
+        InlineKeyboardButton(
+            text="✅ Confirmar Reacciones",
+            callback_data="broadcast:react:confirm"
+        )
+    ]
+])
+```
+
+**Características de la extensión:**
+- **Backward compatibility:** Broadcasting sin gamificación sigue funcionando exactamente igual
+- **Configuración intuitiva:** Interfaz de usuario clara para activar/desactivar opciones
+- **Selección flexible:** Elección de múltiples reacciones para cada broadcast
+- **Protección opcional:** Activación opcional de `protect_content` para evitar forward/copiar
+- **Integración completa:** Registro en BD con todas las opciones configuradas
+- **Visualización en canal:** Botones de reacción aparecen directamente en el mensaje enviado
+
+**Manejo de errores:**
+- Validación de selección mínima de reacciones
+- Manejo de errores en servicios de broadcasting
+- Logging detallado de proceso de broadcasting
+
+---
+
+**Última actualización:** 2025-12-25
 **Versión:** 1.0.0
-**Estado:** Documentación de handlers planeados (implementación en fases posteriores)
+**Estado:** Documentación de handlers implementados (custom reactions system)

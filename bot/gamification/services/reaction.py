@@ -38,12 +38,14 @@ class ReactionService:
     async def create_reaction(
         self,
         emoji: str,
+        name: str,
         besitos_value: int = 1
     ) -> Reaction:
         """Crea nueva reacción en catálogo.
 
         Args:
             emoji: Emoji de la reacción
+            name: Nombre descriptivo de la reacción
             besitos_value: Besitos que otorga
 
         Returns:
@@ -51,6 +53,7 @@ class ReactionService:
         """
         reaction = Reaction(
             emoji=emoji,
+            name=name,
             besitos_value=besitos_value,
             active=True
         )
@@ -64,6 +67,7 @@ class ReactionService:
     async def update_reaction(
         self,
         reaction_id: int,
+        name: Optional[str] = None,
         besitos_value: Optional[int] = None,
         active: Optional[bool] = None
     ) -> Optional[Reaction]:
@@ -71,6 +75,7 @@ class ReactionService:
 
         Args:
             reaction_id: ID de la reacción
+            name: Nuevo nombre de la reacción
             besitos_value: Nuevo valor de besitos
             active: Nuevo estado activo/inactivo
 
@@ -82,6 +87,8 @@ class ReactionService:
             logger.warning(f"Reaction {reaction_id} not found")
             return None
 
+        if name is not None:
+            reaction.name = name
         if besitos_value is not None:
             reaction.besitos_value = besitos_value
         if active is not None:
@@ -147,6 +154,20 @@ class ReactionService:
         stmt = select(Reaction).where(Reaction.emoji == emoji)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_reaction_by_id(
+        self,
+        reaction_id: int
+    ) -> Optional[Reaction]:
+        """Obtiene reacción por ID.
+
+        Args:
+            reaction_id: ID de la reacción
+
+        Returns:
+            Reacción o None si no existe
+        """
+        return await self.session.get(Reaction, reaction_id)
 
     # ========================================
     # REGISTRO DE REACCIONES

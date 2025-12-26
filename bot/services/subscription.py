@@ -14,9 +14,11 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Tuple
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import ChatInviteLink
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from config import Config
 from bot.database.models import (
@@ -42,8 +44,8 @@ class SubscriptionService:
     Free Flow:
     1. Usuario solicita acceso → create_free_request()
     2. Espera N minutos
-    3. Sistema procesa cola → process_free_queue() (background)
-    4. Usuario recibe invite link
+    3. Sistema procesa cola → approve_ready_free_requests() (background)
+    4. Usuario es aprobado y notificado
     """
 
     def __init__(self, session: AsyncSession, bot: Bot):
@@ -159,11 +161,11 @@ class SubscriptionService:
                 - str: Mensaje de error/éxito
                 - Optional[InvitationToken]: Token si existe, None si no
         """
-        # Buscar token
+        # Buscar token con eager load de relación plan (evita lazy loading en contexto async)
         result = await self.session.execute(
             select(InvitationToken).where(
                 InvitationToken.token == token_str
-            )
+            ).options(selectinload(InvitationToken.plan))
         )
         token = result.scalar_one_or_none()
 
@@ -604,25 +606,45 @@ class SubscriptionService:
 
         return True, "Solicitud creada exitosamente", request
 
+    async def get_ready_free_requests_to_process(self, wait_time_minutes: int) -> List[FreeChannelRequest]:
+        """
+        Obtiene la cola de solicitudes Free que cumplieron el tiempo de espera.
+        Usa SELECT ... FOR UPDATE para bloquear las filas y evitar race conditions.
+        """
+        cutoff_time = datetime.utcnow() - timedelta(minutes=wait_time_minutes)
+
+        stmt = (
+            select(FreeChannelRequest)
+            .where(
+                FreeChannelRequest.processed == False,
+                FreeChannelRequest.request_date <= cutoff_time
+            )
+            .order_by(FreeChannelRequest.request_date.asc())
+            .with_for_update(skip_locked=True)
+        )
+        result = await self.session.execute(stmt)
+        ready_requests = result.scalars().all()
+
+        if ready_requests:
+            logger.info(f"ℹ️ {len(ready_requests)} solicitud(es) Free listas para procesar.")
+
+        return list(ready_requests)
+
     async def approve_ready_free_requests(
         self,
         wait_time_minutes: int,
         free_channel_id: str
     ) -> tuple[int, int]:
         """
-        Aprueba solicitudes Free que cumplieron el tiempo de espera.
-
-        NUEVO: Usa approve_chat_join_request en vez de enviar invite links.
-
+        Aprueba solicitudes Free que cumplieron el tiempo de espera, notifica
+        al usuario y limpia el estado de la solicitud.
         Args:
             wait_time_minutes: Tiempo de espera en minutos
             free_channel_id: ID del canal Free
-
         Returns:
             tuple: (success_count, error_count)
         """
-        # Obtener solicitudes listas
-        ready_requests = await self.process_free_queue(wait_time_minutes)
+        ready_requests = await self.get_ready_free_requests_to_process(wait_time_minutes)
 
         if not ready_requests:
             return 0, 0
@@ -632,31 +654,61 @@ class SubscriptionService:
 
         for request in ready_requests:
             try:
-                # APROBAR la solicitud directamente
+                # 1. Aprobar la solicitud directamente
                 await self.bot.approve_chat_join_request(
                     chat_id=free_channel_id,
                     user_id=request.user_id
                 )
 
-                # Marcar como procesada
-                request.processed = True
-                request.processed_at = datetime.utcnow()
+                # 2. Notificar al usuario
+                try:
+                    chat = await self.bot.get_chat(free_channel_id)
+                    await self.bot.send_message(
+                        chat_id=request.user_id,
+                        text=f"¡Felicidades! Tu solicitud de acceso al canal '{chat.title}' ha sido aprobada."
+                    )
+                    logger.info(f"✅ Notificación de aprobación enviada a user {request.user_id}")
+                except Exception as notify_err:
+                    logger.warning(
+                        f"⚠️ No se pudo notificar a user {request.user_id} sobre la aprobación: {notify_err}"
+                    )
+
+                # 3. Eliminar la solicitud para limpiar el estado
+                await self.session.delete(request)
 
                 success_count += 1
-                logger.info(f"✅ Solicitud Free aprobada: user {request.user_id}")
+                logger.info(f"✅ Solicitud Free aprobada para user {request.user_id}")
 
+            except TelegramBadRequest as e:
+                # Error común si el usuario ya no está esperando (canceló, ya entró, etc.)
+                if "HIDE_REQUESTER_MISSING" in e.message or "USER_ALREADY_PARTICIPANT" in e.message:
+                    logger.warning(
+                        f"⚠️ Solicitud para user {request.user_id} ya no era válida (probablemente ya está en el canal o canceló). "
+                        f"Se limpiará de la cola. Error: {e}"
+                    )
+                    # Igualmente se elimina para limpiar la cola
+                    await self.session.delete(request)
+                    error_count += 1 # Contar como error manejado
+                else:
+                    error_count += 1
+                    logger.error(
+                        f"❌ Error de Telegram no manejado aprobando solicitud user {request.user_id}: {e}",
+                        exc_info=True
+                    )
             except Exception as e:
                 error_count += 1
                 logger.error(
-                    f"❌ Error aprobando solicitud user {request.user_id}: {e}",
+                    f"❌ Error inesperado aprobando solicitud user {request.user_id}: {e}",
                     exc_info=True
                 )
-                # Continuar con siguiente usuario
+                # No se elimina la solicitud en caso de error desconocido para poder reintentar
 
-        if success_count > 0:
+        # Hacer commit de todos los cambios (eliminaciones y actualizaciones)
+        if success_count > 0 or error_count > 0:
             await self.session.commit()
 
         return success_count, error_count
+
 
     async def send_free_request_notification(
         self,
@@ -719,44 +771,6 @@ class SubscriptionService:
                 exc_info=True
             )
             return False
-
-    async def process_free_queue(self, wait_time_minutes: int) -> List[FreeChannelRequest]:
-        """
-        Procesa la cola de solicitudes Free que cumplieron el tiempo de espera.
-
-        Esta función se ejecuta periódicamente en background.
-
-        Args:
-            wait_time_minutes: Tiempo mínimo de espera requerido
-
-        Returns:
-            Lista de solicitudes procesadas
-        """
-        # Calcular timestamp límite
-        cutoff_time = datetime.utcnow() - timedelta(minutes=wait_time_minutes)
-
-        # Buscar solicitudes listas para procesar
-        result = await self.session.execute(
-            select(FreeChannelRequest).where(
-                FreeChannelRequest.processed == False,
-                FreeChannelRequest.request_date <= cutoff_time
-            ).order_by(FreeChannelRequest.request_date.asc())
-        )
-        ready_requests = result.scalars().all()
-
-        if not ready_requests:
-            return []
-
-        # Marcar como procesadas
-        for request in ready_requests:
-            request.processed = True
-            request.processed_at = datetime.utcnow()
-
-        await self.session.commit()
-
-        logger.info(f"✅ {len(ready_requests)} solicitud(es) Free procesadas")
-
-        return list(ready_requests)
 
     async def cleanup_old_free_requests(self, days_old: int = 30) -> int:
         """

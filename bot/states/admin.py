@@ -77,62 +77,65 @@ class FreeMessageSetupStates(StatesGroup):
 
 class BroadcastStates(StatesGroup):
     """
-    Estados para envío de publicaciones a canales (BROADCASTING AVANZADO).
+    Estados para envío de publicaciones a canales con gamificación.
 
-    Flujo completo:
+    Flujo completo (4 pasos):
     1. Admin selecciona canal destino (VIP, Free, o Ambos)
-    2. Bot entra en waiting_for_content
-    3. Admin envía contenido (texto, foto, o video)
-    4. Bot muestra preview y entra en waiting_for_confirmation
-    5. Admin confirma o cancela
-    6. Si confirma: Bot envía al canal(es) y sale del estado
-    7. Si cancela: Bot vuelve a waiting_for_content o sale
+       → Bot entra en waiting_for_content
 
-    Estados adicionales para reacciones (ONDA 2):
-    - selecting_reactions: Admin selecciona reacciones a aplicar
+    2. Admin envía contenido (texto, foto, o video)
+       → Bot guarda contenido en FSM data
+       → Bot entra en configuring_options
 
-    Tipos de Contenido:
-    - Soportar: texto, foto, video
-    - Estado waiting_for_content acepta cualquiera
-    - Estado waiting_for_confirmation maneja confirmación
-    - Estado selecting_reactions permite cambiar reacciones (opcional)
+    3. Admin configura opciones de gamificación (NUEVO):
+       a. Activar/desactivar gamificación
+       b. Seleccionar reacciones (entra en selecting_reactions)
+       c. Activar/desactivar protección de contenido
+       → Bot entra en waiting_for_confirmation cuando admin confirma
+
+    4. Admin confirma envío
+       → Bot muestra preview final
+       → Admin confirma o cancela
+       → Si confirma: Bot envía al canal(es) con config de gamificación
+       → Si cancela: Bot puede volver a configuring_options o salir
+
+    Estados del flujo:
+    - waiting_for_content: Esperando contenido multimedia del admin
+    - configuring_options: Configurando opciones de gamificación y protección
+    - selecting_reactions: Sub-estado para seleccionar reacciones específicas
+    - waiting_for_confirmation: Confirmación final antes de enviar
+
+    Opciones de Gamificación:
+    - Reacciones personalizadas: Admin selecciona qué emojis mostrar como botones
+    - Protección de contenido: Prevenir forwards/copias del mensaje
+    - Besitos por reacción: Configurados en los ReactionTypes
+
+    Callbacks de configuración:
+    - broadcast:config:reactions → Activar/configurar reacciones
+    - broadcast:config:gamif_off → Desactivar gamificación
+    - broadcast:config:protection_on → Activar protección
+    - broadcast:config:protection_off → Desactivar protección
+    - broadcast:react:toggle:{id} → Toggle reacción específica
+    - broadcast:react:confirm → Confirmar selección de reacciones
+    - broadcast:react:cancel → Cancelar selección de reacciones
+
+    Tipos de Contenido Soportados:
+    - Texto plano
+    - Foto (con caption opcional)
+    - Video (con caption opcional)
     """
 
-    # Estado 1: Esperando contenido del mensaje a enviar
+    # Paso 1: Esperando contenido del mensaje a enviar
     waiting_for_content = State()
 
-    # Estado 2: Esperando confirmación de envío (después de preview)
-    waiting_for_confirmation = State()
+    # Paso 2: Configurando opciones de gamificación y protección (NUEVO)
+    configuring_options = State()
 
-    # Estado 3: Seleccionando reacciones a aplicar (NUEVO - T23)
+    # Paso 3: Seleccionando reacciones específicas a aplicar (sub-estado)
     selecting_reactions = State()
 
-
-class ReactionSetupStates(StatesGroup):
-    """
-    Estados para configuración de reacciones automáticas.
-
-    Flujo:
-    1. Admin selecciona "Configurar Reacciones VIP/Free"
-    2. Bot entra en waiting_for_vip_reactions o waiting_for_free_reactions
-    3. Admin envía lista de emojis separados por espacios
-    4. Bot valida (1-10 emojis) y guarda
-    5. Bot sale del estado
-
-    Validación de Input:
-    - Formato: Emojis separados por espacios
-    - Rango válido: 1-10 emojis
-    - Si no es válido → Error y mantener estado
-    - Si es válido → Guardar en DB y clear state
-
-    NUEVO EN ONDA 2 - T21
-    """
-
-    # Esperando lista de emojis para canal VIP
-    waiting_for_vip_reactions = State()
-
-    # Esperando lista de emojis para canal Free
-    waiting_for_free_reactions = State()
+    # Paso 4: Esperando confirmación final de envío (después de configuración)
+    waiting_for_confirmation = State()
 
 
 class PricingSetupStates(StatesGroup):

@@ -383,14 +383,26 @@ class RewardService:
         await self.session.commit()
         await self.session.refresh(user_reward)
 
-        # Si es badge, crear UserBadge
+        # Eager load la relación reward para evitar lazy loading issues
+        from sqlalchemy.orm import selectinload
+        stmt = select(UserReward).where(UserReward.id == user_reward.id).options(
+            selectinload(UserReward.reward)
+        )
+        result = await self.session.execute(stmt)
+        user_reward = result.scalar_one()
+
+        # Si es badge, crear UserBadge (solo si no existe)
         if reward.reward_type == RewardType.BADGE.value:
-            user_badge = UserBadge(
-                id=user_reward.id,
-                displayed=False
-            )
-            self.session.add(user_badge)
-            await self.session.commit()
+            existing_badge = await self.session.get(UserBadge, user_reward.id)
+            if not existing_badge:
+                user_badge = UserBadge(
+                    id=user_reward.id,
+                    displayed=False
+                )
+                self.session.add(user_badge)
+                await self.session.commit()
+            else:
+                logger.debug(f"UserBadge {user_reward.id} already exists, skipping creation")
 
         # Si es BESITOS, otorgar besitos extra
         if reward.reward_type == RewardType.BESITOS.value:
@@ -468,14 +480,26 @@ class RewardService:
         await self.session.commit()
         await self.session.refresh(user_reward)
 
-        # Si es badge, crear UserBadge
+        # Eager load la relación reward para evitar lazy loading issues
+        from sqlalchemy.orm import selectinload
+        stmt = select(UserReward).where(UserReward.id == user_reward.id).options(
+            selectinload(UserReward.reward)
+        )
+        result = await self.session.execute(stmt)
+        user_reward = result.scalar_one()
+
+        # Si es badge, crear UserBadge (solo si no existe)
         if reward.reward_type == RewardType.BADGE.value:
-            user_badge = UserBadge(
-                id=user_reward.id,
-                displayed=False
-            )
-            self.session.add(user_badge)
-            await self.session.commit()
+            existing_badge = await self.session.get(UserBadge, user_reward.id)
+            if not existing_badge:
+                user_badge = UserBadge(
+                    id=user_reward.id,
+                    displayed=False
+                )
+                self.session.add(user_badge)
+                await self.session.commit()
+            else:
+                logger.debug(f"UserBadge {user_reward.id} already exists, skipping creation")
 
         # Si es BESITOS, otorgar besitos extra
         if reward.reward_type == RewardType.BESITOS.value:
@@ -511,7 +535,11 @@ class RewardService:
         Returns:
             Lista de UserReward
         """
-        stmt = select(UserReward).where(UserReward.user_id == user_id)
+        from sqlalchemy.orm import selectinload
+
+        stmt = select(UserReward).where(UserReward.user_id == user_id).options(
+            selectinload(UserReward.reward)  # Eager load la relación reward
+        )
         if reward_type:
             stmt = stmt.join(Reward).where(Reward.reward_type == reward_type.value)
 
@@ -629,3 +657,93 @@ class RewardService:
 
         logger.info(f"User {user_id} set displayed badges: {badge_ids}")
         return True
+
+    # ========================================
+    # AUTOMATIC REWARDS
+    # ========================================
+
+    async def check_and_grant_unlocked_rewards(
+        self,
+        user_id: int
+    ) -> List[Tuple["Reward", str]]:
+        """Verifica y otorga automáticamente recompensas desbloqueadas.
+
+        Busca TODAS las recompensas con condición tipo 'besitos' que el usuario
+        cumple, y las otorga automáticamente si aún no las tiene.
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            Lista de (Reward, message) de recompensas otorgadas
+            Ej: [(Reward(...), "Recompensa otorgada"), ...]
+        """
+        granted_rewards = []
+
+        # Obtener todas las recompensas con condición de besitos
+        all_rewards = await self.get_all_rewards(active_only=True)
+
+        for reward in all_rewards:
+            # Si no tiene condiciones, saltar
+            if not reward.unlock_conditions:
+                continue
+
+            try:
+                conditions = json.loads(reward.unlock_conditions)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning(
+                    f"Invalid unlock_conditions JSON for reward {reward.id}: "
+                    f"{reward.unlock_conditions}"
+                )
+                continue
+
+            # Solo procesar recompensas con condición tipo 'besitos'
+            if conditions.get('type') != 'besitos':
+                continue
+
+            # Verificar si usuario cumple la condición
+            can_unlock, _ = await self.check_unlock_conditions(user_id, reward.id)
+
+            if can_unlock:
+                # Otorgar recompensa automáticamente
+                success, message, user_reward = await self.grant_reward(
+                    user_id=user_id,
+                    reward_id=reward.id,
+                    obtained_via=ObtainedVia.AUTO_UNLOCK,
+                    reference_id=None
+                )
+
+                if success:
+                    granted_rewards.append((reward, message))
+                    logger.info(
+                        f"Automatically granted reward '{reward.name}' "
+                        f"to user {user_id}"
+                    )
+                else:
+                    logger.debug(
+                        f"Could not grant reward '{reward.name}' "
+                        f"to user {user_id}: {message}"
+                    )
+
+        return granted_rewards
+
+    # ========================================
+    # ESTADÍSTICAS
+    # ========================================
+
+    async def get_users_with_reward(self, reward_id: int) -> int:
+        """Obtiene la cantidad de usuarios que tienen una recompensa.
+
+        Args:
+            reward_id: ID de la recompensa
+
+        Returns:
+            Número de usuarios que tienen la recompensa
+        """
+        stmt = select(func.count(UserReward.id)).where(
+            UserReward.reward_id == reward_id
+        )
+        result = await self.session.execute(stmt)
+        count = result.scalar_one()
+
+        return count

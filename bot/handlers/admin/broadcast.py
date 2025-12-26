@@ -160,23 +160,11 @@ async def process_broadcast_content(
         "file_id": file_id,
         "caption": caption,
         "original_message_id": message.message_id,
+        # Inicializar configuración de gamificación
+        "gamification_enabled": False,
+        "selected_reactions": [],
+        "content_protected": False,
     })
-
-    # Mostrar preview
-    preview_text = await _generate_preview_text(target_channel, content_type, caption)
-
-    # Enviar preview al admin
-    await message.answer(
-        text=preview_text,
-        reply_markup=create_inline_keyboard([
-            [
-                {"text": "✅ Confirmar y Enviar", "callback_data": "broadcast:confirm"},
-                {"text": "❌ Cancelar", "callback_data": "broadcast:cancel"}
-            ],
-            [{"text": "🔄 Enviar Otro Contenido", "callback_data": "broadcast:change"}]
-        ]),
-        parse_mode="HTML"
-    )
 
     # Reenviar el contenido como preview visual
     if content_type == ContentType.PHOTO:
@@ -192,10 +180,13 @@ async def process_broadcast_content(
             parse_mode="HTML"
         )
 
-    # Cambiar a estado de confirmación
-    await state.set_state(BroadcastStates.waiting_for_confirmation)
+    # Cambiar a estado de configuración de opciones (NUEVO)
+    await state.set_state(BroadcastStates.configuring_options)
 
-    logger.debug(f"✅ Preview generado para user {user_id}")
+    # Mostrar opciones de configuración
+    await show_broadcast_options(message, state, session)
+
+    logger.debug(f"✅ Contenido guardado, mostrando opciones para user {user_id}")
 
 
 @admin_router.message(BroadcastStates.waiting_for_content)
@@ -222,6 +213,441 @@ async def process_invalid_content_type(message: Message, state: FSMContext):
     )
 
 
+# ===== CONFIGURACIÓN DE OPCIONES (NUEVO) =====
+
+async def show_broadcast_options(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Muestra opciones de gamificación y protección.
+
+    Args:
+        message: Mensaje original
+        state: FSM context
+        session: Sesión de BD
+    """
+    data = await state.get_data()
+    gamif_enabled = data.get("gamification_enabled", False)
+    protected = data.get("content_protected", False)
+    selected_reactions = data.get("selected_reactions", [])
+
+    # Construir texto con status
+    status_text = "⚙️ <b>Configurar Opciones de Publicación</b>\n\n"
+
+    # Estado de gamificación
+    if gamif_enabled and selected_reactions:
+        status_text += f"🎮 <b>Gamificación:</b> Activada ({len(selected_reactions)} reacciones)\n"
+    else:
+        status_text += "🎮 <b>Gamificación:</b> Desactivada\n"
+
+    # Estado de protección
+    if protected:
+        status_text += "🔒 <b>Protección:</b> Activada (anti-forward)\n"
+    else:
+        status_text += "🔓 <b>Protección:</b> Desactivada\n"
+
+    status_text += "\n<i>Configura las opciones antes de enviar.</i>"
+
+    # Construir keyboard dinámico
+    keyboard = []
+
+    # Fila 1: Gamificación
+    if gamif_enabled:
+        keyboard.append([
+            {"text": f"🎮 Reacciones ({len(selected_reactions)})", "callback_data": "broadcast:config:reactions"},
+            {"text": "❌ Desactivar", "callback_data": "broadcast:config:gamif_off"}
+        ])
+    else:
+        keyboard.append([
+            {"text": "🎮 Activar Gamificación", "callback_data": "broadcast:config:reactions"}
+        ])
+
+    # Fila 2: Protección
+    if protected:
+        keyboard.append([
+            {"text": "🔓 Desactivar Protección", "callback_data": "broadcast:config:protection_off"}
+        ])
+    else:
+        keyboard.append([
+            {"text": "🔒 Activar Protección", "callback_data": "broadcast:config:protection_on"}
+        ])
+
+    # Fila 3: Continuar o Cancelar
+    keyboard.append([
+        {"text": "✅ Continuar", "callback_data": "broadcast:config:continue"},
+        {"text": "❌ Cancelar", "callback_data": "broadcast:cancel"}
+    ])
+
+    await message.answer(
+        text=status_text,
+        reply_markup=create_inline_keyboard(keyboard),
+        parse_mode="HTML"
+    )
+
+
+@admin_router.callback_query(
+    BroadcastStates.configuring_options,
+    F.data == "broadcast:config:reactions"
+)
+async def show_reaction_selection(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Muestra selector de reacciones.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    from sqlalchemy import select
+    from bot.gamification.database.models import Reaction
+
+    logger.debug(f"📝 Usuario {callback.from_user.id} seleccionando reacciones")
+
+    # Obtener todas las reacciones disponibles
+    stmt = select(Reaction).where(Reaction.active == True).order_by(Reaction.sort_order)
+    result = await session.execute(stmt)
+    reactions = result.scalars().all()
+
+    if not reactions:
+        await callback.answer("⚠️ No hay reacciones configuradas", show_alert=True)
+        return
+
+    # Obtener seleccionadas
+    data = await state.get_data()
+    selected = data.get("selected_reactions", [])
+
+    # Cambiar a estado de selección
+    await state.set_state(BroadcastStates.selecting_reactions)
+
+    # Construir keyboard con checkboxes
+    keyboard = []
+    for reaction in reactions:
+        emoji = reaction.button_emoji or reaction.emoji
+        label = reaction.button_label or f"{reaction.besitos_value} besitos"
+        check = "✓" if reaction.id in selected else ""
+
+        keyboard.append([{
+            "text": f"{emoji} {label} {check}",
+            "callback_data": f"broadcast:react:toggle:{reaction.id}"
+        }])
+
+    # Botones de acción
+    keyboard.append([
+        {"text": "✅ Confirmar", "callback_data": "broadcast:react:confirm"},
+        {"text": "❌ Cancelar", "callback_data": "broadcast:react:cancel"}
+    ])
+
+    text = (
+        "🎮 <b>Seleccionar Reacciones</b>\n\n"
+        "Toca los emojis para activar/desactivar.\n"
+        "Los usuarios ganarán besitos al reaccionar.\n\n"
+        f"<b>Seleccionadas:</b> {len(selected)}"
+    )
+
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=create_inline_keyboard(keyboard),
+        parse_mode="HTML"
+    )
+
+    await callback.answer()
+
+
+@admin_router.callback_query(
+    BroadcastStates.selecting_reactions,
+    F.data.startswith("broadcast:react:toggle:")
+)
+async def toggle_reaction(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Toggle selección de reacción.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    reaction_id = int(callback.data.split(":")[-1])
+
+    # Obtener seleccionadas
+    data = await state.get_data()
+    selected = data.get("selected_reactions", [])
+
+    # Toggle
+    if reaction_id in selected:
+        selected.remove(reaction_id)
+    else:
+        selected.append(reaction_id)
+
+    # Guardar
+    await state.update_data(selected_reactions=selected)
+
+    # Refrescar display
+    await show_reaction_selection(callback, state, session)
+
+
+@admin_router.callback_query(
+    BroadcastStates.selecting_reactions,
+    F.data == "broadcast:react:confirm"
+)
+async def confirm_reactions(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Confirma selección de reacciones.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    data = await state.get_data()
+    selected = data.get("selected_reactions", [])
+
+    # Validar que hay al menos una
+    if not selected:
+        await callback.answer("⚠️ Selecciona al menos una reacción", show_alert=True)
+        return
+
+    # Marcar gamificación como habilitada
+    await state.update_data(gamification_enabled=True)
+
+    # Volver a configuring_options
+    await state.set_state(BroadcastStates.configuring_options)
+
+    await callback.answer(f"✅ {len(selected)} reacciones seleccionadas")
+
+    # Mostrar opciones nuevamente
+    # Crear un mensaje ficticio para reutilizar la función
+    class FakeMessage:
+        def __init__(self, callback):
+            self.from_user = callback.from_user
+            self.chat = callback.message.chat
+
+        async def answer(self, *args, **kwargs):
+            # Editar el mensaje actual en lugar de enviar nuevo
+            await callback.message.edit_text(*args, **kwargs)
+
+    fake_msg = FakeMessage(callback)
+    await show_broadcast_options(fake_msg, state, session)
+
+
+@admin_router.callback_query(
+    BroadcastStates.selecting_reactions,
+    F.data == "broadcast:react:cancel"
+)
+async def cancel_reaction_selection(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Cancela selección de reacciones.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    # Volver a configuring_options
+    await state.set_state(BroadcastStates.configuring_options)
+
+    await callback.answer("❌ Selección cancelada")
+
+    # Mostrar opciones nuevamente
+    class FakeMessage:
+        def __init__(self, callback):
+            self.from_user = callback.from_user
+            self.chat = callback.message.chat
+
+        async def answer(self, *args, **kwargs):
+            await callback.message.edit_text(*args, **kwargs)
+
+    fake_msg = FakeMessage(callback)
+    await show_broadcast_options(fake_msg, state, session)
+
+
+@admin_router.callback_query(
+    BroadcastStates.configuring_options,
+    F.data == "broadcast:config:gamif_off"
+)
+async def disable_gamification(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Desactiva gamificación.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    await state.update_data(
+        gamification_enabled=False,
+        selected_reactions=[]
+    )
+
+    await callback.answer("❌ Gamificación desactivada")
+
+    # Refrescar opciones
+    class FakeMessage:
+        def __init__(self, callback):
+            self.from_user = callback.from_user
+            self.chat = callback.message.chat
+
+        async def answer(self, *args, **kwargs):
+            await callback.message.edit_text(*args, **kwargs)
+
+    fake_msg = FakeMessage(callback)
+    await show_broadcast_options(fake_msg, state, session)
+
+
+@admin_router.callback_query(
+    BroadcastStates.configuring_options,
+    F.data.startswith("broadcast:config:protection_")
+)
+async def toggle_protection(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Toggle protección de contenido.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    action = callback.data.split("_")[-1]  # "on" o "off"
+    protected = (action == "on")
+
+    await state.update_data(content_protected=protected)
+
+    msg = "🔒 Protección activada" if protected else "🔓 Protección desactivada"
+    await callback.answer(msg)
+
+    # Refrescar opciones
+    class FakeMessage:
+        def __init__(self, callback):
+            self.from_user = callback.from_user
+            self.chat = callback.message.chat
+
+        async def answer(self, *args, **kwargs):
+            await callback.message.edit_text(*args, **kwargs)
+
+    fake_msg = FakeMessage(callback)
+    await show_broadcast_options(fake_msg, state, session)
+
+
+@admin_router.callback_query(
+    BroadcastStates.configuring_options,
+    F.data == "broadcast:config:continue"
+)
+async def continue_to_confirmation(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+    """
+    Continúa a confirmación final.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+    """
+    logger.debug(f"▶️ Usuario {callback.from_user.id} continuando a confirmación")
+
+    # Obtener data
+    data = await state.get_data()
+    target_channel = data.get("target_channel", "vip")
+    content_type = data.get("content_type")
+    caption = data.get("caption")
+    gamif_enabled = data.get("gamification_enabled", False)
+    protected = data.get("content_protected", False)
+    selected_reactions = data.get("selected_reactions", [])
+
+    # Cambiar a waiting_for_confirmation
+    await state.set_state(BroadcastStates.waiting_for_confirmation)
+
+    # Generar preview final
+    preview_text = await _generate_preview_text(target_channel, content_type, caption)
+
+    # Agregar info de configuración
+    preview_text += "\n\n<b>⚙️ Configuración:</b>\n"
+    if gamif_enabled and selected_reactions:
+        preview_text += f"🎮 Gamificación: {len(selected_reactions)} reacciones\n"
+    else:
+        preview_text += "🎮 Gamificación: Desactivada\n"
+
+    if protected:
+        preview_text += "🔒 Protección: Activada\n"
+    else:
+        preview_text += "🔓 Protección: Desactivada\n"
+
+    preview_text += "\n✅ ¿Confirmar envío?"
+
+    await callback.message.edit_text(
+        text=preview_text,
+        reply_markup=create_inline_keyboard([
+            [
+                {"text": "✅ Confirmar y Enviar", "callback_data": "broadcast:confirm"},
+                {"text": "🔙 Volver a Opciones", "callback_data": "broadcast:back_to_options"}
+            ],
+            [{"text": "❌ Cancelar", "callback_data": "broadcast:cancel"}]
+        ]),
+        parse_mode="HTML"
+    )
+
+    await callback.answer()
+
+
+@admin_router.callback_query(
+    BroadcastStates.waiting_for_confirmation,
+    F.data == "broadcast:back_to_options"
+)
+async def back_to_options(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """
+    Vuelve a pantalla de opciones.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        session: Sesión de BD
+    """
+    await state.set_state(BroadcastStates.configuring_options)
+
+    await callback.answer("🔙 Volviendo a opciones")
+
+    # Mostrar opciones
+    class FakeMessage:
+        def __init__(self, callback):
+            self.from_user = callback.from_user
+            self.chat = callback.message.chat
+
+        async def answer(self, *args, **kwargs):
+            await callback.message.edit_text(*args, **kwargs)
+
+    fake_msg = FakeMessage(callback)
+    await show_broadcast_options(fake_msg, state, session)
+
+
 # ===== CONFIRMACIÓN Y ENVÍO =====
 
 @admin_router.callback_query(
@@ -234,7 +660,7 @@ async def callback_broadcast_confirm(
     session: AsyncSession
 ):
     """
-    Confirma y envía el mensaje al canal(es).
+    Confirma y envía el mensaje al canal(es) usando BroadcastService.
 
     Args:
         callback: Callback query
@@ -249,82 +675,77 @@ async def callback_broadcast_confirm(
     content_type = data["content_type"]
     file_id = data.get("file_id")
     caption = data.get("caption")
+    gamif_enabled = data.get("gamification_enabled", False)
+    selected_reactions = data.get("selected_reactions", [])
+    content_protected = data.get("content_protected", False)
 
-    logger.info(f"📤 Usuario {user_id} confirmó broadcast a {target_channel}")
+    logger.info(
+        f"📤 Usuario {user_id} confirmó broadcast a {target_channel} "
+        f"(gamif={gamif_enabled}, protected={content_protected})"
+    )
 
     # Notificar que se está enviando
     await callback.answer("📤 Enviando publicación...", show_alert=False)
 
     container = ServiceContainer(session, callback.bot)
 
-    # Determinar canales destino
-    channels_to_send = []
+    # Preparar configuración de gamificación
+    gamification_config = None
+    if gamif_enabled and selected_reactions:
+        gamification_config = {
+            "enabled": True,
+            "reaction_types": selected_reactions
+        }
 
-    if target_channel == "vip":
-        vip_channel = await container.channel.get_vip_channel_id()
-        if vip_channel:
-            channels_to_send.append(("VIP", vip_channel))
+    # Determinar tipo de contenido para BroadcastService
+    content_type_str = {
+        ContentType.PHOTO: "photo",
+        ContentType.VIDEO: "video",
+        ContentType.TEXT: "text"
+    }.get(content_type, "text")
 
-    elif target_channel == "free":
-        free_channel = await container.channel.get_free_channel_id()
-        if free_channel:
-            channels_to_send.append(("Free", free_channel))
-
-    # Validar que hay canales configurados
-    if not channels_to_send:
-        await callback.message.edit_text(
-            "❌ <b>Error: Canales No Configurados</b>\n\n"
-            "Debes configurar los canales antes de enviar publicaciones.",
-            reply_markup=create_inline_keyboard([
-                [{"text": "🔙 Volver", "callback_data": "admin:main"}]
-            ]),
-            parse_mode="HTML"
+    # Enviar usando BroadcastService
+    try:
+        result = await container.broadcast.send_broadcast_with_gamification(
+            target=target_channel,
+            content_type=content_type_str,
+            content_text=caption,
+            media_file_id=file_id,
+            sent_by=user_id,
+            gamification_config=gamification_config,
+            content_protected=content_protected
         )
-        await state.clear()
-        return
 
-    # Enviar a cada canal
-    results = []
+        # Procesar resultados
+        if result["success"]:
+            # Éxito
+            channels_sent = ", ".join(result["channels_sent"])
+            results_text = f"✅ <b>Publicación enviada exitosamente</b>\n\n"
+            results_text += f"📡 Canales: {channels_sent}\n"
 
-    for channel_name, channel_id in channels_to_send:
-        try:
-            if content_type == ContentType.PHOTO:
-                success, msg, _ = await container.channel.send_to_channel(
-                    channel_id=channel_id,
-                    text=caption or "",
-                    photo=file_id
-                )
+            if result["broadcast_message_ids"]:
+                results_text += f"🎮 Gamificación: Activada ({len(selected_reactions)} reacciones)\n"
+                results_text += f"🗄️ Registrado en BD: {len(result['broadcast_message_ids'])} mensajes\n"
 
-            elif content_type == ContentType.VIDEO:
-                success, msg, _ = await container.channel.send_to_channel(
-                    channel_id=channel_id,
-                    text=caption or "",
-                    video=file_id
-                )
+            if content_protected:
+                results_text += "🔒 Protección: Activada\n"
 
-            else:  # TEXT
-                success, msg, _ = await container.channel.send_to_channel(
-                    channel_id=channel_id,
-                    text=caption or ""
-                )
+            logger.info(f"✅ Broadcasting exitoso para user {user_id}")
 
-            if success:
-                results.append(f"✅ Canal {channel_name}")
-                logger.info(f"✅ Publicación enviada a canal {channel_name}")
-            else:
-                results.append(f"❌ Canal {channel_name}: {msg}")
-                logger.error(f"❌ Error enviando a {channel_name}: {msg}")
+        else:
+            # Error
+            errors_text = "\n".join([f"• {err}" for err in result["errors"]])
+            results_text = f"❌ <b>Error al Enviar</b>\n\n{errors_text}"
 
-        except Exception as e:
-            results.append(f"❌ Canal {channel_name}: Error inesperado")
-            logger.error(f"❌ Excepción enviando a {channel_name}: {e}", exc_info=True)
+            logger.error(f"❌ Broadcasting fallido para user {user_id}: {result['errors']}")
+
+    except Exception as e:
+        results_text = f"❌ <b>Error Inesperado</b>\n\n{str(e)}"
+        logger.error(f"❌ Excepción en broadcasting para user {user_id}: {e}", exc_info=True)
 
     # Mostrar resultados
-    results_text = "\n".join(results)
-
     await callback.message.edit_text(
-        f"📤 <b>Resultado del Envío</b>\n\n{results_text}\n\n"
-        f"La publicación ha sido procesada.",
+        f"📤 <b>Resultado del Envío</b>\n\n{results_text}",
         reply_markup=create_inline_keyboard([
             [{"text": "🔙 Volver al Menú", "callback_data": "admin:main"}]
         ]),

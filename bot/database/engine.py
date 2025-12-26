@@ -18,6 +18,12 @@ from config import Config
 from bot.database.base import Base
 from bot.database.models import BotConfig
 
+# Importar modelos de gamificación para registrarlos en metadata
+try:
+    import bot.gamification.database.models  # noqa: F401
+except ImportError:
+    pass
+
 logger = logging.getLogger(__name__)
 
 # ===== ENGINE GLOBAL =====
@@ -152,6 +158,12 @@ async def init_db() -> None:
     # Crear registro inicial de BotConfig (singleton)
     await _ensure_bot_config_exists()
 
+    # Crear registro inicial de GamificationConfig (singleton)
+    await _ensure_gamification_config_exists()
+
+    # Crear niveles base si no existen
+    await _ensure_base_levels_exist()
+
     logger.info("✅ Base de datos inicializada correctamente")
 
 
@@ -181,6 +193,109 @@ async def _ensure_bot_config_exists() -> None:
             logger.info("✅ BotConfig inicial creado")
         else:
             logger.info("✅ BotConfig ya existe")
+
+
+async def _ensure_gamification_config_exists() -> None:
+    """
+    Crea el registro inicial de GamificationConfig si no existe.
+
+    GamificationConfig es singleton: solo debe haber 1 registro (id=1).
+    """
+    try:
+        from bot.gamification.database.models import GamificationConfig
+        from datetime import datetime, UTC
+
+        async with get_session() as session:
+            # Verificar si ya existe
+            result = await session.get(GamificationConfig, 1)
+
+            if result is None:
+                # Crear registro inicial con valores por defecto
+                config = GamificationConfig(
+                    id=1,
+                    besitos_per_reaction=1,
+                    max_besitos_per_day=None,
+                    streak_reset_hours=24,
+                    notifications_enabled=True,
+                    updated_at=datetime.now(UTC)
+                )
+                session.add(config)
+                await session.commit()
+                logger.info("✅ GamificationConfig inicial creado (notificaciones habilitadas)")
+            else:
+                logger.info("✅ GamificationConfig ya existe")
+    except ImportError:
+        logger.debug("Módulo de gamificación no disponible, saltando inicialización")
+
+
+async def _ensure_base_levels_exist() -> None:
+    """
+    Crea niveles base del sistema de gamificación si no existen.
+
+    Niveles por defecto:
+    1. Novato (0 besitos)
+    2. Entusiasta (100 besitos)
+    3. Fanático (500 besitos)
+    4. Leyenda (1000 besitos)
+    """
+    try:
+        from bot.gamification.database.models import Level
+        from datetime import datetime, UTC
+        from sqlalchemy import select, func
+
+        async with get_session() as session:
+            # Contar niveles existentes
+            stmt = select(func.count()).select_from(Level)
+            result = await session.execute(stmt)
+            level_count = result.scalar()
+
+            if level_count == 0:
+                # Crear niveles base
+                base_levels = [
+                    {
+                        "name": "Novato",
+                        "min_besitos": 0,
+                        "order": 1,
+                        "benefits": None,
+                        "active": True,
+                        "created_at": datetime.now(UTC)
+                    },
+                    {
+                        "name": "Entusiasta",
+                        "min_besitos": 100,
+                        "order": 2,
+                        "benefits": None,
+                        "active": True,
+                        "created_at": datetime.now(UTC)
+                    },
+                    {
+                        "name": "Fanático",
+                        "min_besitos": 500,
+                        "order": 3,
+                        "benefits": None,
+                        "active": True,
+                        "created_at": datetime.now(UTC)
+                    },
+                    {
+                        "name": "Leyenda",
+                        "min_besitos": 1000,
+                        "order": 4,
+                        "benefits": None,
+                        "active": True,
+                        "created_at": datetime.now(UTC)
+                    }
+                ]
+
+                for level_data in base_levels:
+                    level = Level(**level_data)
+                    session.add(level)
+
+                await session.commit()
+                logger.info(f"✅ Creados {len(base_levels)} niveles base del sistema de gamificación")
+            else:
+                logger.info(f"✅ Ya existen {level_count} niveles en el sistema")
+    except ImportError:
+        logger.debug("Módulo de gamificación no disponible, saltando inicialización de niveles")
 
 
 async def close_db() -> None:

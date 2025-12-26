@@ -82,16 +82,27 @@ class Reaction(Base):
     """Catálogo de reacciones configuradas en el sistema.
 
     Almacena emojis disponibles y cuántos besitos otorga cada uno.
+    Incluye campos de UI para botones de reacción personalizados.
     """
     __tablename__ = "reactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     emoji: Mapped[str] = mapped_column(String(10), unique=True)
+    name: Mapped[str] = mapped_column(String(50))
     besitos_value: Mapped[int] = mapped_column(Integer, default=1)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
     )
+
+    # Campos de UI para botones personalizados
+    button_emoji: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True
+    )
+    button_label: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relaciones
     user_reactions: Mapped[List["UserReaction"]] = relationship(
@@ -437,4 +448,121 @@ class GamificationConfig(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC)
+    )
+
+
+class CustomReaction(Base):
+    """Registro de reacciones personalizadas en mensajes de broadcasting.
+
+    Almacena cada vez que un usuario presiona un botón de reacción
+    en un mensaje de broadcasting con gamificación habilitada.
+
+    Attributes:
+        id: ID único del registro
+        broadcast_message_id: ID del mensaje de broadcasting
+        user_id: ID del usuario que reaccionó
+        reaction_type_id: ID del tipo de reacción (Reaction)
+        emoji: Emoji de la reacción
+        besitos_earned: Cantidad de besitos ganados con esta reacción
+        created_at: Timestamp de cuando se realizó la reacción
+
+    Relaciones:
+        user: Usuario que reaccionó (via users table)
+        reaction_type: Tipo de reacción seleccionada
+    """
+    __tablename__ = "custom_reactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    broadcast_message_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("broadcast_messages.id"),
+        nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id"),
+        nullable=False
+    )
+    reaction_type_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("reactions.id"),
+        nullable=False
+    )
+    emoji: Mapped[str] = mapped_column(String(10), nullable=False)
+    besitos_earned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        nullable=False
+    )
+
+    # Relaciones
+    reaction_type: Mapped["Reaction"] = relationship(
+        "Reaction",
+        foreign_keys=[reaction_type_id]
+    )
+
+    # Índices para optimización
+    __table_args__ = (
+        Index(
+            'idx_unique_reaction',
+            'broadcast_message_id', 'user_id', 'reaction_type_id',
+            unique=True
+        ),
+        Index('idx_user_created', 'user_id', 'created_at'),
+        Index('idx_broadcast_message', 'broadcast_message_id'),
+    )
+
+
+class BesitoTransaction(Base):
+    """Registro de auditoría de transacciones de besitos.
+
+    Registra TODA operación de besitos para trazabilidad completa.
+    Incluye balance_after para detectar inconsistencias.
+
+    Attributes:
+        id: ID único de la transacción
+        user_id: ID del usuario que realizó la transacción
+        amount: Cantidad de besitos (positivo=ganancia, negativo=gasto)
+        transaction_type: Tipo de transacción (TransactionType enum)
+        description: Descripción de la transacción
+        reference_id: ID del origen (UserReaction.id, UserMission.id, etc)
+        balance_after: Balance del usuario después de esta transacción
+        created_at: Timestamp de la transacción (UTC)
+
+    Relaciones:
+        user: Usuario que realizó la transacción (via users table)
+
+    Índices:
+        - (user_id, created_at DESC): Para historial de usuario
+        - (user_id, transaction_type): Para filtros por tipo
+        - (reference_id, transaction_type): Para rastrear origen
+    """
+    __tablename__ = "besito_transactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False
+    )
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    reference_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True
+    )
+    balance_after: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        nullable=False
+    )
+
+    # Índices compuestos para optimización
+    __table_args__ = (
+        Index('idx_user_transactions_history', 'user_id', 'created_at'),
+        Index('idx_user_transaction_type', 'user_id', 'transaction_type'),
+        Index('idx_reference_transaction', 'reference_id', 'transaction_type'),
     )

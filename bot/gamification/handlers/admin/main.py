@@ -38,6 +38,7 @@ async def gamification_menu(message: Message):
             InlineKeyboardButton(text="📊 Estadísticas", callback_data="gamif:admin:stats")
         ],
         [
+            InlineKeyboardButton(text="💰 Transacciones", callback_data="gamif:admin:transactions"),
             InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config")
         ]
     ])
@@ -67,6 +68,7 @@ async def show_main_menu(callback: CallbackQuery):
             InlineKeyboardButton(text="📊 Estadísticas", callback_data="gamif:admin:stats")
         ],
         [
+            InlineKeyboardButton(text="💰 Transacciones", callback_data="gamif:admin:transactions"),
             InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config")
         ]
     ])
@@ -282,6 +284,42 @@ async def list_levels(callback: CallbackQuery, gamification: GamificationContain
     for level in levels:
         text += f"<b>{level.order}. {level.name}</b>\n"
         text += f"   Requiere: {level.min_besitos} besitos\n\n"
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🔙 Volver", callback_data="gamif:admin:levels")
+        ]
+    ])
+
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "gamif:levels:distribution")
+async def show_level_distribution(callback: CallbackQuery, gamification: GamificationContainer):
+    """Muestra la distribución de usuarios por nivel."""
+    distribution = await gamification.level.get_level_distribution()
+
+    if not distribution:
+        await callback.answer("No hay datos de distribución disponibles", show_alert=True)
+        return
+
+    text = "📊 <b>Distribución de Usuarios por Nivel</b>\n\n"
+
+    # Calcular total de usuarios
+    total_users = sum(distribution.values())
+
+    # Mostrar cada nivel con su conteo y porcentaje
+    for level_name, count in distribution.items():
+        percentage = (count / total_users * 100) if total_users > 0 else 0
+        bar_length = int(percentage / 5)  # 20 caracteres máximo
+        bar = "█" * bar_length + "░" * (20 - bar_length)
+
+        text += f"<b>{level_name}</b>\n"
+        text += f"{bar} {percentage:.1f}%\n"
+        text += f"👥 {count} usuario{'s' if count != 1 else ''}\n\n"
+
+    text += f"<b>Total:</b> {total_users} usuario{'s' if total_users != 1 else ''}"
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [

@@ -330,3 +330,82 @@ async def handle_setup_vip(message: Message, state: FSMContext):
 - Activación automática vía deep links
 - Cambio automático de rol usuario
 - 7 tests E2E completados (100% pasando)
+
+## ✅ CHECKLIST TAREA 11 - SISTEMA DE REACCIONES PERSONALIZADAS
+
+### T1-T9: Sistema de Reacciones Personalizadas + Broadcasting Gamificado
+
+#### T1: Modelos de Base de Datos
+- Archivo: `bot/database/models.py` - Modelo `BroadcastMessage` con:
+  - Campos básicos: id, message_id, chat_id, content_type, content_text, media_file_id
+  - Campos de auditoría: sent_by, sent_at
+  - Campos de gamificación: gamification_enabled, reaction_buttons, content_protected
+  - Cache de stats: total_reactions, unique_reactors
+  - Índices: idx_chat_message (unique), idx_sent_at
+- Archivo: `bot/gamification/database/models.py` - Modelo `CustomReaction` con:
+  - Campos: id, broadcast_message_id, user_id, reaction_type_id, emoji, besitos_earned, created_at
+  - Relaciones: broadcast_message, user, reaction_type
+  - Índices: idx_unique_reaction (unique), idx_user_created
+- Modificación: Modelo `Reaction` con campos UI: button_emoji, button_label, sort_order
+- Migración Alembic: `alembic/versions/005_add_custom_reactions_system.py`
+
+#### T2: CustomReactionService
+- Archivo: `bot/gamification/services/custom_reaction.py`
+- Responsabilidades:
+  - Registrar reacciones personalizadas con validación de duplicados
+  - Calcular y otorgar besitos por reaccionar
+  - Obtener reacciones de usuarios por mensaje
+  - Obtener estadísticas de reacciones por mensaje
+
+#### T3: BroadcastService
+- Archivo: `bot/services/broadcast.py`
+- Responsabilidades:
+  - Enviar mensajes con gamificación a canales VIP/Free
+  - Construir teclados de reacciones personalizadas
+  - Registrar mensajes en BD con opciones de gamificación
+
+#### T4: Extensión de Estados FSM
+- Archivo: `bot/states/admin.py` - Nuevo estado `configuring_options` en `BroadcastStates`
+- Reorganización de estados: waiting_for_content → configuring_options → selecting_reactions → waiting_for_confirmation
+
+#### T5: Extensión de broadcast.py - Paso de Configuración
+- Archivo: `bot/handlers/admin/broadcast.py`
+- Responsabilidades:
+  - Interfaz de configuración de gamificación en broadcasting
+  - Selección de reacciones para mensajes
+  - Activación/desactivación de protección de contenido
+  - Integración con BroadcastService
+
+#### T6: Handler de Callbacks de Reacciones
+- Archivo: `bot/gamification/handlers/user/reactions.py`
+- Responsabilidades:
+  - Procesar reacciones de usuarios a mensajes de broadcasting
+  - Validar mensajes con gamificación activa
+  - Registrar reacciones y otorgar besitos
+  - Actualizar teclados con marcas personales
+
+#### T7: Protección de Contenido
+- Implementación de `protect_content=True` en envío de mensajes
+- Toggle en UI de configuración de broadcasting
+
+#### T8: Estadísticas de Broadcasting
+- Archivo: `bot/gamification/services/stats.py` - Métodos para estadísticas de reacciones
+- Responsabilidades: Obtener stats por mensaje y top broadcasts por engagement
+
+#### T9: Seed de Datos Iniciales
+- Archivo: `scripts/seed_reactions.py` - Script para crear reacciones predeterminadas
+- 5 reacciones predeterminadas: "👍", "❤️", "🔥", "😂", "😮" con diferentes valores de besitos
+
+#### T10-T11: Tests E2E y Documentación
+- Tests E2E completos para el sistema de reacciones personalizadas
+- Documentación completa del sistema en `docs/gamification/CUSTOM_REACTIONS.md`
+
+**Características del sistema:**
+- Botones de reacción personalizados con emojis configurables
+- Gamificación: usuarios ganan besitos por reaccionar
+- Prevención de duplicados: un usuario no puede reaccionar dos veces con mismo emoji
+- Contadores públicos: muestra cantidad total de reacciones por emoji
+- Marca personal: checkmark que indica al usuario sus propias reacciones
+- Protección de contenido: opción anti-forward/copiar
+- Estadísticas: métricas de engagement por mensaje
+- Backward compatibility: broadcasting sin gamificación sigue funcionando igual

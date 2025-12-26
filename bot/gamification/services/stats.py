@@ -9,9 +9,10 @@ from typing import Dict, List
 
 from bot.gamification.database.models import (
     UserGamification, UserMission, UserReward, UserReaction,
-    UserStreak, Mission, Level, Reaction
+    UserStreak, Mission, Level, Reaction, CustomReaction
 )
 from bot.gamification.database.enums import MissionStatus
+from bot.database.models import BroadcastMessage, User
 
 import logging
 logger = logging.getLogger(__name__)
@@ -194,3 +195,166 @@ class StatsService:
             'active_streaks': active_streaks,
             'longest_streak': longest_streak
         }
+
+    async def get_broadcast_reaction_stats(
+        self,
+        broadcast_message_id: int
+    ) -> Dict:
+        """
+        Estadísticas de reacciones de una publicación específica.
+
+        Args:
+            broadcast_message_id: ID del BroadcastMessage
+
+        Returns:
+            {
+                "total_reactions": 1234,
+                "unique_users": 567,
+                "breakdown": {
+                    "👍": 456,
+                    "❤️": 345,
+                    "🔥": 433
+                },
+                "besitos_distributed": 12340,
+                "top_reactors": [
+                    {"user_id": 123, "username": "user1", "reactions": 3},
+                    ...
+                ]
+            }
+        """
+        # Total de reacciones
+        stmt = select(func.count()).select_from(CustomReaction).where(
+            CustomReaction.broadcast_message_id == broadcast_message_id
+        )
+        total_reactions = (await self.session.execute(stmt)).scalar() or 0
+
+        # Usuarios únicos
+        stmt = select(func.count(func.distinct(CustomReaction.user_id))).select_from(CustomReaction).where(
+            CustomReaction.broadcast_message_id == broadcast_message_id
+        )
+        unique_users = (await self.session.execute(stmt)).scalar() or 0
+
+        # Breakdown por emoji
+        stmt = (
+            select(CustomReaction.emoji, func.count(CustomReaction.id))
+            .where(CustomReaction.broadcast_message_id == broadcast_message_id)
+            .group_by(CustomReaction.emoji)
+            .order_by(func.count(CustomReaction.id).desc())
+        )
+        result = await self.session.execute(stmt)
+        breakdown = {emoji: count for emoji, count in result}
+
+        # Total besitos distribuidos
+        stmt = select(func.sum(CustomReaction.besitos_earned)).where(
+            CustomReaction.broadcast_message_id == broadcast_message_id
+        )
+        besitos_distributed = (await self.session.execute(stmt)).scalar() or 0
+
+        # Top 5 reactores
+        stmt = (
+            select(
+                CustomReaction.user_id,
+                func.count(CustomReaction.id).label('reaction_count')
+            )
+            .where(CustomReaction.broadcast_message_id == broadcast_message_id)
+            .group_by(CustomReaction.user_id)
+            .order_by(func.count(CustomReaction.id).desc())
+            .limit(5)
+        )
+        result = await self.session.execute(stmt)
+        top_reactors_data = result.all()
+
+        # Enriquecer con info de usuario (evitar N+1 query)
+        top_reactors = []
+        if top_reactors_data:
+            # Obtener todos los user_ids
+            user_ids = [user_id for user_id, _ in top_reactors_data]
+
+            # Fetch todos los usuarios en una sola query
+            stmt_users = select(User).where(User.user_id.in_(user_ids))
+            users_result = await self.session.execute(stmt_users)
+            users_map = {user.user_id: user for user in users_result.scalars()}
+
+            # Construir lista de top reactors
+            for user_id, reaction_count in top_reactors_data:
+                user = users_map.get(user_id)
+                top_reactors.append({
+                    "user_id": user_id,
+                    "username": user.username if user and user.username else "Usuario",
+                    "reactions": reaction_count
+                })
+
+        logger.info(
+            f"Broadcast stats for message {broadcast_message_id}: "
+            f"{total_reactions} reactions, {unique_users} unique users"
+        )
+
+        return {
+            "total_reactions": total_reactions,
+            "unique_users": unique_users,
+            "breakdown": breakdown,
+            "besitos_distributed": besitos_distributed,
+            "top_reactors": top_reactors
+        }
+
+    async def get_top_performing_broadcasts(
+        self,
+        limit: int = 10
+    ) -> List[Dict]:
+        """
+        Publicaciones con más engagement (ordenadas por total de reacciones).
+
+        Args:
+            limit: Cantidad máxima de resultados (default: 10)
+
+        Returns:
+            [
+                {
+                    "broadcast_id": 1,
+                    "sent_at": datetime,
+                    "chat_id": -1001234567890,
+                    "total_reactions": 1234,
+                    "unique_reactors": 567,
+                    "content_preview": "Texto del mensaje..." (primeros 50 chars)
+                },
+                ...
+            ]
+        """
+        # Query: BroadcastMessages ordenados por total_reactions DESC
+        stmt = (
+            select(BroadcastMessage)
+            .where(BroadcastMessage.gamification_enabled == True)
+            .order_by(BroadcastMessage.total_reactions.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        broadcasts = result.scalars().all()
+
+        # Formatear resultados
+        top_broadcasts = []
+        for broadcast in broadcasts:
+            # Preview del contenido (primeros 50 caracteres)
+            content_preview = ""
+            if broadcast.content_text:
+                content_preview = (
+                    broadcast.content_text[:50] + "..."
+                    if len(broadcast.content_text) > 50
+                    else broadcast.content_text
+                )
+            elif broadcast.content_type == "photo":
+                content_preview = "📷 Foto"
+            elif broadcast.content_type == "video":
+                content_preview = "🎥 Video"
+
+            top_broadcasts.append({
+                "broadcast_id": broadcast.id,
+                "sent_at": broadcast.sent_at,
+                "chat_id": broadcast.chat_id,
+                "total_reactions": broadcast.total_reactions,
+                "unique_reactors": broadcast.unique_reactors,
+                "content_preview": content_preview
+            })
+
+        logger.info(f"Retrieved top {len(top_broadcasts)} performing broadcasts")
+
+        return top_broadcasts

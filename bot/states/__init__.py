@@ -4,8 +4,7 @@ States module - FSM states para flujos multi-paso.
 from bot.states.admin import (
     ChannelSetupStates,
     WaitTimeSetupStates,
-    BroadcastStates,
-    ReactionSetupStates
+    BroadcastStates
 )
 from bot.states.user import (
     TokenRedemptionStates,
@@ -17,7 +16,6 @@ __all__ = [
     "ChannelSetupStates",
     "WaitTimeSetupStates",
     "BroadcastStates",
-    "ReactionSetupStates",
 
     # User states
     "TokenRedemptionStates",

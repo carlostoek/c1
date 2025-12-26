@@ -51,6 +51,7 @@ class ServiceContainer:
         self._stats_service = None
         self._pricing_service = None
         self._user_service = None
+        self._broadcast_service = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -168,6 +169,25 @@ class ServiceContainer:
 
         return self._user_service
 
+    # ===== BROADCAST SERVICE =====
+
+    @property
+    def broadcast(self):
+        """
+        Service de broadcasting con gamificación.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            BroadcastService: Instancia del service
+        """
+        if self._broadcast_service is None:
+            from bot.services.broadcast import BroadcastService
+            logger.debug("🔄 Lazy loading: BroadcastService")
+            self._broadcast_service = BroadcastService(self._session, self._bot)
+
+        return self._broadcast_service
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -193,6 +213,8 @@ class ServiceContainer:
             loaded.append("pricing")
         if self._user_service is not None:
             loaded.append("user")
+        if self._broadcast_service is not None:
+            loaded.append("broadcast")
 
         return loaded
 

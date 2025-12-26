@@ -273,15 +273,22 @@ class LevelService:
         # Obtener usuario
         user = await self.session.get(UserGamification, user_id)
         if not user:
+            logger.debug(f"check_and_apply_level_up: User {user_id} not found in UserGamification")
             return False, None, None
+
+        logger.debug(f"check_and_apply_level_up: User {user_id} has {user.total_besitos} besitos, current_level_id={user.current_level_id}")
 
         # Calcular nivel que debería tener
         target_level = await self.calculate_level_for_besitos(user.total_besitos)
         if not target_level:
+            logger.debug(f"check_and_apply_level_up: No level found for {user.total_besitos} besitos (user {user_id})")
             return False, None, None
+
+        logger.debug(f"check_and_apply_level_up: Target level for user {user_id} is {target_level.name} (id={target_level.id})")
 
         # Si ya está en el nivel correcto, no hacer nada
         if user.current_level_id == target_level.id:
+            logger.debug(f"check_and_apply_level_up: User {user_id} already at correct level {target_level.name}")
             return False, None, None
 
         # Obtener nivel anterior para logging
@@ -294,7 +301,7 @@ class LevelService:
         await self.session.commit()
 
         logger.info(
-            f"User {user_id} leveled up: "
+            f"✨ User {user_id} leveled up: "
             f"{old_level.name if old_level else 'None'} → {target_level.name}"
         )
 

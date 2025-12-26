@@ -110,6 +110,9 @@ async def on_reaction_event(
                                 user_id, mission
                             )
 
+                    # Nota: Las recompensas desbloqueadas se verifican y notifican
+                    # automáticamente en BesitoService.grant_besitos()
+
                 else:
                     logger.warning(
                         f"Reaction not recorded: User {user_id} {emoji} - {message}"
