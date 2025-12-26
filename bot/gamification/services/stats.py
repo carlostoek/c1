@@ -264,18 +264,25 @@ class StatsService:
         result = await self.session.execute(stmt)
         top_reactors_data = result.all()
 
-        # Enriquecer con info de usuario
+        # Enriquecer con info de usuario (evitar N+1 query)
         top_reactors = []
-        for user_id, reaction_count in top_reactors_data:
-            stmt = select(User).where(User.user_id == user_id)
-            user_result = await self.session.execute(stmt)
-            user = user_result.scalar_one_or_none()
+        if top_reactors_data:
+            # Obtener todos los user_ids
+            user_ids = [user_id for user_id, _ in top_reactors_data]
 
-            top_reactors.append({
-                "user_id": user_id,
-                "username": user.username if user and user.username else "Usuario",
-                "reactions": reaction_count
-            })
+            # Fetch todos los usuarios en una sola query
+            stmt_users = select(User).where(User.user_id.in_(user_ids))
+            users_result = await self.session.execute(stmt_users)
+            users_map = {user.user_id: user for user in users_result.scalars()}
+
+            # Construir lista de top reactors
+            for user_id, reaction_count in top_reactors_data:
+                user = users_map.get(user_id)
+                top_reactors.append({
+                    "user_id": user_id,
+                    "username": user.username if user and user.username else "Usuario",
+                    "reactions": reaction_count
+                })
 
         logger.info(
             f"Broadcast stats for message {broadcast_message_id}: "

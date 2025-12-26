@@ -12,6 +12,7 @@ import logging
 from typing import Dict, List
 
 from aiogram import Router, F
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -83,15 +84,6 @@ async def handle_reaction_button(
         # 4. Registrar reacción
         container = GamificationContainer(session, callback.bot)
 
-        # Obtener emoji del reaction_type
-        stmt_reaction = select(CustomReaction).where(
-            CustomReaction.broadcast_message_id == broadcast_msg.id,
-            CustomReaction.user_id == user_id,
-            CustomReaction.reaction_type_id == reaction_type_id
-        )
-        result_reaction = await session.execute(stmt_reaction)
-        existing = result_reaction.scalar_one_or_none()
-
         # Obtener emoji de la configuración del mensaje
         emoji = "❤️"  # Default
         for btn_config in broadcast_msg.reaction_buttons:
@@ -99,7 +91,7 @@ async def handle_reaction_button(
                 emoji = btn_config.get("emoji", "❤️")
                 break
 
-        # Registrar reacción
+        # Registrar reacción (el servicio maneja la validación de duplicados)
         result = await container.custom_reaction.register_custom_reaction(
             broadcast_message_id=broadcast_msg.id,
             user_id=user_id,
@@ -154,14 +146,15 @@ async def handle_reaction_button(
             session=session,
             broadcast_message_id=broadcast_msg.id,
             reaction_config=broadcast_msg.reaction_buttons,
-            user_reacted_ids=user_reactions
+            user_reacted_ids=user_reactions,
+            bot=callback.bot
         )
 
         try:
             await callback.message.edit_reply_markup(reply_markup=updated_keyboard)
-        except Exception as e:
+        except TelegramBadRequest as e:
             logger.debug(f"Could not update keyboard: {e}")
-            # No pasa nada si falla editar
+            # No pasa nada si falla editar (mensaje no modificado, etc.)
 
         logger.info(
             f"✅ User {user_id} reacted with {emoji} "
@@ -186,7 +179,8 @@ async def build_reaction_keyboard_with_marks(
     session: AsyncSession,
     broadcast_message_id: int,
     reaction_config: List[Dict],
-    user_reacted_ids: List[int]
+    user_reacted_ids: List[int],
+    bot = None
 ) -> InlineKeyboardMarkup:
     """
     Construye keyboard con contadores públicos y checkmark personal.
@@ -200,12 +194,16 @@ async def build_reaction_keyboard_with_marks(
         broadcast_message_id: ID del BroadcastMessage
         reaction_config: Lista de configs [{emoji, label, reaction_type_id, besitos}]
         user_reacted_ids: Lista de reaction_type_ids que el usuario ya usó
+        bot: Instancia del bot (opcional, requerido para usar servicio)
 
     Returns:
         InlineKeyboardMarkup con 3 botones por fila
     """
-    # Obtener stats de reacciones (contadores públicos)
-    stats = await get_reaction_counts(session, broadcast_message_id)
+    # Obtener stats de reacciones usando el servicio
+    container = GamificationContainer(session, bot)
+    stats = await container.custom_reaction.get_message_reaction_stats_by_type(
+        broadcast_message_id
+    )
 
     buttons = []
     for config in reaction_config:
@@ -234,36 +232,3 @@ async def build_reaction_keyboard_with_marks(
         keyboard.append(buttons[i:i+3])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-
-async def get_reaction_counts(
-    session: AsyncSession,
-    broadcast_message_id: int
-) -> Dict[int, int]:
-    """
-    Obtiene contadores de reacciones por reaction_type_id.
-
-    Query:
-    SELECT reaction_type_id, COUNT(*) as count
-    FROM custom_reactions
-    WHERE broadcast_message_id = ?
-    GROUP BY reaction_type_id
-
-    Args:
-        session: Sesión de BD
-        broadcast_message_id: ID del BroadcastMessage
-
-    Returns:
-        {1: 45, 2: 33, 3: 28}  # reaction_type_id → count
-    """
-    stmt = select(
-        CustomReaction.reaction_type_id,
-        func.count(CustomReaction.id).label("count")
-    ).where(
-        CustomReaction.broadcast_message_id == broadcast_message_id
-    ).group_by(CustomReaction.reaction_type_id)
-
-    result = await session.execute(stmt)
-    rows = result.all()
-
-    return {row.reaction_type_id: row.count for row in rows}

@@ -71,6 +71,7 @@ def upgrade() -> None:
         sa.Column('besitos_earned', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.PrimaryKeyConstraint('id'),
+        sa.ForeignKeyConstraint(['broadcast_message_id'], ['broadcast_messages.id'], ),
         sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
         sa.ForeignKeyConstraint(['reaction_type_id'], ['reactions.id'], ),
     )

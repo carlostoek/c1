@@ -475,6 +475,7 @@ class CustomReaction(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     broadcast_message_id: Mapped[int] = mapped_column(
         Integer,
+        ForeignKey("broadcast_messages.id"),
         nullable=False
     )
     user_id: Mapped[int] = mapped_column(
