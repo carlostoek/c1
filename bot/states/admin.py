@@ -138,33 +138,6 @@ class BroadcastStates(StatesGroup):
     waiting_for_confirmation = State()
 
 
-class ReactionSetupStates(StatesGroup):
-    """
-    Estados para configuración de reacciones automáticas.
-
-    Flujo:
-    1. Admin selecciona "Configurar Reacciones VIP/Free"
-    2. Bot entra en waiting_for_vip_reactions o waiting_for_free_reactions
-    3. Admin envía lista de emojis separados por espacios
-    4. Bot valida (1-10 emojis) y guarda
-    5. Bot sale del estado
-
-    Validación de Input:
-    - Formato: Emojis separados por espacios
-    - Rango válido: 1-10 emojis
-    - Si no es válido → Error y mantener estado
-    - Si es válido → Guardar en DB y clear state
-
-    NUEVO EN ONDA 2 - T21
-    """
-
-    # Esperando lista de emojis para canal VIP
-    waiting_for_vip_reactions = State()
-
-    # Esperando lista de emojis para canal Free
-    waiting_for_free_reactions = State()
-
-
 class PricingSetupStates(StatesGroup):
     """
     Estados para configurar planes de suscripción.
