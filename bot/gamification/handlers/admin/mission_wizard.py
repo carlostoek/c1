@@ -705,7 +705,7 @@ async def confirm_mission(callback: CallbackQuery, state: FSMContext, gamificati
             level_info = data['auto_level']
             if 'level_id' in level_info:
                 # Nivel existente, usar referencia
-                config['mission']['auto_level_id'] = level_info['level_id']
+                config['mission']['auto_level_up_id'] = level_info['level_id']
             else:
                 # Nuevo nivel, pasar configuración
                 config['auto_level'] = {

@@ -11,7 +11,8 @@ from bot.gamification.handlers.admin import (
     transaction_history,
     mission_config,
     reward_config,
-    reaction_config
+    reaction_config,
+    daily_gift_config
 )
 
 __all__ = [
@@ -25,5 +26,6 @@ __all__ = [
     "transaction_history",
     "mission_config",
     "reward_config",
-    "reaction_config"
+    "reaction_config",
+    "daily_gift_config"
 ]

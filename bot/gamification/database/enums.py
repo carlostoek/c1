@@ -90,6 +90,7 @@ class TransactionType(str, Enum):
     REFUND = "refund"
     STREAK_BONUS = "streak_bonus"
     LEVEL_UP_BONUS = "level_up_bonus"
+    DAILY_GIFT = "daily_gift"  # Regalo diario
 
     def __str__(self) -> str:
         return self.value

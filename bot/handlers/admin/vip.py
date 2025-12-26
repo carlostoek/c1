@@ -38,10 +38,13 @@ def vip_menu_keyboard(is_configured: bool) -> "InlineKeyboardMarkup":
 
     if is_configured:
         buttons.extend([
-            [{"text": "🎟️ Generar Token de Invitación", "callback_data": "vip:generate_token"}],
+            [{"text": "🎟️ Generar Token", "callback_data": "vip:generate_token"}],
+            [
+                {"text": "👥 Suscriptores", "callback_data": "vip:list_subscribers"},
+                {"text": "📊 Estadísticas", "callback_data": "admin:stats:vip"}
+            ],
             [{"text": "📤 Enviar Publicación", "callback_data": "vip:broadcast"}],
-            [{"text": "👥 Ver Suscriptores VIP", "callback_data": "vip:list_subscribers"}],
-            [{"text": "🔧 Reconfigurar Canal", "callback_data": "vip:setup"}],
+            [{"text": "⚙️ Configuración", "callback_data": "vip:config"}],
         ])
     else:
         buttons.append([{"text": "⚙️ Configurar Canal VIP", "callback_data": "vip:setup"}])
@@ -412,3 +415,40 @@ async def callback_generate_token_with_plan(
             ]),
             parse_mode="HTML"
         )
+
+
+@admin_router.callback_query(F.data == "vip:config")
+async def callback_vip_config(callback: CallbackQuery, session: AsyncSession):
+    """
+    Muestra el submenú de configuración VIP.
+
+    Opciones:
+    - Gestión de Tarifas
+    - Reconfigurar Canal VIP
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+    """
+    logger.debug(f"⚙️ Usuario {callback.from_user.id} abrió configuración VIP")
+
+    text = (
+        "⚙️ <b>Configuración Canal VIP</b>\n\n"
+        "Selecciona una opción para configurar:"
+    )
+
+    try:
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=create_inline_keyboard([
+                [{"text": "💰 Gestión de Tarifas", "callback_data": "admin:pricing"}],
+                [{"text": "🔧 Reconfigurar Canal", "callback_data": "vip:setup"}],
+                [{"text": "🔙 Volver", "callback_data": "admin:vip"}]
+            ]),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            logger.error(f"Error editando mensaje config VIP: {e}")
+
+    await callback.answer()

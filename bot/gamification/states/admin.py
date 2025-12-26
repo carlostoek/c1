@@ -238,3 +238,16 @@ class RewardConfigStates(StatesGroup):
     # Edición de metadata (Badge específico)
     waiting_for_badge_icon = State()
     waiting_for_badge_rarity = State()
+
+
+class DailyGiftConfigStates(StatesGroup):
+    """Estados para configuración de regalo diario.
+
+    Flujo de configuración:
+    1. Admin selecciona "Cambiar Cantidad de Besitos"
+    2. Bot pide cantidad → waiting_for_besitos
+    3. Admin envía número
+    4. Actualiza en BD
+    """
+
+    waiting_for_besitos = State()

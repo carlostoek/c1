@@ -70,6 +70,9 @@ async def show_main_menu(callback: CallbackQuery):
         [
             InlineKeyboardButton(text="💰 Transacciones", callback_data="gamif:admin:transactions"),
             InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config")
+        ],
+        [
+            InlineKeyboardButton(text="🔙 Volver al Menú Principal", callback_data="admin:main")
         ]
     ])
 

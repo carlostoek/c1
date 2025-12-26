@@ -13,7 +13,8 @@ from bot.middlewares import AdminAuthMiddleware, DatabaseMiddleware
 from bot.utils.keyboards import (
     admin_main_menu_keyboard,
     back_to_main_menu_keyboard,
-    config_menu_keyboard
+    config_menu_keyboard,
+    create_inline_keyboard
 )
 from bot.services.container import ServiceContainer
 
@@ -156,6 +157,51 @@ async def callback_admin_config(callback: CallbackQuery, session: AsyncSession):
             logger.error(f"❌ Error editando mensaje de config: {e}")
         else:
             logger.debug("ℹ️ Mensaje sin cambios, ignorando")
+
+    await callback.answer()
+
+
+@admin_router.callback_query(F.data == "admin:gamification")
+async def callback_admin_gamification(callback: CallbackQuery, session: AsyncSession):
+    """
+    Handler para acceder al menú de gamificación.
+
+    Muestra directamente el menú principal de gamificación.
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+    """
+    logger.debug(f"🎮 Usuario {callback.from_user.id} accediendo a gamificación")
+
+    keyboard = create_inline_keyboard([
+        [
+            {"text": "📋 Misiones", "callback_data": "gamif:admin:missions"},
+            {"text": "🎁 Recompensas", "callback_data": "gamif:admin:rewards"}
+        ],
+        [
+            {"text": "⭐ Niveles", "callback_data": "gamif:admin:levels"},
+            {"text": "📊 Estadísticas", "callback_data": "gamif:admin:stats"}
+        ],
+        [
+            {"text": "💰 Transacciones", "callback_data": "gamif:admin:transactions"},
+            {"text": "🔧 Configuración", "callback_data": "gamif:admin:config"}
+        ],
+        [
+            {"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}
+        ]
+    ])
+
+    try:
+        await callback.message.edit_text(
+            "🎮 <b>Panel de Gamificación</b>\n\n"
+            "Gestiona misiones, recompensas y niveles del sistema.",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            logger.error(f"Error editando mensaje gamificación: {e}")
 
     await callback.answer()
 
