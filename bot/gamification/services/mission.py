@@ -10,7 +10,7 @@ Responsabilidades:
 
 from typing import Optional, List, Tuple
 from datetime import datetime, UTC, timedelta
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
 import logging
@@ -618,3 +618,77 @@ class MissionService:
         logger.info(f"User {user_id} claimed mission {mission_id}: +{besitos_granted} besitos")
 
         return True, f"Recompensa reclamada: +{besitos_granted} besitos", rewards_info
+
+    # ========================================
+    # ESTADÍSTICAS
+    # ========================================
+
+    async def get_mission_stats(self, mission_id: int) -> dict:
+        """Obtiene estadísticas de una misión.
+
+        Args:
+            mission_id: ID de la misión
+
+        Returns:
+            Dict con estadísticas:
+            {
+                'in_progress': int,           # Usuarios con misión activa
+                'completed': int,             # Usuarios que completaron
+                'claimed': int,               # Usuarios que reclamaron
+                'completion_rate': float,     # Tasa de completación (0-100)
+                'total_besitos': int,         # Besitos distribuidos
+                'total_users': int            # Total de usuarios que iniciaron
+            }
+        """
+        mission = await self.session.get(Mission, mission_id)
+        if not mission:
+            return {
+                'in_progress': 0,
+                'completed': 0,
+                'claimed': 0,
+                'completion_rate': 0.0,
+                'total_besitos': 0,
+                'total_users': 0
+            }
+
+        # Contar usuarios por estado
+        stmt_in_progress = select(func.count(UserMission.id)).where(
+            UserMission.mission_id == mission_id,
+            UserMission.status == MissionStatus.IN_PROGRESS.value
+        )
+        result = await self.session.execute(stmt_in_progress)
+        in_progress = result.scalar_one()
+
+        stmt_completed = select(func.count(UserMission.id)).where(
+            UserMission.mission_id == mission_id,
+            UserMission.status == MissionStatus.COMPLETED.value
+        )
+        result = await self.session.execute(stmt_completed)
+        completed = result.scalar_one()
+
+        stmt_claimed = select(func.count(UserMission.id)).where(
+            UserMission.mission_id == mission_id,
+            UserMission.status == MissionStatus.CLAIMED.value
+        )
+        result = await self.session.execute(stmt_claimed)
+        claimed = result.scalar_one()
+
+        # Total de usuarios que iniciaron
+        total_users = in_progress + completed + claimed
+
+        # Tasa de completación (completados + reclamados / total)
+        completion_rate = 0.0
+        if total_users > 0:
+            completion_rate = ((completed + claimed) / total_users) * 100
+
+        # Total de besitos distribuidos (solo los reclamados)
+        total_besitos = claimed * mission.besitos_reward
+
+        return {
+            'in_progress': in_progress,
+            'completed': completed,
+            'claimed': claimed,
+            'completion_rate': round(completion_rate, 1),
+            'total_besitos': total_besitos,
+            'total_users': total_users
+        }

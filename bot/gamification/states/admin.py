@@ -186,3 +186,26 @@ class LevelConfigStates(StatesGroup):
     # Edición de campos
     waiting_for_field_value = State()
     waiting_for_reassign_level = State()  # Para reasignar usuarios al eliminar
+
+
+class MissionConfigStates(StatesGroup):
+    """Estados para configuración CRUD de misiones.
+
+    Flujo de edición:
+    1. Admin selecciona misión existente
+    2. Bot muestra menú de edición
+    3. Admin selecciona campo a editar
+    4. Bot pide nuevo valor → waiting_for_field_value
+    5. Actualiza en BD
+    """
+
+    # Edición de campos individuales
+    waiting_for_name = State()
+    waiting_for_description = State()
+    waiting_for_besitos = State()
+
+    # Edición de criterios dinámicos
+    editing_criteria = State()
+    waiting_for_streak_days = State()
+    waiting_for_daily_count = State()
+    waiting_for_weekly_target = State()

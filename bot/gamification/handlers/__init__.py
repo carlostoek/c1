@@ -7,7 +7,8 @@ from bot.gamification.handlers.admin import (
     wizard_level,
     config,
     level_config,
-    transaction_history
+    transaction_history,
+    mission_config
 )
 from bot.gamification.handlers.user import profile, missions, rewards, leaderboard, reactions
 
@@ -19,6 +20,7 @@ gamification_level_wizard_router = wizard_level.router
 gamification_config_router = config.router
 gamification_level_config_router = level_config.router
 gamification_transaction_history_router = transaction_history.router
+gamification_mission_config_router = mission_config.router
 
 # Exportar routers user
 gamification_user_profile_router = profile.router
@@ -35,6 +37,7 @@ __all__ = [
     "gamification_config_router",
     "gamification_level_config_router",
     "gamification_transaction_history_router",
+    "gamification_mission_config_router",
     "gamification_user_profile_router",
     "gamification_user_missions_router",
     "gamification_user_rewards_router",
