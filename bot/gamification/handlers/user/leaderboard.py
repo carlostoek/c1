@@ -38,7 +38,7 @@ async def show_leaderboard(callback: CallbackQuery, gamification: GamificationCo
         user_id = callback.from_user.id
 
         # Obtener top 10 usuarios
-        top_users = await gamification.level.get_leaderboard(limit=10)
+        top_users = await gamification.user_gamification.get_leaderboard(limit=10)
 
         # Obtener posición del usuario actual
         position_info = await gamification.user_gamification.get_leaderboard_position(user_id)

@@ -381,6 +381,7 @@ class UserGamificationService:
         if not user:
             return {
                 'besitos_rank': 0,
+                'total_besitos': 0,
                 'total_users': 0
             }
 
@@ -398,8 +399,34 @@ class UserGamificationService:
 
         return {
             'besitos_rank': besitos_rank,
+            'total_besitos': user.total_besitos,
             'total_users': total_users
         }
+
+    async def get_leaderboard(self, limit: int = 10) -> list[dict]:
+        """Obtiene el top N de usuarios por besitos.
+
+        Args:
+            limit: Número máximo de usuarios a retornar (default: 10)
+
+        Returns:
+            Lista de diccionarios con user_id y total_besitos
+        """
+        stmt = (
+            select(UserGamification)
+            .order_by(UserGamification.total_besitos.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        users = result.scalars().all()
+
+        return [
+            {
+                'user_id': user.user_id,
+                'total_besitos': user.total_besitos
+            }
+            for user in users
+        ]
 
     # ========================================
     # ESTADÍSTICAS
