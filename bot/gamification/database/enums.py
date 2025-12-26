@@ -72,6 +72,7 @@ class ObtainedVia(str, Enum):
     ADMIN_GRANT = "admin_grant"
     EVENT = "event"
     LEVEL_UP = "level_up"
+    AUTO_UNLOCK = "auto_unlock"  # Desbloqueada automáticamente al cumplir condición
 
     def __str__(self) -> str:
         return self.value

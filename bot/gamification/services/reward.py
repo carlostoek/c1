@@ -629,3 +629,72 @@ class RewardService:
 
         logger.info(f"User {user_id} set displayed badges: {badge_ids}")
         return True
+
+    # ========================================
+    # AUTOMATIC REWARDS
+    # ========================================
+
+    async def check_and_grant_unlocked_rewards(
+        self,
+        user_id: int
+    ) -> List[Tuple[str, str]]:
+        """Verifica y otorga automáticamente recompensas desbloqueadas.
+
+        Busca TODAS las recompensas con condición tipo 'besitos' que el usuario
+        cumple, y las otorga automáticamente si aún no las tiene.
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            Lista de (reward_name, message) de recompensas otorgadas
+            Ej: [("Badge Coleccionista", "Recompensa otorgada"), ...]
+        """
+        granted_rewards = []
+
+        # Obtener todas las recompensas con condición de besitos
+        all_rewards = await self.get_all_rewards(active_only=True)
+
+        for reward in all_rewards:
+            # Si no tiene condiciones, saltar
+            if not reward.unlock_conditions:
+                continue
+
+            try:
+                conditions = json.loads(reward.unlock_conditions)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning(
+                    f"Invalid unlock_conditions JSON for reward {reward.id}: "
+                    f"{reward.unlock_conditions}"
+                )
+                continue
+
+            # Solo procesar recompensas con condición tipo 'besitos'
+            if conditions.get('type') != 'besitos':
+                continue
+
+            # Verificar si usuario cumple la condición
+            can_unlock, _ = await self.check_unlock_conditions(user_id, reward.id)
+
+            if can_unlock:
+                # Otorgar recompensa automáticamente
+                success, message, user_reward = await self.grant_reward(
+                    user_id=user_id,
+                    reward_id=reward.id,
+                    obtained_via=ObtainedVia.AUTO_UNLOCK,
+                    reference_id=None
+                )
+
+                if success:
+                    granted_rewards.append((reward.name, message))
+                    logger.info(
+                        f"✅ Automatically granted reward '{reward.name}' "
+                        f"to user {user_id}"
+                    )
+                else:
+                    logger.debug(
+                        f"Could not grant reward '{reward.name}' "
+                        f"to user {user_id}: {message}"
+                    )
+
+        return granted_rewards

@@ -64,6 +64,24 @@ class BesitoService:
             f"({transaction_type.value}). New balance: {user_gamif.total_besitos}"
         )
 
+        # Verificar y otorgar recompensas automáticas desbloqueadas
+        try:
+            from bot.gamification.services.reward import RewardService
+            reward_service = RewardService(self.session)
+            granted = await reward_service.check_and_grant_unlocked_rewards(user_id)
+
+            if granted:
+                for reward_name, msg in granted:
+                    logger.info(
+                        f"🎁 Auto-unlocked reward '{reward_name}' "
+                        f"for user {user_id} after reaching {user_gamif.total_besitos} besitos"
+                    )
+        except Exception as e:
+            logger.error(
+                f"Error checking/granting auto-unlock rewards for user {user_id}: {e}",
+                exc_info=True
+            )
+
         return amount
 
     async def deduct_besitos(
