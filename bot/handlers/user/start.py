@@ -9,9 +9,9 @@ Deep Link Format: t.me/botname?start=TOKEN
 import logging
 from datetime import datetime, timezone
 
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.enums import UserRole
@@ -298,3 +298,135 @@ async def _send_welcome_message(
         reply_markup=keyboard,
         parse_mode="HTML"
     )
+
+
+@user_router.callback_query(F.data == "start:profile")
+async def callback_show_profile(callback: CallbackQuery, session: AsyncSession):
+    """
+    Muestra el menú de Juego Kinky (perfil de gamificación).
+
+    Activado desde: Botón "🎮 Juego Kinky" en menú /start
+
+    Args:
+        callback: CallbackQuery del usuario
+        session: Sesión de BD
+    """
+    try:
+        # Importar aquí para evitar dependencia circular
+        from bot.gamification.services.container import GamificationContainer
+
+        container = ServiceContainer(session, callback.bot)
+        gamification = GamificationContainer(session, callback.bot)
+
+        # Obtener resumen de perfil
+        summary = await gamification.user_gamification.get_profile_summary(
+            callback.from_user.id
+        )
+
+        # Verificar estado del regalo diario
+        daily_gift_status = await gamification.daily_gift.get_daily_gift_status(
+            callback.from_user.id
+        )
+
+        # Texto del botón de regalo diario con indicador visual
+        if daily_gift_status['can_claim'] and daily_gift_status['system_enabled']:
+            daily_gift_text = "🎁 Regalo Diario ⭐"
+        else:
+            daily_gift_text = "🎁 Regalo Diario ✅"
+
+        # Construir keyboard con botones de gamificación
+        keyboard_buttons = [
+            [{"text": daily_gift_text, "callback_data": "user:daily_gift"}],
+            [
+                {"text": "📋 Mis Misiones", "callback_data": "user:missions"},
+                {"text": "🎁 Recompensas", "callback_data": "user:rewards"}
+            ],
+            [{"text": "🏆 Leaderboard", "callback_data": "user:leaderboard"}]
+        ]
+
+        # Obtener botones dinámicos configurados para "profile"
+        profile_buttons = await container.menu.build_keyboard_for_role("profile")
+        if profile_buttons:
+            keyboard_buttons.extend(profile_buttons)
+
+        # Agregar botón de volver al menú
+        keyboard_buttons.append([{"text": "🔙 Volver al Menú", "callback_data": "profile:back"}])
+
+        keyboard = create_inline_keyboard(keyboard_buttons)
+
+        # Editar mensaje existente
+        await callback.message.edit_text(
+            text=summary,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"❌ Error mostrando profile: {e}", exc_info=True)
+        await callback.answer(
+            f"❌ Error al cargar perfil: {str(e)}",
+            show_alert=True
+        )
+
+
+@user_router.callback_query(F.data == "profile:back")
+async def callback_back_to_start(callback: CallbackQuery, session: AsyncSession):
+    """
+    Regresa al menú principal de /start desde el perfil.
+
+    Args:
+        callback: CallbackQuery del usuario
+        session: Sesión de BD
+    """
+    try:
+        container = ServiceContainer(session, callback.bot)
+        user = await container.user.get_or_create_user(
+            telegram_user=callback.from_user,
+            default_role=UserRole.FREE
+        )
+
+        user_id = callback.from_user.id
+        user_name = callback.from_user.first_name or "Usuario"
+
+        # Verificar si es VIP
+        is_vip = await container.subscription.is_vip_active(user_id)
+        role = "vip" if is_vip else "free"
+        subscription_type = "VIP" if is_vip else "FREE"
+
+        # Calcular días restantes
+        days_remaining = 0
+        if is_vip:
+            subscriber = await container.subscription.get_vip_subscriber(user_id)
+            if subscriber and hasattr(subscriber, 'expiry_date') and subscriber.expiry_date:
+                expiry = subscriber.expiry_date
+                if expiry.tzinfo is None:
+                    expiry = expiry.replace(tzinfo=timezone.utc)
+                now = datetime.now(timezone.utc)
+                days_remaining = max(0, (expiry - now).days)
+
+        # Obtener mensaje de bienvenida
+        menu_config = await container.menu.get_or_create_menu_config(role)
+        welcome_message = menu_config.welcome_message.format(
+            user_name=user_name,
+            days_remaining=days_remaining,
+            subscription_type=subscription_type
+        )
+
+        # Obtener keyboard dinámico
+        keyboard = await dynamic_user_menu_keyboard(session, role)
+
+        # Editar mensaje para volver a start
+        await callback.message.edit_text(
+            text=welcome_message,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"❌ Error regresando a menú: {e}", exc_info=True)
+        await callback.answer(
+            "❌ Error al regresar al menú",
+            show_alert=True
+        )
