@@ -126,4 +126,113 @@ _Ninguno por ahora_
 
 ---
 
-**Última actualización:** [Fecha de inicio]
+## 🏪 MÓDULO TIENDA (SHOP) - COMPLETADO
+
+### Estado: ✅ Implementado
+
+**Fecha de implementación:** Diciembre 2024
+
+### Componentes Implementados:
+
+#### 1. Base de Datos
+- [x] `bot/shop/database/models.py` - 5 modelos SQLAlchemy:
+  - `ItemCategory`: Categorías de productos
+  - `ShopItem`: Productos de la tienda
+  - `UserInventory`: Inventario del usuario (Mochila)
+  - `UserInventoryItem`: Items que posee el usuario
+  - `ItemPurchase`: Historial de compras
+
+- [x] `bot/shop/database/enums.py` - Enums y TypedDicts:
+  - `ItemType`: narrative, digital, consumable, cosmetic
+  - `ItemRarity`: common, uncommon, rare, epic, legendary
+  - `PurchaseStatus`: completed, refunded, cancelled
+  - TypedDicts para metadata por tipo
+
+- [x] `alembic/versions/011_add_shop_module.py` - Migración completa
+
+#### 2. Servicios
+- [x] `bot/shop/services/shop.py` - ShopService:
+  - CRUD de categorías y productos
+  - Validación de compras
+  - Procesamiento de transacciones
+  - Estadísticas de ventas
+
+- [x] `bot/shop/services/inventory.py` - InventoryService:
+  - Gestión del inventario personal
+  - Verificación de posesión de items
+  - Uso de items consumibles
+  - Equipar/desequipar cosméticos
+
+- [x] `bot/shop/services/container.py` - ShopContainer (DI)
+
+#### 3. Handlers
+- [x] `bot/shop/handlers/user/shop.py`:
+  - /tienda, /shop, /store commands
+  - Navegación por categorías
+  - Detalle de productos
+  - Flujo de compra
+
+- [x] `bot/shop/handlers/user/backpack.py`:
+  - /mochila, /backpack, /inventory commands
+  - Ver items por tipo
+  - Usar consumibles
+  - Equipar/desequipar cosméticos
+
+- [x] `bot/shop/handlers/admin/shop_config.py`:
+  - Gestionar categorías
+  - CRUD de productos
+  - Estadísticas de ventas
+  - Otorgar items a usuarios
+
+#### 4. Estados FSM
+- [x] `bot/shop/states/admin.py`:
+  - CategoryCreationStates
+  - CategoryEditStates
+  - ItemCreationStates
+  - ItemEditStates
+  - NarrativeItemConfigStates
+
+#### 5. Integración con Narrativa
+- [x] `RequirementType.ITEM` agregado a enums de narrativa
+- [x] `_check_item_ownership()` en RequirementsService
+- [x] Desbloqueo automático de fragmentos al poseer items
+
+#### 6. Tests E2E
+- [x] `tests/shop/test_shop_e2e.py` - 25+ tests:
+  - Tests de categorías
+  - Tests de productos
+  - Tests de compra
+  - Tests de inventario
+  - Tests de consumibles
+  - Tests de cosméticos
+  - Tests de estadísticas
+  - Tests de reembolso
+  - Tests de stock limitado
+
+### Flujo de Usuario:
+```
+1. Usuario gana besitos (gamificación)
+2. Ve fragmento bloqueado → mensaje "Necesitas artefacto X"
+3. Accede a /tienda → ve productos
+4. Compra con besitos → item en mochila
+5. Regresa a fragmento → acceso desbloqueado
+```
+
+### Funcionalidades:
+- Catálogo de productos por categorías
+- 4 tipos de items: narrativos, digitales, consumibles, cosméticos
+- 5 niveles de rareza con indicadores visuales
+- Stock limitado y máximo por usuario
+- Requisito VIP para items exclusivos
+- Productos destacados
+- Uso de consumibles con efectos
+- Equipar/desequipar cosméticos
+- Item favorito para perfil
+- Historial de compras
+- Reembolsos
+- Otorgamiento de items por admin
+- Estadísticas de ventas
+
+---
+
+**Última actualización:** 2024-12-27
