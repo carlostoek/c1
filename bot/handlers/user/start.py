@@ -115,6 +115,18 @@ async def _activate_token_from_deeplink(
         user: Usuario del sistema
         token_string: String del token a activar
     """
+    # PRIMERO: Mostrar typing indicator ANTES de cualquier operación
+    await message.bot.send_chat_action(
+        chat_id=message.chat.id,
+        action="typing"
+    )
+
+    # Auto-reaccionar al mensaje ANTES de procesar
+    try:
+        await message.react("❤️")
+    except Exception as e:
+        logger.debug(f"⚠️ No se pudo reaccionar al mensaje: {e}")
+
     try:
         # Validar token
         is_valid, msg_result, token = await container.subscription.validate_token(token_string)
@@ -180,23 +192,11 @@ async def _activate_token_from_deeplink(
             return
 
         try:
-            # Mostrar typing indicator mientras se crea el link
-            await message.bot.send_chat_action(
-                chat_id=message.chat.id,
-                action="typing"
-            )
-
             invite_link = await container.subscription.create_invite_link(
                 channel_id=vip_channel_id,
                 user_id=user.user_id,
                 expire_hours=5  # Link válido 5 horas
             )
-
-            # Auto-reaccionar al mensaje del usuario
-            try:
-                await message.react(emoji="❤️")
-            except Exception as e:
-                logger.debug(f"⚠️ No se pudo reaccionar: {e}")
 
             # Formatear mensaje de éxito con más detalles
             # Asegurar timezone
@@ -247,18 +247,6 @@ Haz click en el botón para acceder al canal VIP exclusivo con contenido premium
 
         except Exception as e:
             logger.warning(f"⚠️ No se pudo crear invite link: {e}")
-
-            # Mostrar typing indicator
-            await message.bot.send_chat_action(
-                chat_id=message.chat.id,
-                action="typing"
-            )
-
-            # Auto-reaccionar
-            try:
-                await message.react(emoji="❤️")
-            except Exception as e:
-                logger.debug(f"⚠️ No se pudo reaccionar: {e}")
 
             await message.answer(
                 "✅ <b>¡Suscripción VIP Activada!</b>\n\n"

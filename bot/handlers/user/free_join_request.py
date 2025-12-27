@@ -69,6 +69,12 @@ async def handle_free_join_request(
             logger.error(f"❌ Error declinando (canal no autorizado): {e}")
         return
 
+    # PRIMERO: Mostrar typing indicator ANTES de cualquier operación
+    await join_request.bot.send_chat_action(
+        chat_id=user_id,
+        action="typing"
+    )
+
     # Crear solicitud (verifica duplicados internamente)
     success, message, request = await container.subscription.create_free_request_from_join_request(
         user_id=user_id,
@@ -97,12 +103,6 @@ async def handle_free_join_request(
             progress_bar = format_progress_with_time(minutes_remaining, wait_time, length=15)
 
             try:
-                # Mostrar typing indicator
-                await join_request.bot.send_chat_action(
-                    chat_id=user_id,
-                    action="typing"
-                )
-
                 await join_request.bot.send_message(
                     chat_id=user_id,
                     text=(
@@ -121,16 +121,6 @@ async def handle_free_join_request(
                     parse_mode="HTML"
                 )
 
-                # Auto-reaccionar con ❤️ al mensaje del join request
-                try:
-                    await join_request.bot.send_reaction(
-                        chat_id=user_id,
-                        message_id=join_request.message_id if hasattr(join_request, 'message_id') else None,
-                        emoji="❤️"
-                    )
-                except Exception as e:
-                    logger.debug(f"⚠️ No se pudo reaccionar: {e}")
-
                 logger.info(f"✅ Notificación duplicada enviada a user {user_id} con progreso visual")
             except Exception as e:
                 logger.warning(f"⚠️ No se pudo notificar duplicada a user {user_id}: {e}")
@@ -142,15 +132,6 @@ async def handle_free_join_request(
 
     # Obtener tiempo de espera
     wait_time = await container.config.get_wait_time()
-
-    # Mostrar typing indicator
-    try:
-        await join_request.bot.send_chat_action(
-            chat_id=user_id,
-            action="typing"
-        )
-    except Exception as e:
-        logger.debug(f"⚠️ No se pudo enviar typing indicator: {e}")
 
     # Enviar notificación automática mejorada
     try:
@@ -174,16 +155,6 @@ async def handle_free_join_request(
             ),
             parse_mode="HTML"
         )
-
-        # Auto-reaccionar con ❤️
-        try:
-            await join_request.bot.send_reaction(
-                chat_id=user_id,
-                message_id=None,  # No se puede reaccionar a ChatJoinRequest
-                emoji="❤️"
-            )
-        except Exception as e:
-            logger.debug(f"⚠️ No se pudo reaccionar: {e}")
 
         logger.info(
             f"✅ Usuario {user_id} notificado | "

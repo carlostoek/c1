@@ -95,6 +95,18 @@ async def process_token_input(
 
     logger.info(f"🎟️ Usuario {user_id} canjeando token: {token_str[:8]}...")
 
+    # PRIMERO: Mostrar typing indicator ANTES de cualquier operación
+    await message.bot.send_chat_action(
+        chat_id=message.chat.id,
+        action="typing"
+    )
+
+    # Auto-reaccionar al mensaje ANTES de procesar
+    try:
+        await message.react("❤️")
+    except Exception as e:
+        logger.debug(f"⚠️ No se pudo reaccionar al mensaje: {e}")
+
     container = ServiceContainer(session, message.bot)
 
     # Intentar canjear token
@@ -104,12 +116,6 @@ async def process_token_input(
     )
 
     if not success:
-        # Mostrar typing indicator
-        await message.bot.send_chat_action(
-            chat_id=message.chat.id,
-            action="typing"
-        )
-
         # Token inválido - Diferenciar tipos de error
         error_messages = {
             "no_encontrado": (
@@ -157,12 +163,6 @@ async def process_token_input(
         return
 
     # Token válido: crear invite link
-    # Mostrar typing indicator mientras se procesa
-    await message.bot.send_chat_action(
-        chat_id=message.chat.id,
-        action="typing"
-    )
-
     vip_channel_id = await container.channel.get_vip_channel_id()
 
     try:
@@ -171,12 +171,6 @@ async def process_token_input(
             user_id=user_id,
             expire_hours=1  # Link expira en 1 hora
         )
-
-        # Auto-reaccionar al mensaje del usuario con ❤️
-        try:
-            await message.react(emoji="❤️")
-        except Exception as e:
-            logger.debug(f"⚠️ No se pudo reaccionar al mensaje: {e}")
 
         # Calcular días restantes
         if subscriber and hasattr(subscriber, 'expiry_date') and subscriber.expiry_date:
@@ -215,18 +209,6 @@ async def process_token_input(
 
     except Exception as e:
         logger.error(f"Error creando invite link para user {user_id}: {e}", exc_info=True)
-
-        # Mostrar typing indicator
-        await message.bot.send_chat_action(
-            chat_id=message.chat.id,
-            action="typing"
-        )
-
-        # Auto-reaccionar con ❤️ al menos
-        try:
-            await message.react(emoji="❤️")
-        except Exception as e:
-            logger.debug(f"⚠️ No se pudo reaccionar al mensaje: {e}")
 
         await message.answer(
             "✅ <b>Token Canjeado Correctamente</b>\n\n"
