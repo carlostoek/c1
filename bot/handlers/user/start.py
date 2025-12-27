@@ -92,7 +92,7 @@ async def cmd_start(message: Message, session: AsyncSession):
         )
     else:
         # No hay parámetro → Mensaje de bienvenida normal
-        await _send_welcome_message(message, user, container, user_id)
+        await _send_welcome_message(message, user, container, user_id, session)
 
 
 async def _activate_token_from_deeplink(
@@ -245,7 +245,8 @@ async def _send_welcome_message(
     message: Message,
     user,  # User model
     container: ServiceContainer,
-    user_id: int
+    user_id: int,
+    session: AsyncSession
 ):
     """
     Envía mensaje de bienvenida normal usando sistema de menús dinámicos.
@@ -255,6 +256,7 @@ async def _send_welcome_message(
         user: Usuario del sistema
         container: Service container
         user_id: ID del usuario
+        session: Sesión de BD
     """
     user_name = message.from_user.first_name or "Usuario"
 
@@ -288,8 +290,7 @@ async def _send_welcome_message(
         subscription_type=subscription_type
     )
 
-    # Obtener keyboard dinámico (necesita session directamente)
-    session = container.session
+    # Obtener keyboard dinámico
     keyboard = await dynamic_user_menu_keyboard(session, role)
 
     await message.answer(
