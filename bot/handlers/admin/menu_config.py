@@ -446,6 +446,68 @@ async def process_edit_button_text(
         await message.answer("❌ Error al actualizar.")
 
 
+@menu_config_router.callback_query(F.data.startswith("menuconfig:edit:content:"))
+async def callback_edit_action_content(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+    """Inicia edición del contenido de acción del botón."""
+    item_key = callback.data.split(":")[-1]
+
+    await state.set_state(MenuConfigStates.editing_action_content)
+    await state.update_data(editing_item_key=item_key)
+
+    await callback.message.edit_text(
+        "📝 <b>Editar Contenido de Acción</b>\n\n"
+        "Envía el nuevo contenido que se mostrará cuando el usuario\n"
+        "presione este botón.\n\n"
+        "Puedes usar formato HTML básico.",
+        reply_markup=create_inline_keyboard([
+            [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+        ]),
+        parse_mode="HTML"
+    )
+
+
+@menu_config_router.message(MenuConfigStates.editing_action_content)
+async def process_edit_action_content(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """Procesa la edición del contenido de acción."""
+    new_content = message.text.strip()
+
+    if len(new_content) < 10:
+        await message.answer(
+            "❌ Contenido muy corto (mínimo 10 caracteres).",
+            reply_markup=create_inline_keyboard([
+                [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+            ])
+        )
+        return
+
+    data = await state.get_data()
+    item_key = data.get("editing_item_key")
+
+    container = ServiceContainer(session, message.bot)
+    item = await container.menu.update_menu_item(item_key, action_content=new_content)
+
+    await state.clear()
+
+    if item:
+        preview = new_content[:100] + "..." if len(new_content) > 100 else new_content
+        await message.answer(
+            f"✅ Contenido actualizado:\n\n<pre>{preview}</pre>",
+            reply_markup=create_inline_keyboard([
+                [{"text": "🔙 Volver", "callback_data": "admin:menu_config"}]
+            ]),
+            parse_mode="HTML"
+        )
+    else:
+        await message.answer("❌ Error al actualizar.")
+
+
 # ═══════════════════════════════════════════════════════════════
 # TOGGLE Y DELETE
 # ═══════════════════════════════════════════════════════════════

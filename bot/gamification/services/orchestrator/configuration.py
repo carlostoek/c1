@@ -87,6 +87,15 @@ class ConfigurationOrchestrator:
         self.session = session
         self.mission_orchestrator = MissionOrchestrator(session)
         self.reward_orchestrator = RewardOrchestrator(session)
+        self._narrative_orchestrator = None
+
+    @property
+    def narrative(self):
+        """Orquestador de narrativa (lazy loaded)."""
+        if self._narrative_orchestrator is None:
+            from bot.narrative.services.orchestrator import NarrativeOrchestrator
+            self._narrative_orchestrator = NarrativeOrchestrator(self.session)
+        return self._narrative_orchestrator
 
     async def create_complete_mission_system(
         self,

@@ -182,10 +182,48 @@ RewardMetadata = BadgeMetadata | PermissionMetadata | ItemMetadata | TitleMetada
 
 
 class UnlockCondition(TypedDict):
-    """Condición para desbloquear una recompensa."""
+    """Condición para desbloquear una recompensa (legacy)."""
 
     type: Literal["mission", "level", "besitos"]
     value: int  # mission_id, level_id, o cantidad de besitos
+
+
+class NarrativeChapterCondition(TypedDict):
+    """Condición: completar capítulo narrativo."""
+
+    type: Literal["narrative_chapter"]
+    chapter_slug: str  # slug del capítulo (ej: "los-kinkys")
+
+
+class NarrativeFragmentCondition(TypedDict):
+    """Condición: llegar a fragmento narrativo."""
+
+    type: Literal["narrative_fragment"]
+    fragment_key: str  # key del fragmento (ej: "scene_3a")
+
+
+class NarrativeDecisionCondition(TypedDict):
+    """Condición: tomar decisión específica."""
+
+    type: Literal["narrative_decision"]
+    decision_key: str  # key de decisión
+
+
+class ArchetypeCondition(TypedDict):
+    """Condición: tener arquetipo específico."""
+
+    type: Literal["archetype"]
+    archetype: str  # "impulsive", "contemplative", "silent"
+
+
+# Union de todas las condiciones posibles
+AnyUnlockCondition = (
+    UnlockCondition
+    | NarrativeChapterCondition
+    | NarrativeFragmentCondition
+    | NarrativeDecisionCondition
+    | ArchetypeCondition
+)
 
 
 class BesitosMetadata(TypedDict):

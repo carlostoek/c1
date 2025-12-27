@@ -17,7 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.database.enums import UserRole
 from bot.services.container import ServiceContainer
 from bot.middlewares import DatabaseMiddleware
-from bot.utils.keyboards import create_inline_keyboard, dynamic_user_menu_keyboard
+from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.menu_helpers import build_start_menu
 
 logger = logging.getLogger(__name__)
 
@@ -138,41 +139,16 @@ async def callback_back_to_start_menu(callback: CallbackQuery, session: AsyncSes
         session: Sesión de BD
     """
     try:
-        container = ServiceContainer(session, callback.bot)
-        user = await container.user.get_or_create_user(
-            telegram_user=callback.from_user,
-            default_role=UserRole.FREE
-        )
-
         user_id = callback.from_user.id
         user_name = callback.from_user.first_name or "Usuario"
 
-        # Verificar si es VIP
-        is_vip = await container.subscription.is_vip_active(user_id)
-        role = "vip" if is_vip else "free"
-        subscription_type = "VIP" if is_vip else "FREE"
-
-        # Calcular días restantes
-        days_remaining = 0
-        if is_vip:
-            subscriber = await container.subscription.get_vip_subscriber(user_id)
-            if subscriber and hasattr(subscriber, 'expiry_date') and subscriber.expiry_date:
-                expiry = subscriber.expiry_date
-                if expiry.tzinfo is None:
-                    expiry = expiry.replace(tzinfo=timezone.utc)
-                now = datetime.now(timezone.utc)
-                days_remaining = max(0, (expiry - now).days)
-
-        # Obtener mensaje de bienvenida
-        menu_config = await container.menu.get_or_create_menu_config(role)
-        welcome_message = menu_config.welcome_message.format(
-            user_name=user_name,
-            days_remaining=days_remaining,
-            subscription_type=subscription_type
+        # Usar helper para construir el menú
+        welcome_message, keyboard = await build_start_menu(
+            session=session,
+            bot=callback.bot,
+            user_id=user_id,
+            user_name=user_name
         )
-
-        # Obtener keyboard dinámico
-        keyboard = await dynamic_user_menu_keyboard(session, role)
 
         # Editar mensaje para volver a start
         await callback.message.edit_text(

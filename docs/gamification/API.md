@@ -435,7 +435,7 @@ result = await container.configuration_orchestrator.create_complete_mission_syst
 Coordina la creación de misiones con auto-creación de niveles y recompensas en una sola transacción.
 
 #### `create_mission_system(config: Dict) -> Dict`
-Crea un sistema completa de misión en transacción atómica.
+Crea un sistema completo de misión en transacción atómica.
 
 ```python
 result = await container.mission_orchestrator.create_mission_system(config)

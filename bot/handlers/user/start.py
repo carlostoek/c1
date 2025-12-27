@@ -18,7 +18,8 @@ from bot.database.enums import UserRole
 from bot.middlewares import DatabaseMiddleware
 from bot.services.container import ServiceContainer
 from bot.utils.formatters import format_currency
-from bot.utils.keyboards import create_inline_keyboard, dynamic_user_menu_keyboard
+from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.menu_helpers import build_start_menu, build_profile_menu
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -260,38 +261,14 @@ async def _send_welcome_message(
     """
     user_name = message.from_user.first_name or "Usuario"
 
-    # Usuario normal: verificar si es VIP activo
-    is_vip = await container.subscription.is_vip_active(user_id)
-
-    # Determinar rol para el menú dinámico
-    role = "vip" if is_vip else "free"
-    subscription_type = "VIP" if is_vip else "FREE"
-
-    # Calcular días restantes (solo VIP)
-    days_remaining = 0
-    if is_vip:
-        subscriber = await container.subscription.get_vip_subscriber(user_id)
-        if subscriber and hasattr(subscriber, 'expiry_date') and subscriber.expiry_date:
-            # Asegurar que expiry_date tiene timezone
-            expiry = subscriber.expiry_date
-            if expiry.tzinfo is None:
-                expiry = expiry.replace(tzinfo=timezone.utc)
-
-            now = datetime.now(timezone.utc)
-            days_remaining = max(0, (expiry - now).days)
-
-    # Obtener configuración de menú dinámico para el rol
-    menu_config = await container.menu.get_or_create_menu_config(role)
-
-    # Interpolar variables en el mensaje de bienvenida
-    welcome_message = menu_config.welcome_message.format(
+    # Usar helper para construir el menú
+    welcome_message, keyboard = await build_start_menu(
+        session=session,
+        bot=message.bot,
+        user_id=user_id,
         user_name=user_name,
-        days_remaining=days_remaining,
-        subscription_type=subscription_type
+        container=container
     )
-
-    # Obtener keyboard dinámico
-    keyboard = await dynamic_user_menu_keyboard(session, role)
 
     await message.answer(
         text=welcome_message,
@@ -312,47 +289,12 @@ async def callback_show_profile(callback: CallbackQuery, session: AsyncSession):
         session: Sesión de BD
     """
     try:
-        # Importar aquí para evitar dependencia circular
-        from bot.gamification.services.container import GamificationContainer
-
-        container = ServiceContainer(session, callback.bot)
-        gamification = GamificationContainer(session, callback.bot)
-
-        # Obtener resumen de perfil
-        summary = await gamification.user_gamification.get_profile_summary(
-            callback.from_user.id
+        # Usar helper para construir el perfil
+        summary, keyboard = await build_profile_menu(
+            session=session,
+            bot=callback.bot,
+            user_id=callback.from_user.id
         )
-
-        # Verificar estado del regalo diario
-        daily_gift_status = await gamification.daily_gift.get_daily_gift_status(
-            callback.from_user.id
-        )
-
-        # Texto del botón de regalo diario con indicador visual
-        if daily_gift_status['can_claim'] and daily_gift_status['system_enabled']:
-            daily_gift_text = "🎁 Regalo Diario ⭐"
-        else:
-            daily_gift_text = "🎁 Regalo Diario ✅"
-
-        # Construir keyboard con botones de gamificación
-        keyboard_buttons = [
-            [{"text": daily_gift_text, "callback_data": "user:daily_gift"}],
-            [
-                {"text": "📋 Mis Misiones", "callback_data": "user:missions"},
-                {"text": "🎁 Recompensas", "callback_data": "user:rewards"}
-            ],
-            [{"text": "🏆 Leaderboard", "callback_data": "user:leaderboard"}]
-        ]
-
-        # Obtener botones dinámicos configurados para "profile"
-        profile_buttons = await container.menu.build_keyboard_for_role("profile")
-        if profile_buttons:
-            keyboard_buttons.extend(profile_buttons)
-
-        # Agregar botón de volver al menú
-        keyboard_buttons.append([{"text": "🔙 Volver al Menú", "callback_data": "profile:back"}])
-
-        keyboard = create_inline_keyboard(keyboard_buttons)
 
         # Editar mensaje existente
         await callback.message.edit_text(
@@ -380,41 +322,16 @@ async def callback_back_to_start(callback: CallbackQuery, session: AsyncSession)
         session: Sesión de BD
     """
     try:
-        container = ServiceContainer(session, callback.bot)
-        user = await container.user.get_or_create_user(
-            telegram_user=callback.from_user,
-            default_role=UserRole.FREE
-        )
-
         user_id = callback.from_user.id
         user_name = callback.from_user.first_name or "Usuario"
 
-        # Verificar si es VIP
-        is_vip = await container.subscription.is_vip_active(user_id)
-        role = "vip" if is_vip else "free"
-        subscription_type = "VIP" if is_vip else "FREE"
-
-        # Calcular días restantes
-        days_remaining = 0
-        if is_vip:
-            subscriber = await container.subscription.get_vip_subscriber(user_id)
-            if subscriber and hasattr(subscriber, 'expiry_date') and subscriber.expiry_date:
-                expiry = subscriber.expiry_date
-                if expiry.tzinfo is None:
-                    expiry = expiry.replace(tzinfo=timezone.utc)
-                now = datetime.now(timezone.utc)
-                days_remaining = max(0, (expiry - now).days)
-
-        # Obtener mensaje de bienvenida
-        menu_config = await container.menu.get_or_create_menu_config(role)
-        welcome_message = menu_config.welcome_message.format(
-            user_name=user_name,
-            days_remaining=days_remaining,
-            subscription_type=subscription_type
+        # Usar helper para construir el menú
+        welcome_message, keyboard = await build_start_menu(
+            session=session,
+            bot=callback.bot,
+            user_id=user_id,
+            user_name=user_name
         )
-
-        # Obtener keyboard dinámico
-        keyboard = await dynamic_user_menu_keyboard(session, role)
 
         # Editar mensaje para volver a start
         await callback.message.edit_text(

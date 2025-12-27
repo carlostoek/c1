@@ -318,6 +318,39 @@ class RewardService:
                     return False
             return True
 
+        # Condiciones narrativas
+        elif condition_type == 'narrative_chapter':
+            # Verificar que usuario completó el capítulo
+            from bot.narrative.services.container import NarrativeContainer
+            narrative = NarrativeContainer(self.session)
+            chapter_slug = condition['chapter_slug']
+            completed = await narrative.progress.has_completed_chapter(user_id, chapter_slug)
+            return completed
+
+        elif condition_type == 'narrative_fragment':
+            # Verificar que usuario visitó el fragmento
+            from bot.narrative.services.container import NarrativeContainer
+            narrative = NarrativeContainer(self.session)
+            fragment_key = condition['fragment_key']
+            visited = await narrative.progress.has_visited_fragment(user_id, fragment_key)
+            return visited
+
+        elif condition_type == 'narrative_decision':
+            # Verificar que usuario tomó la decisión específica
+            from bot.narrative.services.container import NarrativeContainer
+            narrative = NarrativeContainer(self.session)
+            decision_key = condition['decision_key']
+            taken = await narrative.progress.has_taken_decision(user_id, decision_key)
+            return taken
+
+        elif condition_type == 'archetype':
+            # Verificar que usuario tiene el arquetipo requerido
+            from bot.narrative.services.container import NarrativeContainer
+            narrative = NarrativeContainer(self.session)
+            progress = await narrative.progress.get_or_create_progress(user_id)
+            required_archetype = condition['archetype']
+            return progress.detected_archetype.value == required_archetype
+
         return False
 
     def _get_unlock_requirement_text(self, conditions: dict) -> str:
@@ -339,6 +372,14 @@ class RewardService:
             return f"Requiere {conditions['min_besitos']} besitos totales"
         elif condition_type == 'multiple':
             return "Requiere múltiples condiciones"
+        elif condition_type == 'narrative_chapter':
+            return f"Requiere completar el capítulo '{conditions['chapter_slug']}'"
+        elif condition_type == 'narrative_fragment':
+            return f"Requiere avanzar en la historia hasta '{conditions['fragment_key']}'"
+        elif condition_type == 'narrative_decision':
+            return f"Requiere tomar la decisión '{conditions['decision_key']}'"
+        elif condition_type == 'archetype':
+            return f"Requiere tener arquetipo '{conditions['archetype']}'"
 
         return "Condiciones no especificadas"
 
