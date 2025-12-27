@@ -197,8 +197,10 @@ async def callback_create_button_start(
     await callback.message.edit_text(
         "➕ <b>Crear Nuevo Botón</b>\n\n"
         "Paso 1/5: Escribe el texto que verá el usuario en el botón.\n\n"
-        "Ejemplo: <code>Información de Contacto</code>\n\n"
-        "Envía /cancel para cancelar.",
+        "Ejemplo: <code>Información de Contacto</code>",
+        reply_markup=create_inline_keyboard([
+            [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+        ]),
         parse_mode="HTML"
     )
 
@@ -206,14 +208,14 @@ async def callback_create_button_start(
 @menu_config_router.message(MenuConfigStates.waiting_for_button_text)
 async def process_button_text(message: Message, state: FSMContext):
     """Procesa el texto del botón."""
-    if message.text == "/cancel":
-        await state.clear()
-        await message.answer("❌ Creación cancelada.")
-        return
-
     button_text = message.text.strip()
     if len(button_text) > 100:
-        await message.answer("❌ El texto es muy largo (máx 100 caracteres). Intenta de nuevo.")
+        await message.answer(
+            "❌ El texto es muy largo (máx 100 caracteres). Intenta de nuevo.",
+            reply_markup=create_inline_keyboard([
+                [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+            ])
+        )
         return
 
     await state.update_data(button_text=button_text)
@@ -224,6 +226,9 @@ async def process_button_text(message: Message, state: FSMContext):
         "Paso 2/5: Envía un emoji para el botón (opcional).\n\n"
         "Ejemplo: 📞 o ℹ️\n\n"
         "Envía <code>-</code> para omitir el emoji.",
+        reply_markup=create_inline_keyboard([
+            [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+        ]),
         parse_mode="HTML"
     )
 
@@ -233,10 +238,15 @@ async def process_button_emoji(message: Message, state: FSMContext):
     """Procesa el emoji del botón."""
     emoji = message.text.strip()
 
-    if emoji == "-" or emoji == "/cancel":
+    if emoji == "-":
         emoji = None
     elif len(emoji) > 10:
-        await message.answer("❌ Envía solo un emoji. Intenta de nuevo.")
+        await message.answer(
+            "❌ Envía solo un emoji. Intenta de nuevo.",
+            reply_markup=create_inline_keyboard([
+                [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+            ])
+        )
         return
 
     await state.update_data(button_emoji=emoji)
@@ -299,7 +309,12 @@ async def process_action_content(message: Message, state: FSMContext):
 
     # Validar URL si es tipo url
     if action_type == "url" and not content.startswith(("http://", "https://")):
-        await message.answer("❌ La URL debe comenzar con http:// o https://")
+        await message.answer(
+            "❌ La URL debe comenzar con http:// o https://",
+            reply_markup=create_inline_keyboard([
+                [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+            ])
+        )
         return
 
     await state.update_data(action_content=content)
@@ -386,8 +401,10 @@ async def callback_edit_button_text(
 
     await callback.message.edit_text(
         "✏️ <b>Editar Texto del Botón</b>\n\n"
-        "Envía el nuevo texto para el botón.\n\n"
-        "Envía /cancel para cancelar.",
+        "Envía el nuevo texto para el botón.",
+        reply_markup=create_inline_keyboard([
+            [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+        ]),
         parse_mode="HTML"
     )
 
@@ -399,14 +416,14 @@ async def process_edit_button_text(
     session: AsyncSession
 ):
     """Procesa la edición del texto."""
-    if message.text == "/cancel":
-        await state.clear()
-        await message.answer("❌ Edición cancelada.")
-        return
-
     new_text = message.text.strip()
     if len(new_text) > 100:
-        await message.answer("❌ Texto muy largo (máx 100 caracteres).")
+        await message.answer(
+            "❌ Texto muy largo (máx 100 caracteres).",
+            reply_markup=create_inline_keyboard([
+                [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+            ])
+        )
         return
 
     data = await state.get_data()
@@ -420,6 +437,9 @@ async def process_edit_button_text(
     if item:
         await message.answer(
             f"✅ Texto actualizado: <b>{new_text}</b>",
+            reply_markup=create_inline_keyboard([
+                [{"text": "🔙 Volver", "callback_data": "admin:menu_config"}]
+            ]),
             parse_mode="HTML"
         )
     else:
@@ -489,6 +509,95 @@ async def callback_confirm_delete(callback: CallbackQuery, session: AsyncSession
         )
     else:
         await callback.answer("❌ Error al eliminar", show_alert=True)
+
+
+# ═══════════════════════════════════════════════════════════════
+# CONFIGURAR MENSAJES VIP/FREE
+# ═══════════════════════════════════════════════════════════════
+
+@menu_config_router.callback_query(F.data.startswith("menuconfig:msg:"))
+async def callback_configure_message(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """Inicia configuración del mensaje de bienvenida para VIP o FREE."""
+    role = callback.data.split(":")[-1]  # 'vip' o 'free'
+
+    # Obtener mensaje actual
+    container = ServiceContainer(session, callback.bot)
+    config = await container.menu.get_or_create_menu_config(role)
+
+    current_message = config.welcome_message or "(sin configurar)"
+
+    await state.set_state(MenuConfigStates.editing_welcome_message)
+    await state.update_data(editing_role=role)
+
+    await callback.message.edit_text(
+        f"⚙️ <b>Configurar Mensaje {role.upper()}</b>\n\n"
+        f"<b>Mensaje actual:</b>\n"
+        f"<pre>{current_message}</pre>\n\n"
+        f"Envía el nuevo mensaje de bienvenida que verán los usuarios {role.upper()}.\n\n"
+        f"<b>Variables disponibles:</b>\n"
+        f"• <code>{{user_name}}</code> - Nombre del usuario\n"
+        f"• <code>{{days_remaining}}</code> - Días restantes (solo VIP)\n"
+        f"• <code>{{subscription_type}}</code> - Tipo de suscripción\n\n"
+        f"Ejemplo:\n"
+        f"<pre>¡Hola {{user_name}}! 👋\nBienvenido al menú {role.upper()}.</pre>",
+        reply_markup=create_inline_keyboard([
+            [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+        ]),
+        parse_mode="HTML"
+    )
+
+
+@menu_config_router.message(MenuConfigStates.editing_welcome_message)
+async def process_welcome_message(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """Procesa el nuevo mensaje de bienvenida."""
+    new_message = message.text.strip()
+
+    # Validar longitud
+    if len(new_message) < 10:
+        await message.answer(
+            "❌ El mensaje es muy corto (mínimo 10 caracteres).",
+            reply_markup=create_inline_keyboard([
+                [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+            ])
+        )
+        return
+
+    if len(new_message) > 1000:
+        await message.answer(
+            "❌ El mensaje es muy largo (máximo 1000 caracteres).",
+            reply_markup=create_inline_keyboard([
+                [{"text": "❌ Cancelar", "callback_data": "menuconfig:cancel"}]
+            ])
+        )
+        return
+
+    # Obtener el rol desde FSM data
+    data = await state.get_data()
+    role = data.get("editing_role")
+
+    # Actualizar en BD
+    container = ServiceContainer(session, message.bot)
+    await container.menu.update_menu_config(role, welcome_message=new_message)
+
+    await state.clear()
+
+    await message.answer(
+        f"✅ <b>Mensaje {role.upper()} actualizado</b>\n\n"
+        f"<pre>{new_message}</pre>\n\n"
+        f"Los usuarios {role.upper()} verán este mensaje al usar /start",
+        reply_markup=create_inline_keyboard([
+            [{"text": "🔙 Volver", "callback_data": "admin:menu_config"}]
+        ]),
+        parse_mode="HTML"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════
