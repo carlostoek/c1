@@ -95,17 +95,9 @@ async def process_token_input(
 
     logger.info(f"🎟️ Usuario {user_id} canjeando token: {token_str[:8]}...")
 
-    # PRIMERO: Mostrar typing indicator ANTES de cualquier operación
-    await message.bot.send_chat_action(
-        chat_id=message.chat.id,
-        action="typing"
-    )
-
-    # Auto-reaccionar al mensaje ANTES de procesar
-    try:
-        await message.react("❤️")
-    except Exception as e:
-        logger.debug(f"⚠️ No se pudo reaccionar al mensaje: {e}")
+    # Los middlewares globales se encargan de:
+    # - Typing indicator (TypingIndicatorMiddleware)
+    # - Auto-reacción con ❤️ (AutoReactionMiddleware)
 
     container = ServiceContainer(session, message.bot)
 

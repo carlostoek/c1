@@ -69,11 +69,9 @@ async def handle_free_join_request(
             logger.error(f"❌ Error declinando (canal no autorizado): {e}")
         return
 
-    # PRIMERO: Mostrar typing indicator ANTES de cualquier operación
-    await join_request.bot.send_chat_action(
-        chat_id=user_id,
-        action="typing"
-    )
+    # Los middlewares globales se encargan de:
+    # - Typing indicator (TypingIndicatorMiddleware)
+    # - Auto-reacción con ❤️ (AutoReactionMiddleware)
 
     # Crear solicitud (verifica duplicados internamente)
     success, message, request = await container.subscription.create_free_request_from_join_request(

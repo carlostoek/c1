@@ -194,6 +194,18 @@ async def main() -> None:
     # Crear dispatcher
     dp = Dispatcher(storage=storage)
 
+    # Registrar middlewares globales ANTES de los handlers
+    # Estos middlewares se aplican a TODAS las interacciones
+    from bot.middlewares import TypingIndicatorMiddleware, AutoReactionMiddleware
+
+    # Middleware de typing indicator (se ejecuta para mensajes y callbacks)
+    dp.message.middleware(TypingIndicatorMiddleware())
+    dp.callback_query.middleware(TypingIndicatorMiddleware())
+    dp.chat_join_request.middleware(TypingIndicatorMiddleware())
+
+    # Middleware de auto-reacción (se ejecuta para todos los mensajes)
+    dp.message.middleware(AutoReactionMiddleware())
+
     # Registrar handlers ANTES de empezar el polling
     from bot.handlers import register_all_handlers
     register_all_handlers(dp)
