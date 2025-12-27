@@ -18,7 +18,7 @@ from bot.database.enums import UserRole
 from bot.middlewares import DatabaseMiddleware
 from bot.services.container import ServiceContainer
 from bot.utils.formatters import format_currency
-from bot.utils.keyboards import create_inline_keyboard, vip_user_menu_keyboard
+from bot.utils.keyboards import create_inline_keyboard, dynamic_user_menu_keyboard
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -248,7 +248,7 @@ async def _send_welcome_message(
     user_id: int
 ):
     """
-    Envía mensaje de bienvenida normal.
+    Envía mensaje de bienvenida normal usando sistema de menús dinámicos.
 
     Args:
         message: Mensaje original
@@ -261,48 +261,39 @@ async def _send_welcome_message(
     # Usuario normal: verificar si es VIP activo
     is_vip = await container.subscription.is_vip_active(user_id)
 
-    if is_vip:
-        # Usuario ya tiene acceso VIP
-        subscriber = await container.subscription.get_vip_subscriber(user_id)
+    # Determinar rol para el menú dinámico
+    role = "vip" if is_vip else "free"
+    subscription_type = "VIP" if is_vip else "FREE"
 
-        # Calcular días restantes
+    # Calcular días restantes (solo VIP)
+    days_remaining = 0
+    if is_vip:
+        subscriber = await container.subscription.get_vip_subscriber(user_id)
         if subscriber and hasattr(subscriber, 'expiry_date') and subscriber.expiry_date:
             # Asegurar que expiry_date tiene timezone
             expiry = subscriber.expiry_date
             if expiry.tzinfo is None:
-                # Si es naive, asumimos UTC
                 expiry = expiry.replace(tzinfo=timezone.utc)
 
             now = datetime.now(timezone.utc)
             days_remaining = max(0, (expiry - now).days)
-        else:
-            days_remaining = 0
 
-        await message.answer(
-            f"👋 Hola <b>{user_name}</b>!\n\n"
-            f"✅ Tienes acceso VIP activo\n"
-            f"⏱️ Días restantes: <b>{days_remaining}</b>\n\n"
-            f"<b>¿Qué deseas hacer?</b>",
-            reply_markup=vip_user_menu_keyboard(),
-            parse_mode="HTML"
-        )
-        return
+    # Obtener configuración de menú dinámico para el rol
+    menu_config = await container.menu.get_or_create_menu_config(role)
 
-    # Usuario no es VIP: mostrar opciones
-    keyboard = create_inline_keyboard([
-        [{"text": "🎟️ Canjear Token VIP", "callback_data": "user:redeem_token"}],
-    ])
+    # Interpolar variables en el mensaje de bienvenida
+    welcome_message = menu_config.welcome_message.format(
+        user_name=user_name,
+        days_remaining=days_remaining,
+        subscription_type=subscription_type
+    )
+
+    # Obtener keyboard dinámico (necesita session directamente)
+    session = container.session
+    keyboard = await dynamic_user_menu_keyboard(session, role)
 
     await message.answer(
-        f"👋 Hola <b>{user_name}</b>!\n\n"
-        f"Bienvenido al bot de acceso a canales.\n\n"
-        f"<b>Opciones disponibles:</b>\n\n"
-        f"🎟️ <b>Canjear Token VIP</b>\n"
-        f"Si tienes un token de invitación, canjéalo para acceso VIP.\n\n"
-        f"📺 <b>Acceso al Canal Free</b>\n"
-        f"Para acceder al canal gratuito, ve directamente al canal y solicita unirte. "
-        f"Serás aprobado automáticamente después del tiempo de espera configurado.\n\n"
-        f"👉 Canjea tu token VIP:",
+        text=welcome_message,
         reply_markup=keyboard,
         parse_mode="HTML"
     )
