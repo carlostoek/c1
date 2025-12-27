@@ -607,6 +607,120 @@ def pluralize(count: int, singular: str, plural: str) -> str:
     return singular if count == 1 else plural
 
 
+# ===== BARRA DE PROGRESO =====
+
+def format_progress_bar(
+    current: int,
+    total: int,
+    filled: str = "█",
+    empty: str = "░",
+    length: int = 10
+) -> str:
+    """
+    Genera barra de progreso visual.
+
+    Args:
+        current: Valor actual
+        total: Valor total
+        filled: Carácter para parte llena (default: █)
+        empty: Carácter para parte vacía (default: ░)
+        length: Longitud de la barra (default: 10)
+
+    Returns:
+        String con barra de progreso
+
+    Examples:
+        >>> format_progress_bar(4, 10)
+        "████░░░░░░"
+
+        >>> format_progress_bar(75, 100, length=20)
+        "███████████░░░░░░░░░░"
+    """
+    if not isinstance(current, int) or not isinstance(total, int):
+        raise TypeError("current y total deben ser int")
+
+    if total <= 0:
+        raise ValueError("total debe ser > 0")
+
+    if current < 0:
+        current = 0
+    elif current > total:
+        current = total
+
+    percent = (current / total) * 100
+    filled_length = int((current / total) * length)
+    empty_length = length - filled_length
+
+    bar = filled * filled_length + empty * empty_length
+
+    return bar
+
+
+def format_progress_with_percentage(
+    current: int,
+    total: int,
+    show_numbers: bool = True,
+    length: int = 10
+) -> str:
+    """
+    Genera barra de progreso con porcentaje.
+
+    Args:
+        current: Valor actual
+        total: Valor total
+        show_numbers: Si mostrar números (default: True)
+        length: Longitud de la barra (default: 10)
+
+    Returns:
+        String con barra + porcentaje
+
+    Examples:
+        >>> format_progress_with_percentage(4, 10)
+        "████░░░░░░ 40%"
+
+        >>> format_progress_with_percentage(4, 10, show_numbers=False)
+        "████░░░░░░"
+    """
+    bar = format_progress_bar(current, total, length=length)
+
+    if show_numbers:
+        percent = int((current / total) * 100)
+        return f"{bar} {percent}%"
+    else:
+        return bar
+
+
+def format_progress_with_time(
+    minutes_remaining: int,
+    total_minutes: int,
+    length: int = 10
+) -> str:
+    """
+    Genera barra de progreso con tiempo restante.
+
+    Args:
+        minutes_remaining: Minutos restantes
+        total_minutes: Minutos totales
+        length: Longitud de la barra (default: 10)
+
+    Returns:
+        String con barra + tiempo
+
+    Examples:
+        >>> format_progress_with_time(5, 30)
+        "░░░░███████░░░ 5 min restantes"
+    """
+    if minutes_remaining < 0:
+        minutes_remaining = 0
+    if minutes_remaining > total_minutes:
+        minutes_remaining = total_minutes
+
+    progress = total_minutes - minutes_remaining
+    bar = format_progress_bar(progress, total_minutes, length=length)
+
+    return f"{bar} {minutes_remaining} min restantes"
+
+
 # ===== HELPERS DE VALIDACIÓN =====
 
 def is_valid_emoji(text: str) -> bool:

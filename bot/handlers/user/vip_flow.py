@@ -34,6 +34,12 @@ async def callback_redeem_token(
     user_id = callback.from_user.id
     logger.info(f"🎟️ Usuario {user_id} iniciando canje de token")
 
+    # Mostrar typing indicator
+    await callback.bot.send_chat_action(
+        chat_id=callback.message.chat.id,
+        action="typing"
+    )
+
     # Verificar que canal VIP está configurado
     container = ServiceContainer(session, callback.bot)
 
@@ -53,7 +59,9 @@ async def callback_redeem_token(
             "Por favor, envía tu token de invitación.\n\n"
             "El token tiene este formato:\n"
             "<code>A1b2C3d4E5f6G7h8</code>\n\n"
-            "👉 Copia y pega tu token aquí:",
+            "⏰ <b>Nota:</b> El token expira en 24 horas desde su creación.\n\n"
+            "👉 Copia y pega tu token aquí:\n"
+            "⏳ Esperando tu token...",
             reply_markup=create_inline_keyboard([
                 [{"text": "❌ Cancelar", "callback_data": "user:cancel"}]
             ]),
@@ -96,17 +104,65 @@ async def process_token_input(
     )
 
     if not success:
-        # Token inválido
+        # Mostrar typing indicator
+        await message.bot.send_chat_action(
+            chat_id=message.chat.id,
+            action="typing"
+        )
+
+        # Token inválido - Diferenciar tipos de error
+        error_messages = {
+            "no_encontrado": (
+                "❌ <b>Token No Encontrado</b>\n\n"
+                "El token que ingresaste no existe en nuestro sistema.\n\n"
+                "Verifica que hayas copiado correctamente el token.\n"
+                "Asegúrate de que tenga este formato:\n"
+                "<code>A1b2C3d4E5f6G7h8</code>\n\n"
+                "Si el problema persiste, contacta al administrador."
+            ),
+            "ya_usado": (
+                "⚠️ <b>Token Ya Fue Utilizado</b>\n\n"
+                "Este token ya fue canjeado anteriormente.\n\n"
+                "Cada token solo puede usarse una sola vez.\n\n"
+                "Si crees que esto es un error, contacta al administrador para solicitar un nuevo token."
+            ),
+            "expirado": (
+                "⏰ <b>Token Expirado</b>\n\n"
+                "Este token ha expirado y ya no es válido.\n\n"
+                "Los tokens tienen una duración de 24 horas desde su creación.\n\n"
+                "Solicita un nuevo token al administrador."
+            ),
+            "default": (
+                "❌ <b>Token Inválido</b>\n\n"
+                f"{msg}\n\n"
+                "Verifica el token e intenta nuevamente.\n\n"
+                "Si el problema persiste, contacta al administrador."
+            )
+        }
+
+        # Determinar tipo de error por el mensaje
+        error_type = "default"
+        if "no encontrado" in msg.lower() or "no existe" in msg.lower():
+            error_type = "no_encontrado"
+        elif "ya fue usado" in msg.lower() or "ya fue utilizado" in msg.lower():
+            error_type = "ya_usado"
+        elif "expirado" in msg.lower():
+            error_type = "expirado"
+
         await message.answer(
-            f"{msg}\n\n"
-            f"Verifica el token e intenta nuevamente.\n\n"
-            f"Si el problema persiste, contacta al administrador.",
+            error_messages.get(error_type, error_messages["default"]),
             parse_mode="HTML"
         )
         # Mantener estado para reintentar
         return
 
     # Token válido: crear invite link
+    # Mostrar typing indicator mientras se procesa
+    await message.bot.send_chat_action(
+        chat_id=message.chat.id,
+        action="typing"
+    )
+
     vip_channel_id = await container.channel.get_vip_channel_id()
 
     try:
@@ -115,6 +171,12 @@ async def process_token_input(
             user_id=user_id,
             expire_hours=1  # Link expira en 1 hora
         )
+
+        # Auto-reaccionar al mensaje del usuario con ❤️
+        try:
+            await message.react(emoji="❤️")
+        except Exception as e:
+            logger.debug(f"⚠️ No se pudo reaccionar al mensaje: {e}")
 
         # Calcular días restantes
         if subscriber and hasattr(subscriber, 'expiry_date') and subscriber.expiry_date:
@@ -132,16 +194,17 @@ async def process_token_input(
             days_remaining = 0
 
         await message.answer(
-            f"✅ <b>Token Canjeado Exitosamente!</b>\n\n"
-            f"🎉 Tu acceso VIP está activo\n"
-            f"⏱️ Duración: <b>{days_remaining} días</b>\n\n"
-            f"👇 Usa este link para unirte al canal VIP:\n"
+            f"🎉 <b>¡Token Canjeado Exitosamente!</b>\n\n"
+            f"✅ Tu acceso VIP está ahora <b>ACTIVO</b>\n"
+            f"⏱️ Duración: <b>{days_remaining} días</b> de acceso exclusivo\n\n"
+            f"👇 Haz click para unirte al canal VIP:\n"
             f"{invite_link.invite_link}\n\n"
-            f"⚠️ <b>Importante:</b>\n"
-            f"• El link expira en 1 hora\n"
-            f"• Solo puedes usarlo 1 vez\n"
-            f"• No lo compartas con otros\n\n"
-            f"Disfruta del contenido exclusivo! 🚀",
+            f"<b>⚡ Detalles Importantes:</b>\n"
+            f"• ⏳ El link expira en 1 hora\n"
+            f"• 🔐 Solo puedes usarlo 1 vez\n"
+            f"• 🚫 No compartas el link con otros\n"
+            f"• 📲 Si no puedes hacer click, cópialo y abre en tu navegador\n\n"
+            f"🎯 Disfruta del contenido exclusivo! 🚀",
             parse_mode="HTML"
         )
 
@@ -152,10 +215,25 @@ async def process_token_input(
 
     except Exception as e:
         logger.error(f"Error creando invite link para user {user_id}: {e}", exc_info=True)
+
+        # Mostrar typing indicator
+        await message.bot.send_chat_action(
+            chat_id=message.chat.id,
+            action="typing"
+        )
+
+        # Auto-reaccionar con ❤️ al menos
+        try:
+            await message.react(emoji="❤️")
+        except Exception as e:
+            logger.debug(f"⚠️ No se pudo reaccionar al mensaje: {e}")
+
         await message.answer(
-            "❌ Error al crear el link de invitación.\n\n"
-            "Tu token fue canjeado correctamente, pero hubo un problema técnico.\n"
-            "Contacta al administrador.",
+            "✅ <b>Token Canjeado Correctamente</b>\n\n"
+            "⚠️ Sin embargo, ocurrió un problema técnico al crear el link de invitación.\n\n"
+            "Tu suscripción VIP está activa y tu token ha sido registrado.\n\n"
+            "⏱️ Por favor, contacta al administrador para obtener acceso al canal VIP.\n"
+            "Tu solicitud será procesada manualmente.",
             parse_mode="HTML"
         )
         await state.clear()

@@ -180,13 +180,25 @@ async def _activate_token_from_deeplink(
             return
 
         try:
+            # Mostrar typing indicator mientras se crea el link
+            await message.bot.send_chat_action(
+                chat_id=message.chat.id,
+                action="typing"
+            )
+
             invite_link = await container.subscription.create_invite_link(
                 channel_id=vip_channel_id,
                 user_id=user.user_id,
                 expire_hours=5  # Link válido 5 horas
             )
 
-            # Formatear mensaje de éxito
+            # Auto-reaccionar al mensaje del usuario
+            try:
+                await message.react(emoji="❤️")
+            except Exception as e:
+                logger.debug(f"⚠️ No se pudo reaccionar: {e}")
+
+            # Formatear mensaje de éxito con más detalles
             # Asegurar timezone
             expiry = subscriber.expiry_date
             if expiry.tzinfo is None:
@@ -197,37 +209,63 @@ async def _activate_token_from_deeplink(
 
             price_str = format_currency(plan.price, symbol=plan.currency)
 
-            success_text = f"""🎉 <b>¡Suscripción VIP Activada!</b>
+            success_text = f"""🎉✨ <b>¡BIENVENIDO AL CLUB VIP!</b> ✨🎉
 
+<b>Suscripción Activada Exitosamente</b>
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+<b>📊 Detalles de Tu Plan:</b>
 <b>Plan:</b> {plan.name}
 <b>Precio:</b> {price_str}
 <b>Duración:</b> {plan.duration_days} días
-<b>Días Restantes:</b> {days_remaining}
+<b>Válido hasta:</b> {days_remaining} días
 
-{user.role.emoji} Tu rol ha sido actualizado a: <b>{user.role.display_name}</b>
+{user.role.emoji} <b>Tu rol:</b> <code>{user.role.display_name}</code>
 
-━━━━━━━━━━━━━━━━━━━━
-<b>Siguiente Paso:</b>
+━━━━━━━━━━━━━━━━━━━━━━━━
+<b>🔐 Siguiente Paso:</b>
 
-Haz click en el botón de abajo para unirte al canal VIP exclusivo.
+Haz click en el botón para acceder al canal VIP exclusivo con contenido premium.
 
-⚠️ El link expira en 5 horas."""
+<b>⏰ Válido por:</b> 5 horas desde ahora
+
+<b>💡 Recuerda:</b>
+✅ El acceso es solo para ti
+✅ No compartas el link
+✅ Tendrás acceso a todo el contenido exclusivo
+✅ Si pierdes el link, contacta al soporte
+
+¡Que disfrutes de tu experiencia VIP! 🚀"""
 
             await message.answer(
                 text=success_text,
                 reply_markup=create_inline_keyboard([
-                    [{"text": "⭐ Unirse al Canal VIP", "url": invite_link.invite_link}]
+                    [{"text": "⭐ Entrar al Canal VIP Exclusivo ⭐", "url": invite_link.invite_link}]
                 ]),
                 parse_mode="HTML"
             )
 
         except Exception as e:
             logger.warning(f"⚠️ No se pudo crear invite link: {e}")
+
+            # Mostrar typing indicator
+            await message.bot.send_chat_action(
+                chat_id=message.chat.id,
+                action="typing"
+            )
+
+            # Auto-reaccionar
+            try:
+                await message.react(emoji="❤️")
+            except Exception as e:
+                logger.debug(f"⚠️ No se pudo reaccionar: {e}")
+
             await message.answer(
                 "✅ <b>¡Suscripción VIP Activada!</b>\n\n"
                 f"<b>Plan:</b> {plan.name}\n"
                 f"<b>Duración:</b> {plan.duration_days} días\n\n"
-                "Contacta al administrador para acceder al canal VIP.",
+                "⚠️ Ocurrió un problema al crear el link de invitación.\n\n"
+                "Tu suscripción está activa, pero por favor contacta al administrador para obtener acceso al canal VIP.",
                 parse_mode="HTML"
             )
 
