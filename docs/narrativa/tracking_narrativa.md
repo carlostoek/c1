@@ -12,13 +12,13 @@
 
 ---
 
-## FASE N2: Servicios Core
-- [ ] FragmentService (CRUD fragmentos)
-- [ ] ProgressService (avance usuario)
-- [ ] DecisionService (procesar decisiones)
-- [ ] Tests unitarios servicios
+## FASE N2: Servicios Core ✅
+- [x] FragmentService (CRUD fragmentos)
+- [x] ProgressService (avance usuario)
+- [x] DecisionService (procesar decisiones)
+- [x] Tests unitarios servicios (6/6 pasando)
 
-**Entregable:** Servicios funcionando sin UI
+**Entregable:** ✅ Servicios funcionando sin UI, tests validados
 
 ---
 
