@@ -78,7 +78,7 @@ def upgrade() -> None:
         sa.Column('price_besitos', sa.Integer(), nullable=False),
         sa.Column('icon', sa.String(10), nullable=False, server_default='📦'),
         sa.Column('image_file_id', sa.String(200), nullable=True),
-        sa.Column('metadata', sa.Text(), nullable=True),
+        sa.Column('item_metadata', sa.Text(), nullable=True),
         sa.Column('stock', sa.Integer(), nullable=True),
         sa.Column('max_per_user', sa.Integer(), nullable=True),
         sa.Column('requires_vip', sa.Boolean(), nullable=False, server_default='0'),

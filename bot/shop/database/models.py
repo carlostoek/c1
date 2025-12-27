@@ -96,7 +96,7 @@ class ShopItem(Base):
         price_besitos: Precio en besitos
         icon: Emoji o icono del item
         image_file_id: File ID de Telegram para imagen
-        metadata: JSON con datos específicos del tipo
+        item_metadata: JSON con datos específicos del tipo
         stock: Cantidad disponible (None = ilimitado)
         max_per_user: Máximo que puede tener un usuario (None = ilimitado)
         requires_vip: Si requiere ser VIP para comprar
@@ -132,7 +132,7 @@ class ShopItem(Base):
     image_file_id: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
 
     # Metadata específica del tipo (JSON)
-    metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    item_metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Stock y límites
     stock: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

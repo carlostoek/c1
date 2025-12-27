@@ -297,11 +297,11 @@ class InventoryService:
         """
         effect_data = {"item_name": item.name, "applied": False}
 
-        if not item.metadata:
+        if not item.item_metadata:
             return effect_data
 
         try:
-            metadata = json.loads(item.metadata)
+            metadata = json.loads(item.item_metadata)
             effect_type = metadata.get("effect_type")
             effect_value = metadata.get("effect_value", 0)
 
@@ -467,9 +467,9 @@ class InventoryService:
         unlocked = []
 
         for inv_item in narrative_items:
-            if inv_item.item.metadata:
+            if inv_item.item.item_metadata:
                 try:
-                    metadata = json.loads(inv_item.item.metadata)
+                    metadata = json.loads(inv_item.item.item_metadata)
                     if "unlocks_fragment_key" in metadata:
                         unlocked.append(metadata["unlocks_fragment_key"])
                 except json.JSONDecodeError:
@@ -491,9 +491,9 @@ class InventoryService:
         unlocked = []
 
         for inv_item in narrative_items:
-            if inv_item.item.metadata:
+            if inv_item.item.item_metadata:
                 try:
-                    metadata = json.loads(inv_item.item.metadata)
+                    metadata = json.loads(inv_item.item.item_metadata)
                     if "unlocks_chapter_slug" in metadata:
                         unlocked.append(metadata["unlocks_chapter_slug"])
                 except json.JSONDecodeError:

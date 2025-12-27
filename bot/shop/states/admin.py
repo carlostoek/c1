@@ -53,7 +53,7 @@ class ItemCreationStates(StatesGroup):
     7. waiting_for_icon: Admin selecciona icono/emoji
     8. waiting_for_image: Admin envía imagen (opcional)
     9. configuring_options: Admin configura opciones adicionales
-    10. waiting_for_metadata: Admin configura metadata específica del tipo
+    10. waiting_for_metadata: Admin configura item_metadata específica del tipo
     11. confirming: Admin confirma creación
     """
     selecting_category = State()
@@ -85,7 +85,7 @@ class ItemEditStates(StatesGroup):
 
 class NarrativeItemConfigStates(StatesGroup):
     """
-    Estados para configurar metadata de items narrativos.
+    Estados para configurar item_metadata de items narrativos.
 
     Flujo:
     1. selecting_unlock_type: Selecciona qué desbloquea (fragmento o capítulo)

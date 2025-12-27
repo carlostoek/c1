@@ -253,7 +253,7 @@ class ShopService:
             price_besitos=price_besitos,
             icon=icon,
             image_file_id=image_file_id,
-            metadata=json.dumps(metadata) if metadata else None,
+            item_metadata=json.dumps(metadata) if metadata else None,
             stock=stock,
             max_per_user=max_per_user,
             requires_vip=requires_vip,
@@ -370,7 +370,7 @@ class ShopService:
 
         # Manejar metadata especialmente
         if 'metadata' in kwargs:
-            item.metadata = json.dumps(kwargs['metadata']) if kwargs['metadata'] else None
+            item.item_metadata = json.dumps(kwargs['metadata']) if kwargs['metadata'] else None
 
         await self.session.commit()
         await self.session.refresh(item)
