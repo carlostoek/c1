@@ -58,8 +58,9 @@ async def callback_start_story(
     # Determinar fragmento a mostrar
     if progress.current_fragment_key:
         # Continuar desde donde quedó
-        fragment = await narrative.fragment.get_fragment_by_key(
-            progress.current_fragment_key
+        fragment = await narrative.fragment.get_fragment(
+            progress.current_fragment_key,
+            load_decisions=True
         )
         if not fragment:
             # Error: fragmento no existe, resetear progreso
@@ -171,8 +172,8 @@ async def _show_fragment(
 
     # Obtener decisiones disponibles
     decisions = await narrative.decision.get_available_decisions(
-        user_id,
-        fragment.fragment_key
+        fragment.fragment_key,
+        user_id=user_id
     )
 
     # Generar keyboard con decisiones
