@@ -100,6 +100,20 @@ async def callback_process_decision(
     # Incrementar contador de decisiones
     await narrative.progress.increment_decisions(user_id)
 
+    # Actualizar arquetipo si hay tiempo de respuesta registrado
+    if response_time is not None:
+        try:
+            archetype, confidence = await narrative.archetype.analyze_and_update(
+                user_id=user_id,
+                force=False
+            )
+            logger.debug(
+                f"🎭 Arquetipo actualizado: {archetype.value} "
+                f"(confianza: {confidence:.2f}, tiempo: {response_time}s)"
+            )
+        except Exception as e:
+            logger.error(f"❌ Error actualizando arquetipo: {e}")
+
     # Si no hay siguiente fragmento, mostrar mensaje final
     if not next_fragment:
         keyboard = create_inline_keyboard([[
@@ -141,13 +155,35 @@ async def _show_fragment(message, narrative: NarrativeContainer, user_id: int, f
         user_id: ID del usuario
         fragment: Fragmento a mostrar
     """
+    # Validar requisitos del fragmento
+    can_access, rejection_msg = await narrative.requirements.can_access_fragment(
+        user_id,
+        fragment.fragment_key
+    )
+
+    if not can_access:
+        # Usuario no cumple requisitos
+        keyboard = create_inline_keyboard([[
+            {"text": "🔙 Volver", "callback_data": "narr:start"}
+        ]])
+        await message.edit_text(
+            f"🔒 <b>Acceso Restringido</b>\n\n{rejection_msg}",
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+        logger.info(
+            f"⛔ Usuario {user_id} no puede acceder a {fragment.fragment_key}: "
+            f"{rejection_msg}"
+        )
+        return
+
     # Formatear contenido narrativo
     text = await narrative.fragment.format_fragment_message(fragment)
 
     # Obtener decisiones disponibles
     decisions = await narrative.decision.get_available_decisions(
-        user_id,
-        fragment.fragment_key
+        fragment.fragment_key,
+        user_id=user_id
     )
 
     # Generar keyboard con decisiones
