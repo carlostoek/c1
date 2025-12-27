@@ -82,7 +82,8 @@ async def build_start_menu(
 async def build_profile_menu(
     session: AsyncSession,
     bot,
-    user_id: int
+    user_id: int,
+    show_back_button: bool = True
 ) -> Tuple[str, InlineKeyboardMarkup]:
     """
     Construye el menú de perfil de gamificación (Juego Kinky).
@@ -95,6 +96,7 @@ async def build_profile_menu(
         session: Sesión de BD
         bot: Bot de Telegram
         user_id: ID del usuario de Telegram
+        show_back_button: Si True, incluye botón "Volver al Menú" (default: True)
 
     Returns:
         Tuple de (summary_text, keyboard)
@@ -132,8 +134,9 @@ async def build_profile_menu(
     if profile_buttons:
         keyboard_buttons.extend(profile_buttons)
 
-    # Agregar botón de volver al menú
-    keyboard_buttons.append([{"text": "🔙 Volver al Menú", "callback_data": "profile:back"}])
+    # Agregar botón de volver al menú (opcional)
+    if show_back_button:
+        keyboard_buttons.append([{"text": "🔙 Volver al Menú", "callback_data": "profile:back"}])
 
     keyboard = create_inline_keyboard(keyboard_buttons)
 
