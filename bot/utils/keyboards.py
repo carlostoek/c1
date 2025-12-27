@@ -65,7 +65,8 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
     - Dashboard
     - VIP - Free (gestión de canales)
     - Gamificación
-    - Configurar Menús (NUEVO)
+    - Gestión Narrativa (NUEVO)
+    - Configurar Menús
     - Estadísticas - Configuración
 
     Returns:
@@ -78,6 +79,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
             {"text": "🆓 Free", "callback_data": "admin:free"}
         ],
         [{"text": "🎮 Gamificación", "callback_data": "admin:gamification"}],
+        [{"text": "📖 Gestión Narrativa", "callback_data": "admin:narrative"}],
         [{"text": "📋 Configurar Menús", "callback_data": "admin:menu_config"}],
         [
             {"text": "📊 Estadísticas", "callback_data": "admin:stats"},
