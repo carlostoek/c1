@@ -11,6 +11,9 @@ APScheduler==3.10.4
 # Configuration
 python-dotenv==1.0.0
 
+# HTTP Client
+aiohttp>=3.9.0
+
 # Development & Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1
