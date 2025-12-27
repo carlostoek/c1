@@ -4,9 +4,14 @@ Database module - Models, engine y sesiones.
 from bot.database.base import Base
 from bot.database.models import (
     BotConfig,
+    User,
+    SubscriptionPlan,
     InvitationToken,
     VIPSubscriber,
-    FreeChannelRequest
+    FreeChannelRequest,
+    BroadcastMessage,
+    MenuItem,
+    MenuConfig
 )
 from bot.database.engine import (
     init_db,
@@ -20,9 +25,14 @@ __all__ = [
     # Models
     "Base",
     "BotConfig",
+    "User",
+    "SubscriptionPlan",
     "InvitationToken",
     "VIPSubscriber",
     "FreeChannelRequest",
+    "BroadcastMessage",
+    "MenuItem",
+    "MenuConfig",
 
     # Engine & Sessions
     "init_db",

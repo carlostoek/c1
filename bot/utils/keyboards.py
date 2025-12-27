@@ -5,6 +5,7 @@ Centraliza la creación de keyboards para consistencia visual.
 """
 from typing import List
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def create_inline_keyboard(
@@ -64,6 +65,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
     - Dashboard
     - VIP - Free (gestión de canales)
     - Gamificación
+    - Configurar Menús (NUEVO)
     - Estadísticas - Configuración
 
     Returns:
@@ -76,6 +78,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
             {"text": "🆓 Free", "callback_data": "admin:free"}
         ],
         [{"text": "🎮 Gamificación", "callback_data": "admin:gamification"}],
+        [{"text": "📋 Configurar Menús", "callback_data": "admin:menu_config"}],
         [
             {"text": "📊 Estadísticas", "callback_data": "admin:stats"},
             {"text": "⚙️ Configuración", "callback_data": "admin:config"}
@@ -180,3 +183,39 @@ def vip_user_menu_keyboard() -> InlineKeyboardMarkup:
         [{"text": "⏱️ Ver Mi Suscripción", "callback_data": "user:vip_status"}],
         [{"text": "🎁 Renovar Suscripción", "callback_data": "user:vip_renew"}],
     ])
+
+
+async def dynamic_user_menu_keyboard(
+    session: AsyncSession,
+    role: str
+) -> InlineKeyboardMarkup:
+    """
+    Genera keyboard dinámico para usuarios basado en configuración.
+
+    Obtiene los botones configurados por administradores para el rol
+    especificado y genera un keyboard inline.
+
+    Args:
+        session: Sesión de BD
+        role: 'vip' o 'free'
+
+    Returns:
+        InlineKeyboardMarkup con botones configurados o fallback a menú estático
+    """
+    from bot.services.menu_service import MenuService
+
+    menu_service = MenuService(session)
+    keyboard_structure = await menu_service.build_keyboard_for_role(role)
+
+    if not keyboard_structure:
+        # Fallback a menú por defecto si no hay configuración
+        if role == 'vip':
+            return vip_user_menu_keyboard()
+        else:
+            # Menú Free por defecto (puede personalizarse)
+            return create_inline_keyboard([
+                [{"text": "📢 Unirse al Canal Free", "callback_data": "user:free_access"}],
+                [{"text": "⭐ Ver Planes VIP", "callback_data": "user:vip_info"}],
+            ])
+
+    return create_inline_keyboard(keyboard_structure)

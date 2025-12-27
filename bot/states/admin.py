@@ -169,3 +169,79 @@ class PricingSetupStates(StatesGroup):
 
     # Paso 3: Esperando precio del plan
     waiting_for_price = State()
+
+
+class MenuConfigStates(StatesGroup):
+    """
+    Estados para configuración de menús dinámicos.
+
+    Flujos soportados:
+    1. Crear nuevo botón (5 pasos)
+    2. Editar botón existente (2 pasos)
+    3. Configurar mensajes del menú (2 pasos)
+
+    Flujo 1: Crear Botón Nuevo
+    1. Admin selecciona "Crear Nuevo Botón"
+    2. Bot entra en waiting_for_button_text
+    3. Admin envía texto del botón: "Información de Contacto"
+    4. Bot entra en waiting_for_button_emoji
+    5. Admin envía emoji: "📞" (o "-" para omitir)
+    6. Bot entra en waiting_for_action_type
+    7. Admin selecciona tipo: info/url/contact
+    8. Bot entra en waiting_for_action_content
+    9. Admin envía contenido según tipo seleccionado
+    10. Bot entra en waiting_for_target_role
+    11. Admin selecciona rol: vip/free/all
+    12. Bot crea el botón y sale del estado
+
+    Flujo 2: Editar Botón
+    1. Admin selecciona botón existente
+    2. Admin selecciona "Editar Texto" o "Editar Contenido"
+    3. Bot entra en editing_button_text o editing_action_content
+    4. Admin envía nuevo valor
+    5. Bot actualiza y sale del estado
+
+    Flujo 3: Configurar Mensajes
+    1. Admin selecciona "Configurar Mensaje VIP/FREE"
+    2. Bot entra en editing_welcome_message o editing_footer_message
+    3. Admin envía nuevo mensaje
+    4. Bot actualiza y sale del estado
+
+    Validaciones:
+    - button_text: 1-100 caracteres
+    - button_emoji: Máximo 10 caracteres (o "-" para omitir)
+    - action_type: 'info', 'url', 'contact'
+    - action_content: No vacío, si URL debe empezar con http/https
+    - target_role: 'vip', 'free', 'all'
+    - welcome_message: No vacío
+    """
+
+    # ═══════ Crear Nuevo Botón (5 estados) ═══════
+    # Paso 1: Esperando texto del botón
+    waiting_for_button_text = State()
+
+    # Paso 2: Esperando emoji del botón (opcional)
+    waiting_for_button_emoji = State()
+
+    # Paso 3: Esperando tipo de acción (info/url/contact)
+    waiting_for_action_type = State()
+
+    # Paso 4: Esperando contenido de la acción
+    waiting_for_action_content = State()
+
+    # Paso 5: Esperando rol target (vip/free/all)
+    waiting_for_target_role = State()
+
+    # ═══════ Editar Botón (2 estados) ═══════
+    # Editando texto del botón
+    editing_button_text = State()
+
+    # Editando contenido de acción
+    editing_action_content = State()
+
+    # ═══════ Configurar Menú (2 estados) ═══════
+    # Editando mensaje de bienvenida
+    editing_welcome_message = State()
+
+    # Editando mensaje de footer
+    editing_footer_message = State()

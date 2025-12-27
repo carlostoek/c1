@@ -9,6 +9,8 @@ Tablas:
 - free_channel_requests: Solicitudes de acceso al canal Free
 - subscription_plans: Planes de suscripción/tarifas configurables
 - broadcast_messages: Mensajes de broadcasting con gamificación
+- menu_items: Items de menú configurables (botones)
+- menu_configs: Configuración de menús por rol
 """
 import logging
 from datetime import datetime
@@ -16,7 +18,7 @@ from typing import Optional, List
 
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime,
-    BigInteger, JSON, ForeignKey, Index, Float, Enum
+    BigInteger, JSON, ForeignKey, Index, Float, Enum, Text
 )
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
@@ -395,3 +397,131 @@ class BroadcastMessage(Base):
             f"<BroadcastMessage(id={self.id}, chat_id={self.chat_id}, "
             f"message_id={self.message_id}, gamification={self.gamification_enabled})>"
         )
+
+
+class MenuItem(Base):
+    """
+    Item de menú configurable por administradores.
+
+    Representa un botón individual que puede mostrarse
+    a usuarios según su rol (VIP/FREE/ALL).
+
+    Attributes:
+        id: ID único del item
+        item_key: Identificador único del botón (ej: "vip_info_1", "free_support")
+        target_role: Rol target: 'vip', 'free', 'all'
+        button_text: Texto del botón (label) - lo que ve el usuario
+        button_emoji: Emoji del botón (opcional)
+        action_type: Tipo de acción: 'info', 'url', 'callback', 'contact'
+        action_content: Contenido según tipo (texto informativo, URL, callback_data, contacto)
+        display_order: Orden de aparición en el menú (menor = primero)
+        row_number: Fila en el teclado (para agrupar botones)
+        is_active: Si el botón está activo
+        created_at: Fecha de creación
+        updated_at: Fecha de última actualización
+        created_by: User ID del admin que creó el item
+    """
+    __tablename__ = "menu_items"
+
+    # Identificador único
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Identificador único del botón (ej: "vip_info_1", "free_support")
+    item_key: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+
+    # Rol target: 'vip', 'free', 'all'
+    target_role: Mapped[str] = mapped_column(String(20), nullable=False, default='all')
+
+    # Texto del botón (label) - lo que ve el usuario
+    button_text: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    # Emoji del botón (opcional)
+    button_emoji: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+
+    # Tipo de acción: 'info', 'url', 'callback', 'contact'
+    action_type: Mapped[str] = mapped_column(String(20), nullable=False, default='info')
+
+    # Contenido según tipo:
+    # - info: texto informativo a mostrar
+    # - url: enlace externo
+    # - callback: callback_data para handler interno
+    # - contact: información de contacto
+    action_content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Orden de aparición en el menú (menor = primero)
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Fila en el teclado (para agrupar botones)
+    row_number: Mapped[int] = mapped_column(Integer, default=0)
+
+    # ¿Está activo?
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    created_by: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+
+    # Índices para búsquedas frecuentes
+    __table_args__ = (
+        Index('ix_menu_items_role_active', 'target_role', 'is_active'),
+        Index('ix_menu_items_order', 'display_order', 'row_number'),
+    )
+
+    def __repr__(self):
+        return f"<MenuItem(key={self.item_key}, role={self.target_role}, text={self.button_text})>"
+
+
+class MenuConfig(Base):
+    """
+    Configuración global del menú para un rol específico.
+
+    Almacena configuración como mensaje de bienvenida,
+    título del menú, footer, etc.
+
+    Attributes:
+        id: ID único del config
+        role: Rol: 'vip', 'free'
+        welcome_message: Mensaje de bienvenida/cabecera del menú
+        footer_message: Footer/mensaje al final del menú (opcional)
+        show_subscription_info: Si mostrar información de suscripción (para VIP)
+        created_at: Fecha de creación
+        updated_at: Fecha de última actualización
+
+    Variables disponibles en mensajes:
+        {user_name}, {days_remaining}, {subscription_type}
+    """
+    __tablename__ = "menu_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Rol: 'vip', 'free'
+    role: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+
+    # Mensaje de bienvenida/cabecera del menú
+    welcome_message: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="Bienvenido, selecciona una opción:"
+    )
+
+    # Footer/mensaje al final del menú (opcional)
+    footer_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # ¿Mostrar información de suscripción? (para VIP)
+    show_subscription_info: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    def __repr__(self):
+        return f"<MenuConfig(role={self.role})>"

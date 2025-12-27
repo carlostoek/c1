@@ -52,6 +52,7 @@ class ServiceContainer:
         self._pricing_service = None
         self._user_service = None
         self._broadcast_service = None
+        self._menu_service = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -188,6 +189,25 @@ class ServiceContainer:
 
         return self._broadcast_service
 
+    # ===== MENU SERVICE =====
+
+    @property
+    def menu(self):
+        """
+        Service de configuración de menús dinámicos.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            MenuService: Instancia del service
+        """
+        if self._menu_service is None:
+            from bot.services.menu_service import MenuService
+            logger.debug("🔄 Lazy loading: MenuService")
+            self._menu_service = MenuService(self._session)
+
+        return self._menu_service
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -215,6 +235,8 @@ class ServiceContainer:
             loaded.append("user")
         if self._broadcast_service is not None:
             loaded.append("broadcast")
+        if self._menu_service is not None:
+            loaded.append("menu")
 
         return loaded
 
