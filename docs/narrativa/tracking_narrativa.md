@@ -36,13 +36,16 @@
 
 ---
 
-## FASE N4: Handlers Usuario
-- [ ] user/story.py - Mostrar fragmento actual
-- [ ] user/decisions.py - Procesar decisiones
-- [ ] Botón "📖 Historia" en /start
-- [ ] FSM si necesario
+## FASE N4: Handlers Usuario ✅
+- [x] user/story.py - Mostrar fragmento actual
+- [x] user/decisions.py - Procesar decisiones
+- [x] Botón "📖 Historia" en /start (penúltimo, antes de Juego Kinky)
+- [x] narrative_router integrado en dispatcher
+- [x] NarrativeContainer.chapter property agregada
+- [x] FragmentService.get_entry_point_by_type() implementado
+- [x] Tests de handlers (9/9 pasando)
 
-**Entregable:** Usuario puede navegar historia
+**Entregable:** ✅ Usuario puede navegar historia desde menú principal, 9 tests pasando
 
 ---
 

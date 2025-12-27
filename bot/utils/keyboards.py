@@ -195,14 +195,16 @@ async def dynamic_user_menu_keyboard(
     Obtiene los botones configurados por administradores para el rol
     especificado y genera un keyboard inline.
 
-    IMPORTANTE: Siempre agrega el botón fijo "🎮 Juego Kinky" al final.
+    IMPORTANTE: Siempre agrega los botones fijos al final:
+    - "📖 Historia" (penúltimo)
+    - "🎮 Juego Kinky" (último)
 
     Args:
         session: Sesión de BD
         role: 'vip' o 'free'
 
     Returns:
-        InlineKeyboardMarkup con botones configurados + botón Juego Kinky
+        InlineKeyboardMarkup con botones configurados + botones fijos
     """
     from bot.services.menu_service import MenuService
 
@@ -223,7 +225,8 @@ async def dynamic_user_menu_keyboard(
                 [{"text": "⭐ Ver Planes VIP", "callback_data": "user:vip_info"}],
             ]
 
-    # Agregar botón fijo "Juego Kinky" al final
+    # Agregar botones fijos al final
+    keyboard_structure.append([{"text": "📖 Historia", "callback_data": "narr:start"}])
     keyboard_structure.append([{"text": "🎮 Juego Kinky", "callback_data": "start:profile"}])
 
     return create_inline_keyboard(keyboard_structure)

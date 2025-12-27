@@ -107,6 +107,43 @@ class FragmentService:
 
         return fragment
 
+    async def get_entry_point_by_type(
+        self,
+        chapter_type: "ChapterType"
+    ) -> Optional[NarrativeFragment]:
+        """
+        Obtiene entry point del primer capítulo activo de un tipo.
+
+        Útil para iniciar la historia desde el primer capítulo FREE o VIP.
+
+        Args:
+            chapter_type: Tipo de capítulo (FREE o VIP)
+
+        Returns:
+            Fragment entry point del primer capítulo del tipo, o None
+
+        Example:
+            >>> entry = await fragment_service.get_entry_point_by_type(ChapterType.FREE)
+            >>> # Retorna el entry point del primer capítulo FREE
+        """
+        from bot.narrative.database import NarrativeChapter
+
+        # Buscar primer capítulo activo del tipo especificado
+        stmt = select(NarrativeChapter).where(
+            NarrativeChapter.chapter_type == chapter_type,
+            NarrativeChapter.is_active == True
+        ).order_by(NarrativeChapter.order).limit(1)
+
+        result = await self._session.execute(stmt)
+        chapter = result.scalar_one_or_none()
+
+        if not chapter:
+            logger.warning(f"⚠️ No hay capítulos activos de tipo {chapter_type.value}")
+            return None
+
+        # Obtener entry point del capítulo encontrado
+        return await self.get_entry_point(chapter.id)
+
     async def get_fragment_with_decisions(
         self,
         fragment_key: str

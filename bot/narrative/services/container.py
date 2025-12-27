@@ -16,6 +16,7 @@ class NarrativeContainer:
     Contenedor de servicios con lazy loading.
 
     Servicios disponibles (lazy loaded):
+    - chapter: ChapterService (CRUD capítulos)
     - fragment: FragmentService (CRUD fragmentos)
     - progress: ProgressService (avance usuario)
     - decision: DecisionService (procesar decisiones)
@@ -35,6 +36,7 @@ class NarrativeContainer:
         self._bot = bot
 
         # Servicios (lazy loaded)
+        self._chapter_service = None
         self._fragment_service = None
         self._progress_service = None
         self._decision_service = None
@@ -44,6 +46,14 @@ class NarrativeContainer:
     # ========================================
     # PROPERTIES (LAZY LOADING)
     # ========================================
+
+    @property
+    def chapter(self):
+        """Servicio de capítulos narrativos."""
+        if self._chapter_service is None:
+            from bot.narrative.services.chapter import ChapterService
+            self._chapter_service = ChapterService(self._session)
+        return self._chapter_service
 
     @property
     def fragment(self):
@@ -101,6 +111,8 @@ class NarrativeContainer:
             Lista de nombres de servicios cargados
         """
         loaded = []
+        if self._chapter_service is not None:
+            loaded.append('chapter')
         if self._fragment_service is not None:
             loaded.append('fragment')
         if self._progress_service is not None:
@@ -115,6 +127,7 @@ class NarrativeContainer:
 
     def clear_cache(self):
         """Limpia todos los servicios cargados."""
+        self._chapter_service = None
         self._fragment_service = None
         self._progress_service = None
         self._decision_service = None
