@@ -42,7 +42,15 @@ class AutoReactionMiddleware(BaseMiddleware):
         """
         # Auto-reaccionar AL INICIO con ❤️
         try:
-            await event.react("❤️")
+            # Usar el método correcto de aiogram para reacciones
+            from aiogram.types import ReactionTypeEmoji
+
+            await event.bot.set_message_reaction(
+                chat_id=event.chat.id,
+                message_id=event.message_id,
+                reaction=[ReactionTypeEmoji(emoji="❤️")],
+                is_big=False
+            )
             logger.debug(f"❤️ Reacción agregada al mensaje de {event.from_user.id}")
         except Exception as e:
             logger.debug(f"⚠️ No se pudo reaccionar al mensaje: {e}")
