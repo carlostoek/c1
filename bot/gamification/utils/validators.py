@@ -258,6 +258,75 @@ def validate_unlock_conditions(conditions: dict) -> Tuple[bool, str]:
 
         return True, "OK"
 
+    # ========================================
+    # CONDICIONES NARRATIVAS
+    # ========================================
+
+    elif condition_type == 'narrative_chapter':
+        is_valid, error = validate_json_structure(
+            conditions,
+            required_fields=['type', 'chapter_slug'],
+            optional_fields=[],
+            field_types={'chapter_slug': str}
+        )
+        if not is_valid:
+            return False, error
+
+        # Validar que chapter_slug no esté vacío
+        if not conditions['chapter_slug'].strip():
+            return False, "chapter_slug cannot be empty"
+
+        return True, "OK"
+
+    elif condition_type == 'narrative_fragment':
+        is_valid, error = validate_json_structure(
+            conditions,
+            required_fields=['type', 'fragment_key'],
+            optional_fields=[],
+            field_types={'fragment_key': str}
+        )
+        if not is_valid:
+            return False, error
+
+        # Validar que fragment_key no esté vacío
+        if not conditions['fragment_key'].strip():
+            return False, "fragment_key cannot be empty"
+
+        return True, "OK"
+
+    elif condition_type == 'narrative_decision':
+        is_valid, error = validate_json_structure(
+            conditions,
+            required_fields=['type', 'decision_key'],
+            optional_fields=[],
+            field_types={'decision_key': str}
+        )
+        if not is_valid:
+            return False, error
+
+        # Validar que decision_key no esté vacío
+        if not conditions['decision_key'].strip():
+            return False, "decision_key cannot be empty"
+
+        return True, "OK"
+
+    elif condition_type == 'archetype':
+        is_valid, error = validate_json_structure(
+            conditions,
+            required_fields=['type', 'archetype'],
+            optional_fields=[],
+            field_types={'archetype': str}
+        )
+        if not is_valid:
+            return False, error
+
+        # Validar que el arquetipo sea válido
+        valid_archetypes = ['unknown', 'impulsive', 'contemplative', 'silent']
+        if conditions['archetype'] not in valid_archetypes:
+            return False, f"Invalid archetype. Valid: {', '.join(valid_archetypes)}"
+
+        return True, "OK"
+
     return False, f"Unknown condition type: {condition_type}"
 
 

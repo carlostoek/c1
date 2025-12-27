@@ -213,7 +213,9 @@ async def dynamic_user_menu_keyboard(
         # Fallback a menú por defecto si no hay configuración
         if role == 'vip':
             keyboard_structure = [
-                [{"text": "🎟️ Canjear Token VIP", "callback_data": "user:redeem_token"}],
+                [{"text": "📺 Acceder al Canal VIP", "callback_data": "user:vip_access"}],
+                [{"text": "⏱️ Ver Mi Suscripción", "callback_data": "user:vip_status"}],
+                [{"text": "🎁 Renovar Suscripción", "callback_data": "user:vip_renew"}],
             ]
         else:
             keyboard_structure = [

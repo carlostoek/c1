@@ -316,3 +316,34 @@ class ProgressService:
         logger.info(f"🔄 Progreso reseteado para usuario {user_id}")
 
         return True
+
+    async def has_taken_decision(
+        self,
+        user_id: int,
+        decision_key: str
+    ) -> bool:
+        """
+        Verifica si usuario tomó una decisión específica.
+
+        Args:
+            user_id: ID del usuario
+            decision_key: Key de la decisión
+
+        Returns:
+            True si tomó la decisión
+        """
+        from bot.narrative.database import UserDecisionHistory, FragmentDecision
+
+        # Verificar si existe en el historial con el decision_key específico
+        stmt = (
+            select(UserDecisionHistory)
+            .join(FragmentDecision, UserDecisionHistory.decision_id == FragmentDecision.id)
+            .where(
+                UserDecisionHistory.user_id == user_id,
+                FragmentDecision.target_fragment_key == decision_key
+            )
+        )
+        result = await self._session.execute(stmt)
+        history = result.scalar_one_or_none()
+
+        return history is not None

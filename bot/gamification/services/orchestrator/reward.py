@@ -95,6 +95,10 @@ class RewardOrchestrator:
         unlock_mission_id: Optional[int] = None,
         unlock_level_id: Optional[int] = None,
         unlock_besitos: Optional[int] = None,
+        unlock_narrative_chapter: Optional[str] = None,
+        unlock_narrative_fragment: Optional[str] = None,
+        unlock_narrative_decision: Optional[str] = None,
+        unlock_archetype: Optional[str] = None,
         created_by: int = 0
     ) -> dict:
         """
@@ -111,6 +115,10 @@ class RewardOrchestrator:
             unlock_mission_id: ID de misión requerida
             unlock_level_id: ID de nivel requerido
             unlock_besitos: Besitos mínimos requeridos
+            unlock_narrative_chapter: Slug del capítulo narrativo requerido
+            unlock_narrative_fragment: Key del fragmento narrativo requerido
+            unlock_narrative_decision: Key de decisión narrativa requerida
+            unlock_archetype: Arquetipo de usuario requerido
             created_by: ID del admin que crea
 
         Returns:
@@ -133,6 +141,19 @@ class RewardOrchestrator:
 
         if unlock_besitos:
             conditions.append({"type": "besitos", "min_besitos": unlock_besitos})
+
+        # Condiciones narrativas
+        if unlock_narrative_chapter:
+            conditions.append({"type": "narrative_chapter", "chapter_slug": unlock_narrative_chapter})
+
+        if unlock_narrative_fragment:
+            conditions.append({"type": "narrative_fragment", "fragment_key": unlock_narrative_fragment})
+
+        if unlock_narrative_decision:
+            conditions.append({"type": "narrative_decision", "decision_key": unlock_narrative_decision})
+
+        if unlock_archetype:
+            conditions.append({"type": "archetype", "archetype": unlock_archetype})
 
         unlock_condition = None
         if len(conditions) == 1:

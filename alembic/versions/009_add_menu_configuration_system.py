@@ -45,7 +45,7 @@ def upgrade() -> None:
         sa.Column('row_number', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='1'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.func.now(), server_onupdate=sa.func.now()),
         sa.Column('created_by', sa.BigInteger(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('item_key'),
@@ -75,7 +75,7 @@ def upgrade() -> None:
         sa.Column('footer_message', sa.Text(), nullable=True),
         sa.Column('show_subscription_info', sa.Boolean(), nullable=False, server_default='1'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.func.now(), server_onupdate=sa.func.now()),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('role'),
     )

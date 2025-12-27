@@ -1,0 +1,1274 @@
+
+ * ▐▛███▜▌ *   Claude Code v2.0.76
+* ▝▜█████▛▘ *  Opus 4.5 · Claude Pro
+ *  ▘▘ ▝▝  *   ~/repos/c1
+
+  A gift for you
+  Your rate limits are 2x higher through 12/31. Enjoy the extra room to think!
+
+> /model 
+  ⎿  Set model to opus (claude-opus-4-5-20251101)
+
+> Quiero que te pongas en modo arquitecto de software especializado en bots 
+de Telegram con un enfoque muy pragmático para esta adición que tenemos que 
+implementar en este sistema. Actualmente el bot cuenta con dos módulos, que 
+es el de administración de canales y gamificación. Esos módulos están a un 
+80% de su desarrollo, tal vez. Si necesitan un poco más. y está todo el 
+terreno listo para integrar un nuevo modelo, un nuevo módulo que es 
+narrativa. El fin y funcionamiento de este módulo es crear una experiencia 
+narrativa para el usuario dentro del bot. en donde se van a integrar los 
+otros dos módulos, gamificación, por ejemplo, para otorgar recompensas, 
+besitos, que le servirán al usuario para avanzar dentro de la historia de la
+ narrativa y administración de canales para comprobar el estatus del usuario
+ para que pueda acceder a ciertas funciones, siendo VIP, por ejemplo. Esta 
+narrativa va a estar basada en la historia que está en el archivo 
+@docs/narrativa/narrativo.md Esa es la historia base, pero dentro de la 
+narrativa será ramificada. Será un sistema de fragmentos con decisiones, en 
+donde cada decisión afecta el recorrido de la historia y del usuario. La 
+idea es que hay un reconocimiento de arquetipos, pero por ahora quiero que 
+sea lo más simple posible, que esté implementado el sistema como tal para 
+irle agregando mejoras, pero ya una vez entrada la base firme y funcional 
+del módulo de narrativa integrado con los otros módulos. Revisa todo el 
+sistema, documentación, todo lo que sea necesario. Piensa muy bien cómo 
+implementarlo y dame tu propuesta. 
+  ⎿  Read docs/narrativa/narrativo.md (583 lines)
+
+● Perfecto, voy a analizar el sistema actual en profundidad antes de darte una propuesta arquitectónica sólida. Déjame revisar la estructura existente.
+
+● Explore(Explorar arquitectura actual del bot)
+  ⎿  Done (40 tool uses · 84.0k tokens · 5m 47s)                           
+
+● Read(docs/Referencia_Rápida.md)
+  ⎿  Read 411 lines
+
+● Read(docs/gamification/SETUP.md)
+  ⎿  Read 222 lines
+
+● Read(bot/handlers/user/start.py)
+  ⎿  Read 433 lines
+
+● Read(bot/handlers/user/dynamic_menu.py)
+  ⎿  Read 191 lines
+
+● Read(bot/middlewares/database.py)
+  ⎿  Read 88 lines
+
+● Search(pattern: "bot/gamification/**/*.py")
+  ⎿  Error: spawn /data/data/com.termux/files/usr/lib/node_modules/@anthropic-ai/
+     claude-code/vendor/ripgrep/arm64-android/rg ENOENT
+
+● Read(bot/gamification/services/container.py)
+  ⎿  Read 240 lines
+
+● Bash(ls -la /data/data/com.termux/files/home/repos/c1/bot/gamification/)
+  ⎿  total 44                                           
+     drwx------.  9 u0_a347 u0_a347 3440 Dec 24 18:50 .
+     drwx------. 13 u0_a347 u0_a347 3440 Dec 24 18:50 ..
+     … +11 lines (ctrl+o to expand)
+
+● Bash(ls -la
+      /data/data/com.termux/files/home/repos/c1/bot/gamification/database/)
+  ⎿  total 47                                           
+     drwx------. 3 u0_a347 u0_a347  3440 Dec 26 16:42 .
+     drwx------. 9 u0_a347 u0_a347  3440 Dec 24 18:50 ..
+     … +4 lines (ctrl+o to expand)
+
+● Excelente. Tras analizar exhaustivamente el sistema, tengo una visión clara de la arquitectura existente y cómo debe integrarse el módulo de narrativa. Aquí está mi propuesta:
+
+  ---
+  🎭 PROPUESTA ARQUITECTÓNICA: MÓDULO NARRATIVA
+
+  1. ANÁLISIS DEL CONTEXTO
+
+  Lo que ya existe y funciona:
+
+  | Módulo          | Estado | Puntos de Integración                                  |
+  |-----------------|--------|--------------------------------------------------------|
+  | Canales         | ~80%   | VIP check para acceso a "El Diván", roles (FREE/VIP)   |
+  | Gamificación    | ~80%   | Besitos como moneda, recompensas, misiones vinculables |
+  | Menús Dinámicos | ✅     | Entry point desde /start                               |
+
+  Patrones arquitectónicos que seguiremos:
+
+  1. DI Container (NarrativeContainer) - Lazy loading
+  2. Middleware pipeline (ya inyecta session + gamification)
+  3. FSM para flujos multi-paso
+  4. Modelos SQLAlchemy 2.0 async
+  5. Separación handlers admin/user
+
+  ---
+  2. MODELO CONCEPTUAL DE LA NARRATIVA
+
+  Basado en el archivo narrativo.md, la estructura narrativa tiene:
+
+  NARRATIVA (Grafo Dirigido)
+      │
+      ├── CAPÍTULO (ej: "Los Kinkys", "El Diván")
+      │       │
+      │       └── FRAGMENTO (unidad mínima de historia)
+      │               │
+      │               ├── Contenido (texto Diana/Lucien)
+      │               ├── Visual (imagen opcional)
+      │               ├── DECISIONES[] (botones del usuario)
+      │               │       │
+      │               │       └── Decisión → siguiente FRAGMENTO
+      │               │
+      │               └── CONDICIONES (acceso VIP, besitos mínimos, arquetipo)
+      │
+      └── PROGRESO USUARIO
+              ├── Fragmento actual
+              ├── Historial de decisiones
+              └── Arquetipo detectado
+
+  ---
+  3. ESTRUCTURA DE DIRECTORIO PROPUESTA
+
+  Siguiendo el patrón de bot/gamification/:
+
+  bot/narrative/
+  ├── __init__.py
+  ├── config.py                    # Configuración del módulo
+  │
+  ├── database/
+  │   ├── __init__.py
+  │   ├── enums.py                 # NarrativeStatus, ArchetypeType, RequirementType
+  │   └── models.py                # 6 modelos (ver detalle abajo)
+  │
+  ├── services/
+  │   ├── __init__.py
+  │   ├── container.py             # NarrativeContainer (DI + lazy loading)
+  │   ├── fragment.py              # FragmentService (CRUD fragmentos)
+  │   ├── progress.py              # ProgressService (avance usuario)
+  │   ├── decision.py              # DecisionService (procesar elecciones)
+  │   ├── archetype.py             # ArchetypeService (detección simple)
+  │   └── requirements.py          # RequirementService (validar condiciones)
+  │
+  ├── handlers/
+  │   ├── __init__.py
+  │   ├── admin/
+  │   │   ├── __init__.py
+  │   │   ├── main.py              # Menú admin narrativa
+  │   │   ├── fragment_wizard.py   # Wizard crear fragmentos
+  │   │   ├── chapter_config.py    # Configurar capítulos
+  │   │   └── stats.py             # Estadísticas narrativa
+  │   │
+  │   └── user/
+  │       ├── __init__.py
+  │       ├── story.py             # Handler principal historia
+  │       └── decisions.py         # Procesar decisiones
+  │
+  ├── states/
+  │   ├── __init__.py
+  │   └── admin.py                 # FSM para wizards
+  │
+  └── utils/
+      ├── __init__.py
+      ├── formatters.py            # Formato mensajes Diana/Lucien
+      └── validators.py            # Validar estructuras
+
+  ---
+  4. MODELOS DE BASE DE DATOS
+
+  Diagrama de Relaciones:
+
+                      ┌─────────────────┐
+                      │ NarrativeChapter│
+                      │ (Los Kinkys,    │
+                      │  El Diván)      │
+                      └────────┬────────┘
+                               │ 1:N
+                      ┌────────▼────────┐
+                      │ NarrativeFragment│◄─────┐
+                      │ (Escena 1,       │      │ self-reference
+                      │  Escena 2A...)   │──────┘ (ramificaciones)
+                      └────────┬────────┘
+                               │ 1:N
+                ┌──────────────┼──────────────┐
+                │              │              │
+       ┌────────▼────────┐ ┌───▼───────┐ ┌───▼──────────────┐
+       │ FragmentDecision│ │Fragment   │ │ FragmentRequirement│
+       │ (Botones)       │ │Requirement│ │ (VIP, besitos...)  │
+       └────────┬────────┘ └───────────┘ └───────────────────┘
+                │
+                │ N:1 (usuario elige)
+       ┌────────▼────────┐
+       │ UserNarrative   │
+       │ Progress        │
+       │ (progreso)      │
+       └────────┬────────┘
+                │ 1:N
+       ┌────────▼────────┐
+       │ UserDecision    │
+       │ History         │
+       └─────────────────┘
+
+  Modelos (Código):
+
+  # bot/narrative/database/enums.py
+
+  class ChapterType(str, Enum):
+      """Tipo de capítulo narrativo."""
+      FREE = "free"           # Los Kinkys
+      VIP = "vip"             # El Diván
+
+  class RequirementType(str, Enum):
+      """Tipo de requisito para acceder a fragmento."""
+      NONE = "none"           # Sin requisitos
+      VIP_STATUS = "vip"      # Debe ser VIP
+      MIN_BESITOS = "besitos" # Besitos mínimos
+      ARCHETYPE = "archetype" # Arquetipo específico
+      DECISION = "decision"   # Decisión previa tomada
+
+  class ArchetypeType(str, Enum):
+      """Arquetipos de usuario (simple inicialmente)."""
+      UNKNOWN = "unknown"
+      IMPULSIVE = "impulsive"     # Reacciona rápido
+      CONTEMPLATIVE = "contemplative" # Toma su tiempo
+      SILENT = "silent"           # No reacciona
+
+  # bot/narrative/database/models.py
+
+  class NarrativeChapter(Base):
+      """Capítulo narrativo (contenedor de fragmentos)."""
+      __tablename__ = "narrative_chapters"
+
+      id: Mapped[int] = mapped_column(primary_key=True)
+      name: Mapped[str] = mapped_column(String(100))  # "Los Kinkys"
+      slug: Mapped[str] = mapped_column(String(50), unique=True)  # "los-kinkys"
+      chapter_type: Mapped[ChapterType] = mapped_column(default=ChapterType.FREE)
+      order: Mapped[int] = mapped_column(default=0)
+      is_active: Mapped[bool] = mapped_column(default=True)
+      description: Mapped[Optional[str]] = mapped_column(Text)
+
+      # Relationships
+      fragments: Mapped[List["NarrativeFragment"]] = relationship(back_populates="chapter")
+
+
+  class NarrativeFragment(Base):
+      """Fragmento narrativo (unidad mínima de historia)."""
+      __tablename__ = "narrative_fragments"
+
+      id: Mapped[int] = mapped_column(primary_key=True)
+      chapter_id: Mapped[int] = mapped_column(ForeignKey("narrative_chapters.id"))
+
+      # Identificación
+      fragment_key: Mapped[str] = mapped_column(String(50), unique=True)  # "scene_1", "scene_2a"
+      title: Mapped[str] = mapped_column(String(200))  # "Bienvenida de Diana"
+
+      # Contenido
+      speaker: Mapped[str] = mapped_column(String(50))  # "diana", "lucien", "narrator"
+      content: Mapped[str] = mapped_column(Text)  # Texto narrativo con formato
+      visual_hint: Mapped[Optional[str]] = mapped_column(String(500))  # Descripción imagen
+      media_file_id: Mapped[Optional[str]] = mapped_column(String(100))  # Telegram file_id
+
+      # Navegación
+      order: Mapped[int] = mapped_column(default=0)
+      is_entry_point: Mapped[bool] = mapped_column(default=False)  # Inicio de capítulo
+      is_ending: Mapped[bool] = mapped_column(default=False)  # Fin de capítulo
+
+      # Estado
+      is_active: Mapped[bool] = mapped_column(default=True)
+
+      # Metadata
+      created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+      # Relationships
+      chapter: Mapped["NarrativeChapter"] = relationship(back_populates="fragments")
+      decisions: Mapped[List["FragmentDecision"]] = relationship(back_populates="fragment")
+      requirements: Mapped[List["FragmentRequirement"]] = relationship(back_populates="fragment")
+
+
+  class FragmentDecision(Base):
+      """Decisión/botón dentro de un fragmento."""
+      __tablename__ = "fragment_decisions"
+
+      id: Mapped[int] = mapped_column(primary_key=True)
+      fragment_id: Mapped[int] = mapped_column(ForeignKey("narrative_fragments.id"))
+
+      # Botón
+      button_text: Mapped[str] = mapped_column(String(100))  # "🚪 Descubrir más"
+      button_emoji: Mapped[Optional[str]] = mapped_column(String(10))
+      order: Mapped[int] = mapped_column(default=0)
+
+      # Destino
+      target_fragment_key: Mapped[str] = mapped_column(String(50))  # "scene_2"
+
+      # Costo opcional (en besitos)
+      besitos_cost: Mapped[int] = mapped_column(default=0)
+
+      # Efectos
+      grants_besitos: Mapped[int] = mapped_column(default=0)
+      affects_archetype: Mapped[Optional[str]] = mapped_column(String(50))  # "impulsive"
+
+      # Estado
+      is_active: Mapped[bool] = mapped_column(default=True)
+
+      # Relationship
+      fragment: Mapped["NarrativeFragment"] = relationship(back_populates="decisions")
+
+
+  class FragmentRequirement(Base):
+      """Requisito para acceder a un fragmento."""
+      __tablename__ = "fragment_requirements"
+
+      id: Mapped[int] = mapped_column(primary_key=True)
+      fragment_id: Mapped[int] = mapped_column(ForeignKey("narrative_fragments.id"))
+
+      requirement_type: Mapped[RequirementType] = mapped_column()
+      value: Mapped[str] = mapped_column(String(100))  # "100" para besitos, "impulsive" para arquetipo
+
+      # Mensaje si no cumple
+      rejection_message: Mapped[Optional[str]] = mapped_column(Text)
+
+      # Relationship
+      fragment: Mapped["NarrativeFragment"] = relationship(back_populates="requirements")
+
+
+  class UserNarrativeProgress(Base):
+      """Progreso del usuario en la narrativa."""
+      __tablename__ = "user_narrative_progress"
+
+      id: Mapped[int] = mapped_column(primary_key=True)
+      user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+
+      # Posición actual
+      current_chapter_id: Mapped[Optional[int]] = mapped_column(ForeignKey("narrative_chapters.id"))
+      current_fragment_key: Mapped[Optional[str]] = mapped_column(String(50))
+
+      # Arquetipo detectado
+      detected_archetype: Mapped[ArchetypeType] = mapped_column(default=ArchetypeType.UNKNOWN)
+      archetype_confidence: Mapped[float] = mapped_column(default=0.0)  # 0.0 - 1.0
+
+      # Estadísticas
+      total_decisions: Mapped[int] = mapped_column(default=0)
+      chapters_completed: Mapped[int] = mapped_column(default=0)
+
+      # Timestamps
+      started_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+      last_interaction: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+      # Índice único por usuario
+      __table_args__ = (
+          Index('idx_user_narrative', 'user_id', unique=True),
+      )
+
+
+  class UserDecisionHistory(Base):
+      """Historial de decisiones del usuario."""
+      __tablename__ = "user_decision_history"
+
+      id: Mapped[int] = mapped_column(primary_key=True)
+      user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+
+      # Qué decidió
+      fragment_key: Mapped[str] = mapped_column(String(50))
+      decision_id: Mapped[int] = mapped_column(ForeignKey("fragment_decisions.id"))
+
+      # Cuándo
+      decided_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+      # Tiempo de respuesta (para arquetipo)
+      response_time_seconds: Mapped[Optional[int]] = mapped_column()
+
+      # Índice
+      __table_args__ = (
+          Index('idx_user_decisions', 'user_id', 'fragment_key'),
+      )
+
+  ---
+  5. CONTAINER DE SERVICIOS
+
+  # bot/narrative/services/container.py
+
+  class NarrativeContainer:
+      """Contenedor de servicios de narrativa con lazy loading."""
+
+      def __init__(self, session: AsyncSession, bot: Optional["Bot"] = None):
+          self._session = session
+          self._bot = bot
+
+          # Servicios (lazy loaded)
+          self._fragment_service = None
+          self._progress_service = None
+          self._decision_service = None
+          self._archetype_service = None
+          self._requirements_service = None
+
+      @property
+      def fragment(self) -> "FragmentService":
+          """Servicio de fragmentos narrativos."""
+          if self._fragment_service is None:
+              from bot.narrative.services.fragment import FragmentService
+              self._fragment_service = FragmentService(self._session)
+          return self._fragment_service
+
+      @property
+      def progress(self) -> "ProgressService":
+          """Servicio de progreso del usuario."""
+          if self._progress_service is None:
+              from bot.narrative.services.progress import ProgressService
+              self._progress_service = ProgressService(self._session)
+          return self._progress_service
+
+      @property
+      def decision(self) -> "DecisionService":
+          """Servicio de procesamiento de decisiones."""
+          if self._decision_service is None:
+              from bot.narrative.services.decision import DecisionService
+              self._decision_service = DecisionService(self._session)
+          return self._decision_service
+
+      @property
+      def archetype(self) -> "ArchetypeService":
+          """Servicio de detección de arquetipos."""
+          if self._archetype_service is None:
+              from bot.narrative.services.archetype import ArchetypeService
+              self._archetype_service = ArchetypeService(self._session)
+          return self._archetype_service
+
+      @property
+      def requirements(self) -> "RequirementsService":
+          """Servicio de validación de requisitos."""
+          if self._requirements_service is None:
+              from bot.narrative.services.requirements import RequirementsService
+              # Este servicio necesita acceso a otros módulos
+              self._requirements_service = RequirementsService(
+                  self._session,
+                  gamification_getter=lambda: get_gamification_container(),
+                  subscription_getter=lambda: ServiceContainer(self._session, self._bot).subscription
+              )
+          return self._requirements_service
+
+  ---
+  6. SERVICIOS CLAVE
+
+  6.1 FragmentService
+
+  class FragmentService:
+      """Gestión de fragmentos narrativos."""
+
+      async def get_entry_point(self, chapter_id: int) -> Optional[NarrativeFragment]:
+          """Obtiene fragmento de inicio de capítulo."""
+
+      async def get_fragment(self, fragment_key: str) -> Optional[NarrativeFragment]:
+          """Obtiene fragmento por key."""
+
+      async def get_next_fragments(self, fragment_key: str) -> List[NarrativeFragment]:
+          """Obtiene posibles siguientes fragmentos (vía decisiones)."""
+
+      async def create_fragment(self, chapter_id: int, **kwargs) -> NarrativeFragment:
+          """Crea nuevo fragmento."""
+
+      async def format_fragment_message(self, fragment: NarrativeFragment) -> str:
+          """Formatea fragmento para envío a Telegram."""
+
+  6.2 ProgressService
+
+  class ProgressService:
+      """Gestión del progreso del usuario."""
+
+      async def get_or_create_progress(self, user_id: int) -> UserNarrativeProgress:
+          """Obtiene o crea progreso del usuario."""
+
+      async def advance_to(self, user_id: int, fragment_key: str) -> UserNarrativeProgress:
+          """Avanza usuario a fragmento específico."""
+
+      async def get_current_fragment(self, user_id: int) -> Optional[NarrativeFragment]:
+          """Obtiene fragmento actual del usuario."""
+
+      async def can_access_chapter(self, user_id: int, chapter_id: int) -> Tuple[bool, str]:
+          """Verifica si usuario puede acceder a capítulo."""
+
+  6.3 DecisionService
+
+  class DecisionService:
+      """Procesamiento de decisiones del usuario."""
+
+      async def get_available_decisions(
+          self, 
+          user_id: int, 
+          fragment_key: str
+      ) -> List[FragmentDecision]:
+          """Obtiene decisiones disponibles (filtra por requisitos/besitos)."""
+
+      async def process_decision(
+          self, 
+          user_id: int, 
+          decision_id: int,
+          response_time: Optional[int] = None
+      ) -> Tuple[bool, str, Optional[NarrativeFragment]]:
+          """
+          Procesa decisión del usuario.
+          
+          Returns:
+              (success, message, next_fragment)
+          """
+
+      async def record_decision(self, user_id: int, decision: FragmentDecision) -> None:
+          """Registra decisión en historial."""
+
+  6.4 RequirementsService (Integración con otros módulos)
+
+  class RequirementsService:
+      """Validación de requisitos - PUNTO DE INTEGRACIÓN."""
+
+      def __init__(
+          self, 
+          session: AsyncSession,
+          gamification_getter: Callable,  # Lambda para obtener GamificationContainer
+          subscription_getter: Callable    # Lambda para obtener SubscriptionService
+      ):
+          self._session = session
+          self._get_gamification = gamification_getter
+          self._get_subscription = subscription_getter
+
+      async def check_requirements(
+          self, 
+          user_id: int, 
+          fragment: NarrativeFragment
+      ) -> Tuple[bool, Optional[str]]:
+          """
+          Verifica si usuario cumple requisitos del fragmento.
+          
+          INTEGRACIÓN:
+          - VIP_STATUS: usa SubscriptionService.is_vip_active()
+          - MIN_BESITOS: usa GamificationContainer.user_gamification.get_balance()
+          - ARCHETYPE: verifica UserNarrativeProgress.detected_archetype
+          - DECISION: verifica UserDecisionHistory
+          
+          Returns:
+              (can_access, rejection_message_if_not)
+          """
+          for req in fragment.requirements:
+              if req.requirement_type == RequirementType.VIP_STATUS:
+                  subscription = self._get_subscription()
+                  is_vip = await subscription.is_vip_active(user_id)
+                  if not is_vip:
+                      return False, req.rejection_message or "Necesitas ser VIP para continuar."
+
+              elif req.requirement_type == RequirementType.MIN_BESITOS:
+                  gamification = self._get_gamification()
+                  balance = await gamification.user_gamification.get_balance(user_id)
+                  required = int(req.value)
+                  if balance < required:
+                      return False, req.rejection_message or f"Necesitas {required} besitos."
+
+              # ... otros tipos
+
+          return True, None
+
+  ---
+  7. FLUJO DE USUARIO
+
+  Usuario: Click "📖 Historia" (desde /start)
+                │
+                ▼
+       ┌─────────────────────┐
+       │ story.py            │
+       │ callback_start_story│
+       └─────────┬───────────┘
+                 │
+                 ▼
+       ┌─────────────────────────────────┐
+       │ ProgressService.get_or_create   │
+       │ ¿Tiene progreso previo?         │
+       └─────────┬───────────────────────┘
+                 │
+         ┌───────┴───────┐
+         │ SÍ            │ NO
+         ▼               ▼
+    Continuar donde   FragmentService.get_entry_point("los-kinkys")
+    quedó              │
+         │             │
+         └──────┬──────┘
+                │
+                ▼
+       ┌─────────────────────────────────┐
+       │ RequirementsService.check       │
+       │ ¿Puede acceder?                 │
+       └─────────┬───────────────────────┘
+                 │
+         ┌───────┴───────┐
+         │ SÍ            │ NO
+         ▼               ▼
+    Mostrar fragmento   Mostrar mensaje rechazo
+    + botones decisión  (ej: "Necesitas ser VIP")
+         │
+         ▼
+       ┌─────────────────────────────────┐
+       │ Usuario presiona botón          │
+       │ callback: narr:decision:{id}    │
+       └─────────┬───────────────────────┘
+                 │
+                 ▼
+       ┌─────────────────────────────────┐
+       │ DecisionService.process_decision│
+       │ - Valida requisitos             │
+       │ - Cobra besitos si aplica       │
+       │ - Otorga besitos si aplica      │
+       │ - Actualiza arquetipo           │
+       │ - Avanza a siguiente fragmento  │
+       └─────────┬───────────────────────┘
+                 │
+                 ▼
+            Mostrar siguiente fragmento
+            (loop recursivo)
+
+  ---
+  8. INTEGRACIÓN CON MIDDLEWARE
+
+  El DatabaseMiddleware actual ya inyecta session y gamification. Solo necesitamos agregar narrative:
+
+  # bot/middlewares/database.py (modificación mínima)
+
+  class DatabaseMiddleware(BaseMiddleware):
+      async def __call__(self, handler, event, data):
+          async with get_session() as session:
+              data["session"] = session
+              bot = data.get("bot")
+
+              # Gamificación (existente)
+              gamif_container = GamificationContainer(session, bot)
+              set_container(gamif_container)
+              data["gamification"] = gamif_container
+
+              # NUEVO: Narrativa
+              from bot.narrative.services.container import NarrativeContainer
+              narrative_container = NarrativeContainer(session, bot)
+              data["narrative"] = narrative_container
+
+              return await handler(event, data)
+
+  ---
+  9. INTEGRACIÓN CON MENÚ /start
+
+  Agregar botón de narrativa al menú dinámico:
+
+  # En _send_welcome_message o configuración de MenuItems
+
+  # Botón para iniciar/continuar historia
+  {
+      "button_text": "📖 Historia",
+      "callback_data": "narr:start",
+      "target_role": "free",  # Disponible para todos
+      "order": 2
+  }
+
+  ---
+  10. FASES DE IMPLEMENTACIÓN
+
+  FASE N1: Modelos y Migración (Fundación)
+
+  - Crear estructura bot/narrative/
+  - Modelos de BD (6 modelos)
+  - Migración Alembic
+  - NarrativeContainer base
+  - Tests modelos
+
+  Entregable: BD lista, container funcional
+
+  ---
+  FASE N2: Servicios Core
+
+  - FragmentService (CRUD fragmentos)
+  - ProgressService (avance usuario)
+  - DecisionService (procesar decisiones)
+  - Tests unitarios servicios
+
+  Entregable: Servicios funcionando sin UI
+
+  ---
+  FASE N3: Integración con Módulos Existentes
+
+  - RequirementsService (VIP check, besitos)
+  - Modificar middleware para inyectar narrative
+  - Tests integración
+
+  Entregable: Narrativa puede verificar VIP y cobrar/otorgar besitos
+
+  ---
+  FASE N4: Handlers Usuario
+
+  - user/story.py - Mostrar fragmento actual
+  - user/decisions.py - Procesar decisiones
+  - Botón "📖 Historia" en /start
+  - FSM si es necesario
+
+  Entregable: Usuario puede navegar historia
+
+  ---
+  FASE N5: Admin + Contenido
+
+  - Wizard crear fragmentos
+  - Seed data (narrativa de narrativo.md)
+  - Estadísticas básicas
+
+  Entregable: Admin puede crear contenido, historia base cargada
+
+  ---
+  FASE N6: Arquetipos (Simple)
+
+  - ArchetypeService básico
+  - Detección por tiempo de respuesta
+  - Ramificaciones por arquetipo
+
+  Entregable: Sistema detecta arquetipos y adapta caminos
+
+  ---
+  11. PUNTOS CLAVE DE DISEÑO
+
+  Pragmatismo:
+
+  1. 6 modelos solamente - Lo mínimo necesario
+  2. Sin IA/NLP - Arquetipos por reglas simples (tiempo respuesta)
+  3. Lazy loading - Memoria optimizada para Termux
+  4. Reutiliza patrones - Container, middleware, FSM existentes
+
+  Extensibilidad futura:
+
+  1. Arquetipos más complejos (ML)
+  2. Contenido multimedia (audios Diana)
+  3. Eventos temporales (historias de temporada)
+  4. Múltiples narradores
+
+  Integraciones:
+
+  | Módulo        | Cómo se integra                                         |
+  |---------------|---------------------------------------------------------|
+  | Gamificación  | Besitos como moneda, recompensas al completar capítulos |
+  | Canales       | VIP check para "El Diván"                               |
+  | Menú dinámico | Entry point desde /start                                |
+
+  ---
+  12. PREGUNTAS PARA TI
+
+  Antes de comenzar la implementación:
+
+  1. ¿El usuario puede "reiniciar" la historia? (Volver a empezar con otro camino)
+  2. ¿Quieres notificaciones cuando hay nuevo contenido narrativo? (Usar NotificationService existente)
+  3. ¿El arquetipo debería afectar otras partes del bot? (ej: mensajes de gamificación personalizados según arquetipo)
+  4. ¿Empezamos por FASE N1 directamente o quieres que refine algo de esta propuesta?
+
+  ---
+  Esta propuesta es pragmática y modular: puedes tener una versión funcional básica en las primeras 3-4 fases, y el resto son mejoras incrementales. ¿Procedemos?
+
+> /export 
+  ⎿  Conversation exported to: 2025-12-26-caveat-the-messages-below-were-generated-by-the-u.txt
+
+> Gran propuesta, excelente. Me gusta demasiado. Antes de proceder, se me 
+fue por completo mencionarte también algo muy importante. Hay un, para la 
+gamificación, hay un sistema de configuración que se encarga de propagar la 
+configuración de lo que se cree, ya sean recompensas, misiones. Esto se hizo
+ con el objetivo de que desde un solo flujo se pudieran configurar 
+condiciones, por ejemplo, si una recompensa necesita un nivel, desde la 
+configuración de la recompensa se puede crear el nivel, no es necesario ir 
+al nivel para actualizarla, para crearla y luego regresar a seguir haciendo 
+la recompensa. Esto te digo que fue porque justo se estaba fragmentando 
+mucho la configuración, cada sistema tenía su propia configuración por 
+separado y logramos esa integración. este módulo también debe de poder 
+integrarse ahí mismo. Es decir, que se pueda recoger, por ejemplo, un nivel 
+de la narrativa para poder entregar una recompensa. Seguramente ya lo 
+revisaste, pero si le puedes dar otra checada para ver si es necesario 
+adaptar algo o ya lo habías tomado en cuenta. 
+
+● Entendido, necesito revisar ese sistema de configuración unificado. Déjame explorarlo para asegurarme de que la narrativa se integre correctamente.
+
+● Read(bot/gamification/services/orchestrator/configuration.py)
+  ⎿  Read 339 lines
+
+● Read(bot/gamification/services/orchestrator/reward.py)
+  ⎿  Read 331 lines
+
+● Read(bot/gamification/services/orchestrator/mission.py)
+  ⎿  Read 320 lines
+
+● Ahora entiendo perfectamente el sistema de orquestadores. Es un patrón muy elegante para configuración en cascada. Déjame actualizar la propuesta para integrarlo correctamente:
+
+  ---
+  🔄 ACTUALIZACIÓN: INTEGRACIÓN CON SISTEMA DE ORQUESTADORES
+
+  1. EL PATRÓN ACTUAL
+
+  ConfigurationOrchestrator (maestro)
+      ├── MissionOrchestrator
+      │   └── Crea: Misión → Nivel → Recompensas (atómico)
+      └── RewardOrchestrator
+          └── Crea: Recompensa → UnlockConditions (mission/level/besitos)
+
+  El flujo actual permite:
+  Admin: Crear recompensa "Badge Leyenda"
+      → "¿Quieres crear un nivel requerido?"
+      → Sí, crear nivel "Fanático"
+      → "¿Vincular a alguna misión?"
+      → Sí, crear misión "Completa 30 días"
+      → TODO SE CREA EN UNA TRANSACCIÓN
+
+  ---
+  2. CÓMO SE INTEGRA NARRATIVA
+
+  2.1 Nuevos tipos de unlock conditions
+
+  # bot/gamification/utils/validators.py (EXTENDER)
+
+  # Agregar nuevos tipos válidos:
+  VALID_UNLOCK_TYPES = [
+      "mission",
+      "level",
+      "besitos",
+      "multiple",
+      # NUEVOS:
+      "narrative_chapter",   # Completar capítulo
+      "narrative_fragment",  # Llegar a fragmento específico
+      "archetype"            # Tener arquetipo específico
+  ]
+
+  2.2 Extensión del ConfigurationOrchestrator
+
+  # bot/gamification/services/orchestrator/configuration.py (EXTENDER)
+
+  class ConfigurationOrchestrator:
+      def __init__(self, session: AsyncSession):
+          self.session = session
+          self.mission_orchestrator = MissionOrchestrator(session)
+          self.reward_orchestrator = RewardOrchestrator(session)
+          # NUEVO:
+          self._narrative_orchestrator = None
+
+      @property
+      def narrative(self):
+          """Orquestador de narrativa (lazy loaded)."""
+          if self._narrative_orchestrator is None:
+              from bot.narrative.services.orchestrator import NarrativeOrchestrator
+              self._narrative_orchestrator = NarrativeOrchestrator(self.session)
+          return self._narrative_orchestrator
+
+      async def create_complete_narrative_chapter(
+          self,
+          chapter_config: dict,
+          completion_rewards: Optional[List[dict]] = None,
+          unlock_level_on_complete: Optional[dict] = None,
+          created_by: int = 0
+      ) -> dict:
+          """
+          Crea capítulo narrativo con recompensas asociadas.
+          
+          Flujo:
+          1. Crea el capítulo
+          2. Crea fragmentos
+          3. Si hay completion_rewards → crea recompensas con unlock_condition="narrative_chapter"
+          4. Si hay unlock_level_on_complete → crea nivel desbloqueado al completar
+          """
+          ...
+
+  2.3 NarrativeOrchestrator (NUEVO)
+
+  # bot/narrative/services/orchestrator.py
+
+  class NarrativeOrchestrator:
+      """
+      Orquestador de narrativa integrado con gamificación.
+      
+      Permite crear fragmentos con:
+      - Recompensas por llegar al fragmento
+      - Misiones vinculadas al fragmento
+      - Niveles desbloqueables
+      """
+
+      def __init__(self, session: AsyncSession):
+          self.session = session
+          self._fragment_service = None
+          self._reward_orchestrator = None
+          self._mission_orchestrator = None
+
+      @property
+      def reward_orchestrator(self):
+          """Lazy load del RewardOrchestrator de gamificación."""
+          if self._reward_orchestrator is None:
+              from bot.gamification.services.orchestrator.reward import RewardOrchestrator
+              self._reward_orchestrator = RewardOrchestrator(self.session)
+          return self._reward_orchestrator
+
+      async def create_fragment_with_rewards(
+          self,
+          fragment_data: dict,
+          arrival_rewards: Optional[List[dict]] = None,
+          decision_rewards: Optional[Dict[str, List[dict]]] = None,
+          created_by: int = 0
+      ) -> dict:
+          """
+          Crea fragmento narrativo con recompensas.
+          
+          Args:
+              fragment_data: Datos del fragmento
+              arrival_rewards: Recompensas por llegar al fragmento
+              decision_rewards: {decision_key: [rewards]} - Recompensas por cada decisión
+              created_by: Admin ID
+          
+          Returns:
+              {
+                  'fragment': NarrativeFragment,
+                  'created_rewards': List[Reward],
+                  'decision_reward_map': Dict[str, List[Reward]]
+              }
+          
+          Ejemplo de uso desde wizard:
+              Admin crea fragmento "Escena 3A - Respuesta Impulsiva"
+              → "¿Otorgar recompensa al llegar?"
+              → Sí, "Badge Impulsivo" (BADGE, rarity=RARE)
+              → TODO se crea junto
+          """
+          from bot.narrative.services.fragment import FragmentService
+          fragment_service = FragmentService(self.session)
+
+          # 1. Crear fragmento
+          fragment = await fragment_service.create_fragment(**fragment_data)
+
+          created_rewards = []
+          decision_reward_map = {}
+
+          # 2. Crear recompensas por llegada
+          if arrival_rewards:
+              for reward_data in arrival_rewards:
+                  # Crear con unlock_condition = narrative_fragment
+                  result = await self.reward_orchestrator.create_reward_with_unlock_condition(
+                      reward_data=reward_data,
+                      unlock_narrative_fragment=fragment.fragment_key,  # NUEVO parámetro
+                      created_by=created_by
+                  )
+                  if result.get('reward'):
+                      created_rewards.append(result['reward'])
+
+          # 3. Crear recompensas por decisión
+          if decision_rewards:
+              for decision_key, rewards in decision_rewards.items():
+                  decision_reward_map[decision_key] = []
+                  for reward_data in rewards:
+                      result = await self.reward_orchestrator.create_reward_with_unlock_condition(
+                          reward_data=reward_data,
+                          unlock_narrative_decision=decision_key,
+                          created_by=created_by
+                      )
+                      if result.get('reward'):
+                          decision_reward_map[decision_key].append(result['reward'])
+
+          return {
+              'fragment': fragment,
+              'created_rewards': created_rewards,
+              'decision_reward_map': decision_reward_map
+          }
+
+      async def create_chapter_system(
+          self,
+          chapter_data: dict,
+          fragments: List[dict],
+          completion_config: Optional[dict] = None,
+          created_by: int = 0
+      ) -> dict:
+          """
+          Crea capítulo completo con sistema de gamificación.
+          
+          Args:
+              chapter_data: {name, slug, chapter_type, description}
+              fragments: Lista de fragmentos con decisiones
+              completion_config: {
+                  'rewards': Lista de recompensas por completar capítulo,
+                  'unlock_level': Nivel a desbloquear,
+                  'grant_besitos': Besitos a otorgar
+              }
+          """
+          ...
+
+  2.4 Extensión del RewardOrchestrator
+
+  # bot/gamification/services/orchestrator/reward.py (EXTENDER)
+
+  class RewardOrchestrator:
+
+      async def create_reward_with_unlock_condition(
+          self,
+          reward_data: dict,
+          unlock_mission_id: Optional[int] = None,
+          unlock_level_id: Optional[int] = None,
+          unlock_besitos: Optional[int] = None,
+          # NUEVOS parámetros para narrativa:
+          unlock_narrative_chapter: Optional[str] = None,  # slug del capítulo
+          unlock_narrative_fragment: Optional[str] = None,  # key del fragmento
+          unlock_narrative_decision: Optional[str] = None,  # key de decisión
+          unlock_archetype: Optional[str] = None,  # tipo de arquetipo
+          created_by: int = 0
+      ) -> dict:
+          """
+          Crea recompensa con unlock condition (extendido para narrativa).
+          """
+          conditions = []
+
+          # Condiciones existentes
+          if unlock_mission_id:
+              conditions.append({"type": "mission", "mission_id": unlock_mission_id})
+          if unlock_level_id:
+              conditions.append({"type": "level", "level_id": unlock_level_id})
+          if unlock_besitos:
+              conditions.append({"type": "besitos", "min_besitos": unlock_besitos})
+
+          # NUEVAS condiciones de narrativa
+          if unlock_narrative_chapter:
+              conditions.append({
+                  "type": "narrative_chapter",
+                  "chapter_slug": unlock_narrative_chapter
+              })
+          if unlock_narrative_fragment:
+              conditions.append({
+                  "type": "narrative_fragment",
+                  "fragment_key": unlock_narrative_fragment
+              })
+          if unlock_narrative_decision:
+              conditions.append({
+                  "type": "narrative_decision",
+                  "decision_key": unlock_narrative_decision
+              })
+          if unlock_archetype:
+              conditions.append({
+                  "type": "archetype",
+                  "archetype": unlock_archetype
+              })
+
+          # ... resto igual
+
+  ---
+  3. FLUJOS DE CONFIGURACIÓN INTEGRADOS
+
+  Flujo A: Desde Admin Gamificación → Narrativa
+
+  Admin: /gamification → Crear Recompensa
+      → Nombre: "Badge Diana Revelada"
+      → Tipo: BADGE
+      → "¿Condición de desbloqueo?"
+      → [Misión] [Nivel] [Besitos] [📖 Narrativa]  ← NUEVO
+      → Click [📖 Narrativa]
+      → "¿Qué progreso narrativo se requiere?"
+          → [Completar Capítulo]
+          → [Llegar a Fragmento]
+          → [Tomar Decisión]
+      → Click [Completar Capítulo]
+      → Seleccionar: "El Diván"
+      → ✅ Recompensa creada con unlock: narrative_chapter=el-divan
+
+  Flujo B: Desde Admin Narrativa → Gamificación
+
+  Admin: /narrative → Crear Fragmento
+      → Capítulo: "Los Kinkys"
+      → Key: "scene_3a_impulsive"
+      → Speaker: Diana
+      → Contenido: "Bueno, eso fue... rápido..."
+      → "¿Otorgar recompensa al llegar?"
+      → [Sí] ← Click
+      → "Tipo de recompensa:"
+          → [Crear Nueva] [Vincular Existente]
+      → Click [Crear Nueva]
+      → Nombre: "Alma Impulsiva"
+      → Tipo: BADGE
+      → ✅ Fragmento + Recompensa creados juntos
+
+  Flujo C: Desde Admin Misiones → Narrativa
+
+  Admin: /gamification → Crear Misión
+      → Nombre: "Explorador de Diana"
+      → Tipo: ONE_TIME
+      → Criterio: "Completar 3 capítulos narrativos"  ← NUEVO criterio
+      → Recompensa: 500 besitos
+      → "¿Crear nivel asociado?"
+      → Sí: "Fan de Diana" (min 1000 besitos)
+      → ✅ Misión + Nivel creados con criterio narrativo
+
+  ---
+  4. NUEVOS CRITERIOS DE MISIÓN
+
+  # bot/gamification/database/enums.py (EXTENDER)
+
+  class MissionCriteriaType(str, Enum):
+      """Tipos de criterios para completar misiones."""
+      ONE_TIME = "one_time"
+      DAILY = "daily"
+      WEEKLY = "weekly"
+      STREAK = "streak"
+      # NUEVOS para narrativa:
+      NARRATIVE_CHAPTERS = "narrative_chapters"    # Completar N capítulos
+      NARRATIVE_FRAGMENTS = "narrative_fragments"  # Visitar N fragmentos
+      NARRATIVE_DECISIONS = "narrative_decisions"  # Tomar N decisiones
+      ARCHETYPE_REACH = "archetype_reach"          # Alcanzar arquetipo específico
+
+  # Ejemplo de criterio:
+  {
+      "type": "narrative_chapters",
+      "count": 2,
+      "specific_chapters": ["los-kinkys", "el-divan"]  # Opcional
+  }
+
+  ---
+  5. VALIDADORES ACTUALIZADOS
+
+  # bot/gamification/utils/validators.py (EXTENDER)
+
+  def validate_unlock_conditions(conditions: dict) -> Tuple[bool, Optional[str]]:
+      """Valida unlock conditions incluyendo narrativa."""
+      valid_types = [
+          "mission", "level", "besitos", "multiple",
+          # Nuevos:
+          "narrative_chapter", "narrative_fragment",
+          "narrative_decision", "archetype"
+      ]
+
+      cond_type = conditions.get("type")
+      if cond_type not in valid_types:
+          return False, f"Invalid condition type: {cond_type}"
+
+      # Validaciones específicas para narrativa
+      if cond_type == "narrative_chapter":
+          if "chapter_slug" not in conditions:
+              return False, "narrative_chapter requires chapter_slug"
+
+      if cond_type == "narrative_fragment":
+          if "fragment_key" not in conditions:
+              return False, "narrative_fragment requires fragment_key"
+
+      if cond_type == "archetype":
+          valid_archetypes = ["impulsive", "contemplative", "silent"]
+          if conditions.get("archetype") not in valid_archetypes:
+              return False, f"Invalid archetype. Valid: {valid_archetypes}"
+
+      return True, None
+
+  ---
+  6. CHECKER DE UNLOCK CONDITIONS
+
+  El RewardService necesita saber cómo verificar las nuevas condiciones:
+
+  # bot/gamification/services/reward.py (EXTENDER check_unlock)
+
+  async def check_unlock_conditions(
+      self, 
+      user_id: int, 
+      conditions: dict
+  ) -> Tuple[bool, Optional[str]]:
+      """Verifica si usuario cumple condiciones para desbloquear."""
+
+      cond_type = conditions.get("type")
+
+      # Condiciones existentes...
+      if cond_type == "mission":
+          # ya existe
+          pass
+      elif cond_type == "level":
+          # ya existe
+          pass
+      elif cond_type == "besitos":
+          # ya existe
+          pass
+
+      # NUEVAS condiciones de narrativa
+      elif cond_type == "narrative_chapter":
+          from bot.narrative.services.container import NarrativeContainer
+          narrative = NarrativeContainer(self._session)
+          completed = await narrative.progress.has_completed_chapter(
+              user_id,
+              conditions["chapter_slug"]
+          )
+          if not completed:
+              return False, f"Debes completar el capítulo para desbloquear"
+
+      elif cond_type == "narrative_fragment":
+          from bot.narrative.services.container import NarrativeContainer
+          narrative = NarrativeContainer(self._session)
+          visited = await narrative.progress.has_visited_fragment(
+              user_id,
+              conditions["fragment_key"]
+          )
+          if not visited:
+              return False, "Debes avanzar en la historia para desbloquear"
+
+      elif cond_type == "archetype":
+          from bot.narrative.services.container import NarrativeContainer
+          narrative = NarrativeContainer(self._session)
+          progress = await narrative.progress.get_progress(user_id)
+          if progress.detected_archetype.value != conditions["archetype"]:
+              return False, f"Requiere arquetipo: {conditions['archetype']}"
+
+      return True, None
+
+  ---
+  7. RESUMEN DE CAMBIOS
+
+  Archivos a MODIFICAR (gamificación):
+
+  | Archivo                                | Cambio                                             |
+  |----------------------------------------|----------------------------------------------------|
+  | database/enums.py                      | Agregar criterios de misión narrativos             |
+  | utils/validators.py                    | Agregar validación de unlock conditions narrativos |
+  | services/reward.py                     | Extender check_unlock_conditions                   |
+  | services/orchestrator/reward.py        | Agregar parámetros narrativos                      |
+  | services/orchestrator/configuration.py | Agregar narrative property + métodos               |
+
+  Archivos NUEVOS (narrativa):
+
+  | Archivo                            | Propósito                                           |
+  |------------------------------------|-----------------------------------------------------|
+  | narrative/services/orchestrator.py | NarrativeOrchestrator integrado                     |
+  | narrative/services/progress.py     | Métodos has_completed_chapter, has_visited_fragment |
+
+  ---
+  8. DIAGRAMA DE INTEGRACIÓN FINAL
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                    ConfigurationOrchestrator                     │
+  │  (Maestro de configuración - coordina todo)                     │
+  ├─────────────────────────────────────────────────────────────────┤
+  │                                                                  │
+  │   ┌──────────────────┐  ┌──────────────────┐  ┌──────────────┐ │
+  │   │ MissionOrch.     │  │ RewardOrch.      │  │ NarrativeOrch│ │
+  │   │ ─────────────    │  │ ─────────────    │  │ ────────────-│ │
+  │   │ • create_mission │  │ • create_reward  │  │ • create_frag│ │
+  │   │ • auto_level     │  │ • unlock_conds   │  │ • chapter_sys│ │
+  │   │ • auto_rewards   │  │   ├─ mission     │  │ • link_reward│ │
+  │   └────────┬─────────┘  │   ├─ level       │  └──────┬───────┘ │
+  │            │            │   ├─ besitos     │         │         │
+  │            │            │   ├─ narrative_* │◄────────┘         │
+  │            │            │   └─ archetype   │                   │
+  │            │            └────────┬─────────┘                   │
+  │            │                     │                              │
+  │            ▼                     ▼                              │
+  │   ┌──────────────────────────────────────────────────────────┐ │
+  │   │                     SQLAlchemy Session                    │ │
+  │   │  (Transacción atómica - todo o nada)                     │ │
+  │   └──────────────────────────────────────────────────────────┘ │
+  │                                                                  │
+  └─────────────────────────────────────────────────────────────────┘
+
+  ---
+  9. FASES ACTUALIZADAS
+
+  Con esta integración, las fases quedan:
+
+  FASE N1: Modelos + Migración (sin cambios)
+
+  FASE N2: Servicios Core (sin cambios)
+
+  FASE N3: Integración con Orquestadores ← ACTUALIZADA
+
+  - Extender RequirementType con tipos narrativos
+  - Extender validate_unlock_conditions
+  - Crear NarrativeOrchestrator
+  - Extender RewardOrchestrator con parámetros narrativos
+  - Extender ConfigurationOrchestrator con property narrative
+  - Extender check_unlock_conditions en RewardService
+  - Tests integración
+
+  FASE N4-N6: (sin cambios mayores)
+
+  ---
+  ¿Esta integración con el sistema de orquestadores te parece correcta? El objetivo es que desde cualquier punto de la configuración puedas crear/vincular entidades de los otros módulos sin tener que ir a configurarlas por separado.
+
+> /export 
+  ⎿  Failed to copy to clipboard. Make sure `xclip` or `wl-copy` is installed on your system and try again.
+
+
+
