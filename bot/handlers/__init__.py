@@ -9,8 +9,10 @@ import logging
 from aiogram import Dispatcher
 
 from bot.handlers.admin import admin_router
+from bot.handlers.admin.menu_config import menu_config_router
 from bot.handlers.user import user_router
 from bot.handlers.user.free_join_request import free_join_router
+from bot.handlers.user.dynamic_menu import dynamic_menu_router
 from bot.gamification.handlers import (
     gamification_admin_router,
     gamification_mission_wizard_router,
@@ -45,7 +47,9 @@ def register_all_handlers(dispatcher: Dispatcher) -> None:
 
     # Registrar routers principales
     dispatcher.include_router(admin_router)
+    dispatcher.include_router(menu_config_router)
     dispatcher.include_router(user_router)
+    dispatcher.include_router(dynamic_menu_router)
     dispatcher.include_router(free_join_router)
 
     # Registrar routers de gamificación (admin)

@@ -9,16 +9,16 @@ Deep Link Format: t.me/botname?start=TOKEN
 import logging
 from datetime import datetime, timezone
 
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.enums import UserRole
 from bot.middlewares import DatabaseMiddleware
 from bot.services.container import ServiceContainer
 from bot.utils.formatters import format_currency
-from bot.utils.keyboards import create_inline_keyboard, vip_user_menu_keyboard
+from bot.utils.keyboards import create_inline_keyboard, dynamic_user_menu_keyboard
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ async def cmd_start(message: Message, session: AsyncSession):
         )
     else:
         # No hay parámetro → Mensaje de bienvenida normal
-        await _send_welcome_message(message, user, container, user_id)
+        await _send_welcome_message(message, user, container, user_id, session)
 
 
 async def _activate_token_from_deeplink(
@@ -245,64 +245,188 @@ async def _send_welcome_message(
     message: Message,
     user,  # User model
     container: ServiceContainer,
-    user_id: int
+    user_id: int,
+    session: AsyncSession
 ):
     """
-    Envía mensaje de bienvenida normal.
+    Envía mensaje de bienvenida normal usando sistema de menús dinámicos.
 
     Args:
         message: Mensaje original
         user: Usuario del sistema
         container: Service container
         user_id: ID del usuario
+        session: Sesión de BD
     """
     user_name = message.from_user.first_name or "Usuario"
 
     # Usuario normal: verificar si es VIP activo
     is_vip = await container.subscription.is_vip_active(user_id)
 
-    if is_vip:
-        # Usuario ya tiene acceso VIP
-        subscriber = await container.subscription.get_vip_subscriber(user_id)
+    # Determinar rol para el menú dinámico
+    role = "vip" if is_vip else "free"
+    subscription_type = "VIP" if is_vip else "FREE"
 
-        # Calcular días restantes
+    # Calcular días restantes (solo VIP)
+    days_remaining = 0
+    if is_vip:
+        subscriber = await container.subscription.get_vip_subscriber(user_id)
         if subscriber and hasattr(subscriber, 'expiry_date') and subscriber.expiry_date:
             # Asegurar que expiry_date tiene timezone
             expiry = subscriber.expiry_date
             if expiry.tzinfo is None:
-                # Si es naive, asumimos UTC
                 expiry = expiry.replace(tzinfo=timezone.utc)
 
             now = datetime.now(timezone.utc)
             days_remaining = max(0, (expiry - now).days)
-        else:
-            days_remaining = 0
 
-        await message.answer(
-            f"👋 Hola <b>{user_name}</b>!\n\n"
-            f"✅ Tienes acceso VIP activo\n"
-            f"⏱️ Días restantes: <b>{days_remaining}</b>\n\n"
-            f"<b>¿Qué deseas hacer?</b>",
-            reply_markup=vip_user_menu_keyboard(),
-            parse_mode="HTML"
-        )
-        return
+    # Obtener configuración de menú dinámico para el rol
+    menu_config = await container.menu.get_or_create_menu_config(role)
 
-    # Usuario no es VIP: mostrar opciones
-    keyboard = create_inline_keyboard([
-        [{"text": "🎟️ Canjear Token VIP", "callback_data": "user:redeem_token"}],
-    ])
+    # Interpolar variables en el mensaje de bienvenida
+    welcome_message = menu_config.welcome_message.format(
+        user_name=user_name,
+        days_remaining=days_remaining,
+        subscription_type=subscription_type
+    )
+
+    # Obtener keyboard dinámico
+    keyboard = await dynamic_user_menu_keyboard(session, role)
 
     await message.answer(
-        f"👋 Hola <b>{user_name}</b>!\n\n"
-        f"Bienvenido al bot de acceso a canales.\n\n"
-        f"<b>Opciones disponibles:</b>\n\n"
-        f"🎟️ <b>Canjear Token VIP</b>\n"
-        f"Si tienes un token de invitación, canjéalo para acceso VIP.\n\n"
-        f"📺 <b>Acceso al Canal Free</b>\n"
-        f"Para acceder al canal gratuito, ve directamente al canal y solicita unirte. "
-        f"Serás aprobado automáticamente después del tiempo de espera configurado.\n\n"
-        f"👉 Canjea tu token VIP:",
+        text=welcome_message,
         reply_markup=keyboard,
         parse_mode="HTML"
     )
+
+
+@user_router.callback_query(F.data == "start:profile")
+async def callback_show_profile(callback: CallbackQuery, session: AsyncSession):
+    """
+    Muestra el menú de Juego Kinky (perfil de gamificación).
+
+    Activado desde: Botón "🎮 Juego Kinky" en menú /start
+
+    Args:
+        callback: CallbackQuery del usuario
+        session: Sesión de BD
+    """
+    try:
+        # Importar aquí para evitar dependencia circular
+        from bot.gamification.services.container import GamificationContainer
+
+        container = ServiceContainer(session, callback.bot)
+        gamification = GamificationContainer(session, callback.bot)
+
+        # Obtener resumen de perfil
+        summary = await gamification.user_gamification.get_profile_summary(
+            callback.from_user.id
+        )
+
+        # Verificar estado del regalo diario
+        daily_gift_status = await gamification.daily_gift.get_daily_gift_status(
+            callback.from_user.id
+        )
+
+        # Texto del botón de regalo diario con indicador visual
+        if daily_gift_status['can_claim'] and daily_gift_status['system_enabled']:
+            daily_gift_text = "🎁 Regalo Diario ⭐"
+        else:
+            daily_gift_text = "🎁 Regalo Diario ✅"
+
+        # Construir keyboard con botones de gamificación
+        keyboard_buttons = [
+            [{"text": daily_gift_text, "callback_data": "user:daily_gift"}],
+            [
+                {"text": "📋 Mis Misiones", "callback_data": "user:missions"},
+                {"text": "🎁 Recompensas", "callback_data": "user:rewards"}
+            ],
+            [{"text": "🏆 Leaderboard", "callback_data": "user:leaderboard"}]
+        ]
+
+        # Obtener botones dinámicos configurados para "profile"
+        profile_buttons = await container.menu.build_keyboard_for_role("profile")
+        if profile_buttons:
+            keyboard_buttons.extend(profile_buttons)
+
+        # Agregar botón de volver al menú
+        keyboard_buttons.append([{"text": "🔙 Volver al Menú", "callback_data": "profile:back"}])
+
+        keyboard = create_inline_keyboard(keyboard_buttons)
+
+        # Editar mensaje existente
+        await callback.message.edit_text(
+            text=summary,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"❌ Error mostrando profile: {e}", exc_info=True)
+        await callback.answer(
+            f"❌ Error al cargar perfil: {str(e)}",
+            show_alert=True
+        )
+
+
+@user_router.callback_query(F.data == "profile:back")
+async def callback_back_to_start(callback: CallbackQuery, session: AsyncSession):
+    """
+    Regresa al menú principal de /start desde el perfil.
+
+    Args:
+        callback: CallbackQuery del usuario
+        session: Sesión de BD
+    """
+    try:
+        container = ServiceContainer(session, callback.bot)
+        user = await container.user.get_or_create_user(
+            telegram_user=callback.from_user,
+            default_role=UserRole.FREE
+        )
+
+        user_id = callback.from_user.id
+        user_name = callback.from_user.first_name or "Usuario"
+
+        # Verificar si es VIP
+        is_vip = await container.subscription.is_vip_active(user_id)
+        role = "vip" if is_vip else "free"
+        subscription_type = "VIP" if is_vip else "FREE"
+
+        # Calcular días restantes
+        days_remaining = 0
+        if is_vip:
+            subscriber = await container.subscription.get_vip_subscriber(user_id)
+            if subscriber and hasattr(subscriber, 'expiry_date') and subscriber.expiry_date:
+                expiry = subscriber.expiry_date
+                if expiry.tzinfo is None:
+                    expiry = expiry.replace(tzinfo=timezone.utc)
+                now = datetime.now(timezone.utc)
+                days_remaining = max(0, (expiry - now).days)
+
+        # Obtener mensaje de bienvenida
+        menu_config = await container.menu.get_or_create_menu_config(role)
+        welcome_message = menu_config.welcome_message.format(
+            user_name=user_name,
+            days_remaining=days_remaining,
+            subscription_type=subscription_type
+        )
+
+        # Obtener keyboard dinámico
+        keyboard = await dynamic_user_menu_keyboard(session, role)
+
+        # Editar mensaje para volver a start
+        await callback.message.edit_text(
+            text=welcome_message,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"❌ Error regresando a menú: {e}", exc_info=True)
+        await callback.answer(
+            "❌ Error al regresar al menú",
+            show_alert=True
+        )
