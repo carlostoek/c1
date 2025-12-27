@@ -30,19 +30,14 @@ async def callback_narrative_menu(
 
     narrative = NarrativeContainer(session)
 
-    # Obtener estadísticas rápidas
-    chapters = await narrative.chapter.get_all_chapters(active_only=False)
-    active_chapters = [c for c in chapters if c.is_active]
-
-    # Contar fragmentos totales
-    total_fragments = 0
-    for ch in chapters:
-        count = await narrative.chapter.get_chapter_fragments_count(ch.id)
-        total_fragments += count
+    # Obtener estadísticas rápidas con consultas optimizadas
+    total_chapters = await narrative.chapter.get_chapters_count(active_only=False)
+    active_chapters = await narrative.chapter.get_chapters_count(active_only=True)
+    total_fragments = await narrative.chapter.get_total_fragments_count()
 
     text = (
         "📖 <b>Gestión de Narrativa</b>\n\n"
-        f"📚 Capítulos: {len(active_chapters)}/{len(chapters)} activos\n"
+        f"📚 Capítulos: {active_chapters}/{total_chapters} activos\n"
         f"📄 Fragmentos: {total_fragments}\n\n"
         "<i>Gestiona capítulos, fragmentos y decisiones.</i>"
     )

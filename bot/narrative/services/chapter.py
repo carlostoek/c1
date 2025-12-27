@@ -110,7 +110,9 @@ class ChapterService:
     async def get_all_chapters(
         self,
         active_only: bool = True,
-        chapter_type: Optional[ChapterType] = None
+        chapter_type: Optional[ChapterType] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None
     ) -> List[NarrativeChapter]:
         """
         Obtiene todos los capítulos con filtros opcionales.
@@ -118,6 +120,8 @@ class ChapterService:
         Args:
             active_only: Si True, solo retorna capítulos activos
             chapter_type: Filtrar por tipo (FREE o VIP)
+            limit: Límite de resultados (para paginación)
+            offset: Desplazamiento de resultados (para paginación)
 
         Returns:
             Lista de capítulos ordenados por 'order'
@@ -129,6 +133,12 @@ class ChapterService:
 
         if chapter_type:
             stmt = stmt.where(NarrativeChapter.chapter_type == chapter_type)
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        if offset is not None:
+            stmt = stmt.offset(offset)
 
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
@@ -223,3 +233,101 @@ class ChapterService:
         )
         result = await self._session.execute(stmt)
         return result.scalar_one()
+
+    async def get_total_fragments_count(self) -> int:
+        """
+        Obtiene la cantidad total de fragmentos activos de todos los capítulos.
+
+        Returns:
+            Cantidad total de fragmentos
+        """
+        from bot.narrative.database import NarrativeFragment
+        from sqlalchemy import func
+
+        stmt = select(func.count()).select_from(NarrativeFragment).where(
+            NarrativeFragment.is_active == True
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+
+    async def get_chapters_count(
+        self,
+        active_only: bool = True,
+        chapter_type: Optional[ChapterType] = None
+    ) -> int:
+        """
+        Obtiene la cantidad total de capítulos.
+
+        Args:
+            active_only: Si True, solo cuenta capítulos activos
+            chapter_type: Filtrar por tipo (FREE o VIP)
+
+        Returns:
+            Cantidad de capítulos
+        """
+        from sqlalchemy import func
+
+        stmt = select(func.count()).select_from(NarrativeChapter)
+
+        if active_only:
+            stmt = stmt.where(NarrativeChapter.is_active == True)
+
+        if chapter_type:
+            stmt = stmt.where(NarrativeChapter.chapter_type == chapter_type)
+
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+
+    async def get_chapter_stats_bulk(self) -> dict:
+        """
+        Obtiene estadísticas de todos los capítulos con una única consulta optimizada.
+
+        Retorna un diccionario con stats por chapter_id:
+        - fragments_count: Cantidad de fragmentos
+        - decisions_count: Cantidad de decisiones
+        - entry_count: Cantidad de entry points
+        - ending_count: Cantidad de endings
+
+        Returns:
+            Dict[int, dict]: {chapter_id: {fragments_count, decisions_count, ...}}
+        """
+        from bot.narrative.database import NarrativeFragment, FragmentDecision
+        from sqlalchemy import func, case
+
+        # Query que agrupa fragmentos y decisiones por capítulo
+        stmt = (
+            select(
+                NarrativeFragment.chapter_id,
+                func.count(NarrativeFragment.id.distinct()).label('fragments_count'),
+                func.count(FragmentDecision.id).label('decisions_count'),
+                func.sum(
+                    case((NarrativeFragment.is_entry_point == True, 1), else_=0)
+                ).label('entry_count'),
+                func.sum(
+                    case((NarrativeFragment.is_ending == True, 1), else_=0)
+                ).label('ending_count')
+            )
+            .select_from(NarrativeFragment)
+            .outerjoin(
+                FragmentDecision,
+                (FragmentDecision.fragment_id == NarrativeFragment.id) &
+                (FragmentDecision.is_active == True)
+            )
+            .where(NarrativeFragment.is_active == True)
+            .group_by(NarrativeFragment.chapter_id)
+        )
+
+        result = await self._session.execute(stmt)
+        rows = result.all()
+
+        # Convertir a diccionario
+        stats = {}
+        for row in rows:
+            stats[row.chapter_id] = {
+                'fragments_count': row.fragments_count or 0,
+                'decisions_count': row.decisions_count or 0,
+                'entry_count': row.entry_count or 0,
+                'ending_count': row.ending_count or 0
+            }
+
+        return stats

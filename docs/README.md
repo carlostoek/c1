@@ -29,6 +29,14 @@ Guía completa de arquitectura, configuración, uso y desarrollo del bot de admi
 - **[narrativa/HANDLERS.md](./narrativa/HANDLERS.md)** - Documentación de handlers narrativos
 - **[narrativa/DATABASE.md](./narrativa/DATABASE.md)** - Documentación de modelos narrativos
 
+### Módulo de Tienda y Mochila
+- **[shop/README.md](./shop/README.md)** - Documentación general del módulo de tienda y mochila
+- **[shop/API.md](./shop/API.md)** - Referencia de API del módulo de tienda y mochila
+- **[shop/SETUP.md](./shop/SETUP.md)** - Guía de instalación del módulo de tienda y mochila
+- **[shop/HANDLERS.md](./shop/HANDLERS.md)** - Documentación de handlers de tienda e inventario
+- **[shop/DATABASE.md](./shop/DATABASE.md)** - Documentación de modelos de tienda y mochila
+- **[shop/tracking.md](./shop/tracking.md)** - Tracking del desarrollo del módulo de tienda
+
 ### Operación y Mantenimiento
 - **[TESTING.md](./TESTING.md)** - Guía de testing y configuración
 - **[MAINTENANCE.md](./MAINTENANCE.md)** - Procedimientos de mantenimiento y troubleshooting

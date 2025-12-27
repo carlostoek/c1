@@ -500,6 +500,19 @@ Sistema de historias interactivas con decisiones del usuario, requisitos de acce
 - **Integración con gamificación:** Recompensas y misiones vinculadas a la narrativa
 - **Sistema de recompensas:** Besitos, misiones y niveles por completar fragmentos
 
+### Shop and Backpack Module (T36)
+Sistema de e-commerce que permite a los usuarios comprar productos con besitos y gestionar su inventario personal:
+
+- **Catálogo de productos:** Organizado por categorías con descripciones y precios
+- **Sistema de compras:** Compra segura con deducción automática de besitos
+- **Inventario personal (Mochila):** Sistema donde los usuarios almacenan sus items
+- **Items consumibles:** Productos que pueden usarse para obtener efectos
+- **Items cosméticos:** Artículos que pueden equiparse para personalización
+- **Items narrativos:** Items que desbloquean contenido en la historia
+- **Control de stock:** Gestión de disponibilidad de productos
+- **Historial de transacciones:** Registro completo de compras y posesiones
+- **Integración con otros sistemas:** Compatible con gamificación y narrativa
+
 **Ejemplo de uso de las background tasks:**
 ```python
 from aiogram import Bot
