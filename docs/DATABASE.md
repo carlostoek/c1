@@ -430,6 +430,139 @@ async with get_session() as session:
 
 **Tabla:** `free_channel_requests`
 
+## Modelo 5: DailyGiftClaim
+
+**Descripción:** Registro de reclamaciones de regalo diario y rachas de días consecutivos.
+
+**Tabla:** `daily_gift_claims`
+
+### Estructura
+
+```python
+class DailyGiftClaim(Base):
+    __tablename__ = "daily_gift_claims"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        primary_key=True
+    )
+    last_claim_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True
+    )
+    current_streak: Mapped[int] = mapped_column(Integer, default=0)
+    longest_streak: Mapped[int] = mapped_column(Integer, default=0)
+    total_claims: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False
+    )
+
+    # Índices para optimización
+    __table_args__ = (
+        Index('idx_daily_gift_last_claim', 'last_claim_date'),
+        Index('idx_daily_gift_streak', 'current_streak'),
+    )
+```
+
+### Campos Detallados
+
+| Campo | Tipo | Constraints | Descripción |
+|-------|------|-----------|-------------|
+| `user_id` | BIGINT | PK, FK, NOT NULL | User ID de Telegram |
+| `last_claim_date` | DATETIME | NULL | Última fecha de reclamación |
+| `current_streak` | INTEGER | NOT NULL, DEFAULT 0 | Racha actual de días consecutivos |
+| `longest_streak` | INTEGER | NOT NULL, DEFAULT 0 | Récord histórico de racha más larga |
+| `total_claims` | INTEGER | NOT NULL, DEFAULT 0 | Total de regalos reclamados |
+| `created_at` | DATETIME | NOT NULL | Timestamp de creación |
+| `updated_at` | DATETIME | NOT NULL | Timestamp de última actualización |
+
+### Índices
+
+```sql
+-- Búsqueda por fecha de última reclamación
+CREATE INDEX idx_daily_gift_last_claim
+ON daily_gift_claims(last_claim_date);
+
+-- Búsqueda por racha actual
+CREATE INDEX idx_daily_gift_streak
+ON daily_gift_claims(current_streak);
+```
+
+### Ejemplo de Dato
+
+```json
+{
+    "user_id": 123456789,
+    "last_claim_date": "2025-12-26T15:30:45.123456",
+    "current_streak": 5,
+    "longest_streak": 7,
+    "total_claims": 12,
+    "created_at": "2025-12-21T10:15:30.123456",
+    "updated_at": "2025-12-26T15:30:45.123456"
+}
+```
+
+### Operaciones Comunes
+
+```python
+from bot.gamification.database.models import DailyGiftClaim
+
+# Crear registro (auto cuando usuario reclama por primera vez)
+daily_gift = DailyGiftClaim(user_id=123456789)
+session.add(daily_gift)
+await session.commit()
+
+# Buscar registro de usuario
+daily_gift = await session.get(DailyGiftClaim, 123456789)
+
+# Actualizar racha y fecha de reclamación
+from datetime import datetime, UTC
+daily_gift.current_streak = 6
+daily_gift.last_claim_date = datetime.now(UTC)
+daily_gift.total_claims += 1
+await session.commit()
+
+# Buscar usuarios con racha larga (orden descendente)
+from sqlalchemy import select, desc
+query = select(DailyGiftClaim).order_by(desc(DailyGiftClaim.current_streak)).limit(10)
+result = await session.execute(query)
+top_users = result.scalars().all()
+```
+
+## Modelo 5: GamificationConfig
+
+**Descripción:** Configuración global del sistema de gamificación.
+
+**Tabla:** `gamification_config`
+
+### Estructura
+
+```python
+class GamificationConfig(Base):
+    __tablename__ = "gamification_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    # ... campos existentes ...
+    daily_gift_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    daily_gift_besitos: Mapped[int] = mapped_column(Integer, default=10)
+    # ... otros campos ...
+```
+
+## Modelo 6: FreeChannelRequest
+
+**Descripción:** Cola de solicitudes para acceso al canal Free (con tiempo de espera).
+
+**Tabla:** `free_channel_requests`
+
 ### Estructura
 
 ```python
@@ -497,14 +630,385 @@ Solicitud pendiente:
     "processed": false,
     "processed_at": null
 }
+
+### Operaciones Comunes
+
+```python
+# Crear solicitud
+async with get_session() as session:
+    request = FreeChannelRequest(user_id=user_id)
+    session.add(request)
+    await session.commit()
+
+# Verificar si usuario ya solicitó Free
+async with get_session() as session:
+    query = select(FreeChannelRequest).where(
+        (FreeChannelRequest.user_id == user_id) &
+        (FreeChannelRequest.processed == False)
+    )
+    result = await session.execute(query)
+    exists = result.scalar_one_or_none() is not None
+
+# Buscar solicitudes listas para procesar
+async with get_session() as session:
+    from config import Config
+
+    query = select(FreeChannelRequest).where(
+        FreeChannelRequest.processed == False
+    ).order_by(FreeChannelRequest.request_date)
+    result = await session.execute(query)
+    requests = result.scalars().all()
+
+    ready_requests = [
+        r for r in requests
+        if r.is_ready(Config.DEFAULT_WAIT_TIME_MINUTES)
+    ]
+
+# Procesar solicitud
+async with get_session() as session:
+    request = await session.get(FreeChannelRequest, request_id)
+    request.processed = True
+    request.processed_at = datetime.utcnow()
+    await session.commit()
+
+    # Invitar usuario a canal Free
+    # await bot.add_chat_member(...)
+
+# Obtener tiempo de espera restante
+async with get_session() as session:
+    request = await session.get(FreeChannelRequest, request_id)
+    if request and not request.processed:
+        from config import Config
+        wait_total = Config.DEFAULT_WAIT_TIME_MINUTES
+        wait_elapsed = request.minutes_since_request()
+        wait_remaining = max(0, wait_total - wait_elapsed)
 ```
 
-Solicitud procesada:
+## Modelo 7: DailyGiftClaim
+
+**Descripción:** Registro de reclamaciones de regalo diario y rachas de días consecutivos.
+
+**Tabla:** `daily_gift_claims`
+
+### Estructura
+
+```python
+class DailyGiftClaim(Base):
+    __tablename__ = "daily_gift_claims"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        primary_key=True
+    )
+    last_claim_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True
+    )
+    current_streak: Mapped[int] = mapped_column(Integer, default=0)
+    longest_streak: Mapped[int] = mapped_column(Integer, default=0)
+    total_claims: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False
+    )
+
+    # Índices para optimización
+    __table_args__ = (
+        Index('idx_daily_gift_last_claim', 'last_claim_date'),
+        Index('idx_daily_gift_streak', 'current_streak'),
+    )
+```
+
+### Campos Detallados
+
+| Campo | Tipo | Constraints | Descripción |
+|-------|------|-----------|-------------|
+| `user_id` | BIGINT | PK, FK, NOT NULL | User ID de Telegram |
+| `last_claim_date` | DATETIME | NULL | Última fecha de reclamación |
+| `current_streak` | INTEGER | NOT NULL, DEFAULT 0 | Racha actual de días consecutivos |
+| `longest_streak` | INTEGER | NOT NULL, DEFAULT 0 | Récord histórico de racha más larga |
+| `total_claims` | INTEGER | NOT NULL, DEFAULT 0 | Total de regalos reclamados |
+| `created_at` | DATETIME | NOT NULL | Timestamp de creación |
+| `updated_at` | DATETIME | NOT NULL | Timestamp de última actualización |
+
+### Índices
+
+```sql
+-- Búsqueda por fecha de última reclamación
+CREATE INDEX idx_daily_gift_last_claim
+ON daily_gift_claims(last_claim_date);
+
+-- Búsqueda por racha actual
+CREATE INDEX idx_daily_gift_streak
+ON daily_gift_claims(current_streak);
+```
+
+### Ejemplo de Dato
+
 ```json
 {
-    "id": 2,
-    "user_id": 222222222,
-    "request_date": "2025-12-11T10:00:00.000000",
+    "user_id": 123456789,
+    "last_claim_date": "2025-12-26T15:30:45.123456",
+    "current_streak": 5,
+    "longest_streak": 7,
+    "total_claims": 12,
+    "created_at": "2025-12-21T10:15:30.123456",
+    "updated_at": "2025-12-26T15:30:45.123456"
+}
+```
+
+### Operaciones Comunes
+
+```python
+from bot.gamification.database.models import DailyGiftClaim
+
+# Crear registro (auto cuando usuario reclama por primera vez)
+daily_gift = DailyGiftClaim(user_id=123456789)
+session.add(daily_gift)
+await session.commit()
+
+# Buscar registro de usuario
+daily_gift = await session.get(DailyGiftClaim, 123456789)
+
+# Actualizar racha y fecha de reclamación
+from datetime import datetime, UTC
+daily_gift.current_streak = 6
+daily_gift.last_claim_date = datetime.now(UTC)
+daily_gift.total_claims += 1
+await session.commit()
+
+# Buscar usuarios con racha larga (orden descendente)
+from sqlalchemy import select, desc
+query = select(DailyGiftClaim).order_by(desc(DailyGiftClaim.current_streak)).limit(10)
+result = await session.execute(query)
+top_users = result.scalars().all()
+```
+
+## Relaciones Entre Modelos
+
+### Diagrama de Relaciones
+
+```
+BotConfig (1)
+    ├─ Configuración global singleton
+    └─ No tiene relaciones FK
+
+InvitationToken (*)
+    ├─ Generado por admin (user_id en generated_by)
+    └─ Puede ser canjeado por usuario (user_id en used_by)
+    └─ Relación 1:N con VIPSubscriber
+
+VIPSubscriber (*)
+    ├─ Usuario único (user_id unique)
+    ├─ Relación N:1 con InvitationToken
+    └─ Relación 1:1 con usuario Telegram
+
+DailyGiftClaim (*)
+    ├─ Relación 1:1 con usuario Telegram
+    └─ Almacena rachas y reclamos diarios
+
+FreeChannelRequest (*)
+    ├─ Usuario puede tener múltiples requests
+    ├─ Último request no procesado se considera "actual"
+    └─ No tiene relaciones FK (independiente)
+```
+
+### Relación InvitationToken - VIPSubscriber
+
+```python
+# Token 1:N Subscribers (un token → muchos suscriptores)
+token.subscribers  # Todos los usuarios que canjearon este token
+
+# Subscriber N:1 Token (un suscriptor → 1 token)
+subscriber.token  # Token que usó para acceso VIP
+
+# Ejemplo de uso
+async with get_session() as session:
+    token = await session.get(InvitationToken, 1)
+    # Cargar relación
+    from sqlalchemy.orm import selectinload
+    query = select(InvitationToken).where(...).options(
+        selectinload(InvitationToken.subscribers)
+    )
+    result = await session.execute(query)
+    token = result.scalar_one()
+
+    # Acceder subscribers
+    for subscriber in token.subscribers:
+        print(f"Usuario {subscriber.user_id} canjeó este token")
+```
+
+## Cascadas y Limpieza
+
+### Cascade Delete
+
+Cuando se elimina un token, sus suscriptores relacionados se eliminan:
+
+```python
+subscribers = relationship(
+    "VIPSubscriber",
+    back_populates="token",
+    cascade="all, delete-orphan"  # Elimina huérfanos
+)
+```
+
+**Uso:**
+```python
+async with get_session() as session:
+    token = await session.get(InvitationToken, 1)
+    await session.delete(token)
+    await session.commit()
+    # Todos los VIPSubscriber con este token se eliminan automáticamente
+```
+
+## Performance y Optimización
+
+### Índices Actuales
+
+1. **InvitationToken:**
+   - `idx_token_used_created(used, created_at)` - Para buscar tokens válidos
+   - `token` UNIQUE - Para búsqueda por valor
+
+2. **VIPSubscriber:**
+   - `idx_status_expiry(status, expiry_date)` - Para buscar suscriptores a expirar
+   - `user_id` UNIQUE - Para búsqueda rápida por usuario
+
+3. **FreeChannelRequest:**
+   - `idx_user_date(user_id, request_date)` - Para historial de usuario
+   - `idx_processed_date(processed, request_date)` - Para procesamiento en cola
+
+4. **DailyGiftClaim:**
+   - `idx_daily_gift_last_claim(last_claim_date)` - Para buscar últimas reclamaciones
+   - `idx_daily_gift_streak(current_streak)` - Para buscar rachas
+
+### Queries Optimizadas
+
+```python
+# BUENO: Usa índices
+query = select(VIPSubscriber).where(
+    VIPSubscriber.status == "active"
+).order_by(VIPSubscriber.expiry_date)
+
+# MALO: No usa índice eficientemente
+query = select(VIPSubscriber).where(
+    VIPSubscriber.status == "active"
+).order_by(VIPSubscriber.user_id)  # No en índice
+
+# BUENO: Carga relaciones eficientemente
+query = select(InvitationToken).options(
+    selectinload(InvitationToken.subscribers)
+)
+
+# MALO: N+1 query (lenta)
+tokens = select(InvitationToken).execute()
+for token in tokens:
+    print(token.subscribers)  # Query para cada token
+```
+
+## Backup y Recovery
+
+### Backup Manual
+
+```bash
+# Copiar archivo base de datos
+cp bot.db bot.db.backup
+
+# Backup con timestamp
+cp bot.db "bot.db.$(date +%Y%m%d_%H%M%S).backup"
+```
+
+### Restore
+
+```bash
+# Restaurar backup
+cp bot.db.backup bot.db
+
+# Reiniciar bot
+python main.py
+```
+
+### Backup Automatizado (Futuro)
+
+En ONDA 2+, se implementará backup automático:
+
+```python
+# Background task diario
+@scheduler.scheduled_job('cron', day_of_week='*', hour=2, minute=0)
+async def daily_backup():
+    shutil.copy('bot.db', f'backups/bot.db.{date.today()}')
+```
+
+## Consultas de Ejemplo
+
+### Estadísticas
+
+```python
+# Contar VIP activos
+from sqlalchemy import func
+
+async with get_session() as session:
+    query = select(func.count(VIPSubscriber.id)).where(
+        VIPSubscriber.status == "active"
+    )
+    result = await session.execute(query)
+    active_count = result.scalar()
+
+# Contar tokens válidos
+query = select(func.count(InvitationToken.id)).where(
+    InvitationToken.used == False
+)
+result = await session.execute(query)
+valid_tokens = result.scalar()
+
+# Solicitudes Free en cola
+query = select(func.count(FreeChannelRequest.id)).where(
+    FreeChannelRequest.processed == False
+)
+result = await session.execute(query)
+pending_requests = result.scalar()
+
+# Usuarios con racha larga (daily gifts)
+query = select(func.count(DailyGiftClaim.id)).where(
+    DailyGiftClaim.current_streak > 7  # Racha mayor a 7 días
+)
+result = await session.execute(query)
+long_streak_users = result.scalar()
+```
+
+### Reportes
+
+```python
+# Usuarios que reclamaron regalo hoy
+from datetime import date
+
+today = date.today()
+query = select(DailyGiftClaim).where(
+    func.date(DailyGiftClaim.last_claim_date) == today
+)
+result = await session.execute(query)
+daily_gift_users = result.scalars().all()
+
+# Usuarios con rachas largas (top 10)
+query = select(DailyGiftClaim).order_by(
+    DailyGiftClaim.current_streak.desc()
+).limit(10)
+result = await session.execute(query)
+top_streaks = result.scalars().all()
+```
+
+---
+
+**Última actualización:** 2025-12-26
+**Versión:** 1.1.0
+**Estado:** Documentación actualizada con modelo DailyGiftClaim
     "processed": true,
     "processed_at": "2025-12-11T10:05:30.123456"
 }

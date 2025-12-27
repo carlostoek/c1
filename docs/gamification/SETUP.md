@@ -21,7 +21,7 @@ El módulo requiere una estructura de base de datos específica. Aplica las migr
 alembic upgrade head
 ```
 
-Esto creará las 13 tablas necesarias para el sistema de gamificación:
+Esto creará las 14 tablas necesarias para el sistema de gamificación:
 
 - `users_gamification` - Perfiles de usuarios
 - `levels` - Sistema de niveles
@@ -36,6 +36,7 @@ Esto creará las 13 tablas necesarias para el sistema de gamificación:
 - `besito_transactions` - Auditoría de transacciones
 - `user_badges` - Sistema de badges raros
 - `reward_unlock_conditions` - Condiciones de desbloqueo
+- `daily_gift_claims` - Sistema de regalo diario
 
 ### 2. Configurar Variables de Entorno
 
@@ -59,6 +60,10 @@ NOTIFY_STREAK_LOST=false
 MAX_DAILY_REACTIONS=50
 MAX_DAILY_BESITOS_PER_USER=1000
 MAX_BESITOS_MULTIPLIER=2.0
+
+# Configuración de Regalo Diario
+DAILY_GIFT_ENABLED=true
+DAILY_GIFT_BESITOS=10
 ```
 
 ### 3. Inicializar Datos Básicos
@@ -137,6 +142,8 @@ config = GamificationConfig(
     streak_reset_hours=24,
     max_daily_reactions=50,
     notifications_enabled=True,
+    daily_gift_enabled=True,
+    daily_gift_besitos=10,
     # ... otras configuraciones
 )
 

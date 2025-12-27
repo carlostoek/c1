@@ -1644,6 +1644,149 @@ reactions_selection_keyboard = InlineKeyboardMarkup(inline_keyboard=[
 
 ---
 
-**Última actualización:** 2025-12-25
+## Dynamic Menu Handler (T28)
+
+#### user/dynamic_menu.py - Handler de Menús Dinámicos
+
+**Responsabilidad:** Handler para procesar callbacks de menús dinámicos que permiten a los administradores personalizar los botones y opciones disponibles para los usuarios VIP y FREE.
+
+**Componentes:**
+- `bot/handlers/user/dynamic_menu.py` - Handler principal para procesar menús dinámicos
+- `bot/services/menu_service.py` - Servicio para gestión de menús configurables
+- `bot/database/models.py` - Modelos MenuItem y MenuConfig para almacenar configuración
+
+**Características:**
+- **Configuración por rol:** Diferencia entre menús VIP y FREE
+- **Botones personalizables:** Texto, emojis, acciones configurables por admin
+- **Tipos de acción:** Información, URLs, callbacks, contactos
+- **Orden personalizable:** Control sobre posición y agrupación de botones
+- **Activación/desactivación:** Control granular sobre visibilidad de botones
+- **Integración con start:** Menús se generan dinámicamente al iniciar bot
+
+**Flujo principal:**
+1. Usuario envía /start o accede a menú
+2. Bot determina rol del usuario (VIP, FREE o otro)
+3. Bot obtiene configuración de menú para ese rol
+4. Bot genera teclado con botones configurados
+5. Usuario interactúa con botones personalizados
+6. Bot procesa acciones según tipo (info, URL, callback)
+
+**Estructura de callbacks:**
+- `menu:{item_key}` - Callback general para procesar menús dinámicos (ej: "menu:vip_info_1", "menu:free_contact")
+
+**Aplicación de handler:**
+```python
+from aiogram import Router, F
+from aiogram.types import CallbackQuery
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from bot.services.container import ServiceContainer
+
+dynamic_menu_router = Router()
+
+@dynamic_menu_router.callback_query(F.data.startswith("menu:"))
+async def callback_dynamic_menu_item(
+    callback: CallbackQuery,
+    session: AsyncSession
+):
+    """
+    Procesa clicks en botones de menú dinámico.
+
+    Callback format: menu:{item_key}
+    """
+    item_key = callback.data.replace("menu:", "")
+
+    container = ServiceContainer(session, callback.bot)
+    item = await container.menu.get_menu_item(item_key)
+
+    if not item:
+        await callback.answer("❌ Opción no disponible", show_alert=True)
+        return
+
+    if item.action_type == "info":
+        # Mostrar información
+        emoji = item.button_emoji or "ℹ️"
+        await callback.message.answer(
+            f"{emoji} <b>{item.button_text}</b>\n\n"
+            f"{item.action_content}",
+            parse_mode="HTML"
+        )
+        await callback.answer()
+
+    elif item.action_type == "contact":
+        # Mostrar información de contacto
+        await callback.message.answer(
+            f"📞 <b>Contacto</b>\n\n"
+            f"{item.action_content}",
+            parse_mode="HTML"
+        )
+        await callback.answer()
+
+    elif item.action_type == "callback":
+        # Procesar callback interno (ej: "menu:subscribe_vip")
+        # Lógica específica según item.action_content
+        pass
+
+    # action_type == "url" se maneja automáticamente por Telegram
+    # (el botón tiene url en lugar de callback_data)
+```
+
+**Flujo de generación de menú dinámico:**
+1. Usuario envía /start o accede a menú
+2. Bot determina rol del usuario (VIP o FREE)
+3. Bot llama a `container.menu.build_keyboard_for_role(role)`
+4. Servicio obtiene todos los `MenuItem` activos para ese rol
+5. Servicio agrupa botones por `row_number` y ordena por `display_order`
+6. Servicio crea estructura de teclado compatible con `create_inline_keyboard()`
+7. Bot envía mensaje con menú personalizado
+
+**Integración con teclados:**
+```python
+# Función para generar menú dinámico
+async def dynamic_user_menu_keyboard(
+    session: AsyncSession,
+    role: str
+) -> InlineKeyboardMarkup:
+    """
+    Genera keyboard dinámico para usuarios basado en configuración.
+
+    Args:
+        session: Sesión de BD
+        role: 'vip' o 'free'
+
+    Returns:
+        InlineKeyboardMarkup con botones configurados
+    """
+    from bot.services.menu_service import MenuService
+
+    menu_service = MenuService(session)
+    keyboard_structure = await menu_service.build_keyboard_for_role(role)
+
+    if not keyboard_structure:
+        # Fallback a menú por defecto si no hay configuración
+        if role == 'vip':
+            return vip_user_menu_keyboard()  # Existente
+        else:
+            return free_user_menu_keyboard()  # Existente
+
+    return create_inline_keyboard(keyboard_structure)
+```
+
+**Características del sistema:**
+- **Flexibilidad:** Admins pueden crear botones con diferentes tipos de acciones
+- **Filtro por rol:** Botones se muestran solo a usuarios de roles específicos
+- **Ordenamiento:** Control sobre posición y agrupación de botones
+- **Fallback:** Si no hay configuración, se usan menús por defecto
+- **Cache opcional:** Para optimizar performance en menús estáticos
+- **Acciones personalizadas:** Soporte para info, URLs, callbacks y contactos
+
+**Manejo de errores:**
+- Validación de existencia de item al procesar callback
+- Manejo de tipos de acción desconocidos
+- Logging detallado de interacciones con menú
+
+---
+
+**Última actualización:** 2025-12-26
 **Versión:** 1.0.0
-**Estado:** Documentación de handlers implementados (custom reactions system)
+**Estado:** Documentación de todos los handlers implementados

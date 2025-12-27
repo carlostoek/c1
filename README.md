@@ -469,6 +469,26 @@ Tareas programadas automáticas que realizan operaciones periódicas para manten
 - **Configuración de intervalos:** Configuración de frecuencias de ejecución mediante variables de entorno
 - **Manejo de errores:** Control de errores en todas las tareas con logging apropiado
 
+### Daily Gift System (T25)
+Sistema de regalo diario que permite a los usuarios reclamar besitos diariamente manteniendo rachas de días consecutivos:
+
+- **Reclamación diaria:** Usuarios pueden reclamar un regalo diario con un monto configurable de besitos
+- **Sistema de rachas:** Mantiene registro de días consecutivos de reclamación con récords personales
+- **Configuración flexible:** Administradores pueden configurar cantidad de besitos y habilitar/deshabilitar el sistema
+- **Integración con gamificación:** Los besitos recibidos se integran con el sistema de economía de gamificación
+- **Validación de horarios:** Sistema considera zona horaria de Ciudad de México para cálculo de días
+- **Seguimiento de progreso:** Registro de total de reclamos y rachas máximas por usuario
+
+### Dynamic Menu Configuration (T28)
+Sistema que permite a los administradores configurar dinámicamente los menús visibles para usuarios:
+
+- **Configuración por rol:** Diferencia entre menús VIP y FREE
+- **Botones personalizables:** Texto, emojis, acciones configurables por admin
+- **Tipos de acción:** Soporta información, URLs, callbacks y contactos
+- **Ordenamiento flexible:** Control sobre posición y agrupación de botones
+- **Activación/desactivación:** Control granular sobre visibilidad de botones
+- **Integración con usuarios:** Menús se generan dinámicamente según rol del usuario
+
 **Ejemplo de uso de las background tasks:**
 ```python
 from aiogram import Bot

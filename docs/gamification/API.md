@@ -435,7 +435,7 @@ result = await container.configuration_orchestrator.create_complete_mission_syst
 Coordina la creación de misiones con auto-creación de niveles y recompensas en una sola transacción.
 
 #### `create_mission_system(config: Dict) -> Dict`
-Crea un sistema completo de misión en transacción atómica.
+Crea un sistema completa de misión en transacción atómica.
 
 ```python
 result = await container.mission_orchestrator.create_mission_system(config)
@@ -450,4 +450,67 @@ Crea un sistema completo de recompensas en transacción atómica.
 
 ```python
 result = await container.reward_orchestrator.create_reward_system(config)
+```
+
+## Daily Gift Service
+
+Gestión del sistema de regalo diario, que permite a los usuarios reclamar besitos diariamente manteniendo rachas de días consecutivos.
+
+### Métodos
+
+#### `can_claim_daily_gift(self, user_id: int) -> bool`
+Verifica si el usuario puede reclamar su regalo diario.
+
+```python
+can_claim = await container.daily_gift.can_claim_daily_gift(user_id=123456789)
+```
+
+#### `claim_daily_gift(self, user_id: int) -> Tuple[bool, str, dict]`
+Reclama el regalo diario para un usuario y otorga besitos.
+
+```python
+success, message, details = await container.daily_gift.claim_daily_gift(user_id=123456789)
+
+# details contiene:
+# {
+#     'besitos_earned': 10,
+#     'current_streak': 5,
+#     'longest_streak': 7,
+#     'total_claims': 12
+# }
+```
+
+#### `get_daily_gift_status(self, user_id: int) -> dict`
+Obtiene el estado actual del regalo diario de un usuario.
+
+```python
+status = await container.daily_gift.get_daily_gift_status(user_id=123456789)
+
+# status contiene:
+# {
+#     'can_claim': True,
+#     'current_streak': 5,
+#     'longest_streak': 7,
+#     'total_claims': 12,
+#     'besitos_amount': 10,
+#     'system_enabled': True,
+#     'next_claim_time': 'en 5 horas y 30 minutos'  # si can_claim=False
+# }
+```
+
+#### `reset_user_streak(self, user_id: int) -> bool`
+Reinicia la racha de un usuario (uso administrativo).
+
+```python
+reset_successful = await container.daily_gift.reset_user_streak(user_id=123456789)
+```
+
+#### `calculate_streak(self, user_id: int, last_claim_date: Optional[datetime]) -> int`
+Calcula la racha de días consecutivos para un usuario.
+
+```python
+new_streak = await container.daily_gift.calculate_streak(
+    user_id=123456789,
+    last_claim_date=datetime.now(UTC) - timedelta(days=1)
+)
 ```
