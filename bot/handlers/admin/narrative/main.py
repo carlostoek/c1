@@ -34,16 +34,24 @@ async def callback_narrative_menu(
     chapters = await narrative.chapter.get_all_chapters(active_only=False)
     active_chapters = [c for c in chapters if c.is_active]
 
+    # Contar fragmentos totales
+    total_fragments = 0
+    for ch in chapters:
+        count = await narrative.chapter.get_chapter_fragments_count(ch.id)
+        total_fragments += count
+
     text = (
         "📖 <b>Gestión de Narrativa</b>\n\n"
-        f"📚 Capítulos totales: {len(chapters)}\n"
-        f"✅ Capítulos activos: {len(active_chapters)}\n\n"
-        "<i>Usa 'Importar JSON' para cargar contenido narrativo.</i>"
+        f"📚 Capítulos: {len(active_chapters)}/{len(chapters)} activos\n"
+        f"📄 Fragmentos: {total_fragments}\n\n"
+        "<i>Gestiona capítulos, fragmentos y decisiones.</i>"
     )
 
     keyboard = create_inline_keyboard([
+        [{"text": "📚 Capítulos", "callback_data": "narrative:chapters"}],
+        [{"text": "🔍 Validar Narrativa", "callback_data": "narrative:validate"}],
         [{"text": "📥 Importar JSON", "callback_data": "narrative_admin:import"}],
-        [{"text": "📊 Ver Estadísticas", "callback_data": "narrative_admin:stats"}],
+        [{"text": "📊 Estadísticas", "callback_data": "narrative_admin:stats"}],
         [{"text": "🔙 Volver", "callback_data": "admin:main"}]
     ])
 

@@ -23,11 +23,17 @@ class DecisionService:
     """
     Servicio de procesamiento de decisiones.
 
-    Métodos:
+    Métodos CRUD:
+    - create_decision: Crear nueva decisión
+    - update_decision: Actualizar decisión existente
+    - delete_decision: Eliminar decisión (soft delete)
+    - get_decision_by_id: Obtener decisión por ID
+    - get_decisions_by_fragment: Obtener decisiones de un fragmento
+
+    Métodos de Procesamiento:
     - get_available_decisions: Obtener decisiones disponibles
     - process_decision: Procesar decisión del usuario
     - record_decision: Registrar decisión en historial
-    - get_decision_by_id: Obtener decisión por ID
     - can_afford_decision: Verificar si usuario puede pagar decisión
     """
 
@@ -330,3 +336,169 @@ class DecisionService:
             )
         except Exception as e:
             logger.error(f"❌ Error otorgando besitos: {e}")
+
+    # ========================================
+    # MÉTODOS CRUD
+    # ========================================
+
+    async def create_decision(
+        self,
+        fragment_id: int,
+        button_text: str,
+        target_fragment_key: str,
+        order: int = 0,
+        button_emoji: Optional[str] = None,
+        besitos_cost: int = 0,
+        grants_besitos: int = 0,
+        affects_archetype: Optional[str] = None
+    ) -> FragmentDecision:
+        """
+        Crea nueva decisión para un fragmento.
+
+        Args:
+            fragment_id: ID del fragmento padre
+            button_text: Texto del botón
+            target_fragment_key: Key del fragmento destino
+            order: Orden de presentación (default 0)
+            button_emoji: Emoji opcional para el botón
+            besitos_cost: Costo en besitos (default 0)
+            grants_besitos: Besitos a otorgar (default 0)
+            affects_archetype: Arquetipo afectado (opcional)
+
+        Returns:
+            Decisión creada
+        """
+        decision = FragmentDecision(
+            fragment_id=fragment_id,
+            button_text=button_text,
+            target_fragment_key=target_fragment_key,
+            order=order,
+            button_emoji=button_emoji,
+            besitos_cost=besitos_cost,
+            grants_besitos=grants_besitos,
+            affects_archetype=affects_archetype,
+            is_active=True
+        )
+
+        self._session.add(decision)
+        await self._session.flush()
+        await self._session.refresh(decision)
+
+        logger.info(
+            f"✅ Decisión creada: '{button_text}' → {target_fragment_key}"
+        )
+
+        return decision
+
+    async def update_decision(
+        self,
+        decision_id: int,
+        button_text: Optional[str] = None,
+        target_fragment_key: Optional[str] = None,
+        order: Optional[int] = None,
+        button_emoji: Optional[str] = None,
+        besitos_cost: Optional[int] = None,
+        grants_besitos: Optional[int] = None,
+        affects_archetype: Optional[str] = None,
+        is_active: Optional[bool] = None
+    ) -> Optional[FragmentDecision]:
+        """
+        Actualiza decisión existente.
+
+        Args:
+            decision_id: ID de la decisión
+            button_text: Nuevo texto del botón
+            target_fragment_key: Nuevo fragmento destino
+            order: Nuevo orden
+            button_emoji: Nuevo emoji
+            besitos_cost: Nuevo costo
+            grants_besitos: Nuevos besitos a otorgar
+            affects_archetype: Nuevo arquetipo afectado
+            is_active: Nuevo estado activo
+
+        Returns:
+            Decisión actualizada o None si no existe
+        """
+        decision = await self.get_decision_by_id(decision_id)
+        if not decision:
+            logger.warning(f"⚠️ Decisión no encontrada: {decision_id}")
+            return None
+
+        if button_text is not None:
+            decision.button_text = button_text
+        if target_fragment_key is not None:
+            decision.target_fragment_key = target_fragment_key
+        if order is not None:
+            decision.order = order
+        if button_emoji is not None:
+            decision.button_emoji = button_emoji if button_emoji != "" else None
+        if besitos_cost is not None:
+            decision.besitos_cost = besitos_cost
+        if grants_besitos is not None:
+            decision.grants_besitos = grants_besitos
+        if affects_archetype is not None:
+            decision.affects_archetype = affects_archetype if affects_archetype != "" else None
+        if is_active is not None:
+            decision.is_active = is_active
+
+        await self._session.flush()
+        await self._session.refresh(decision)
+
+        logger.info(f"✅ Decisión actualizada: ID={decision_id}")
+
+        return decision
+
+    async def delete_decision(self, decision_id: int) -> bool:
+        """
+        Elimina decisión (soft delete).
+
+        Args:
+            decision_id: ID de la decisión
+
+        Returns:
+            True si se eliminó, False si no existía
+        """
+        decision = await self.get_decision_by_id(decision_id)
+        if not decision:
+            logger.warning(f"⚠️ Decisión no encontrada: {decision_id}")
+            return False
+
+        decision.is_active = False
+        await self._session.flush()
+
+        logger.info(f"🗑️ Decisión eliminada (soft): ID={decision_id}")
+
+        return True
+
+    async def get_decisions_by_fragment(
+        self,
+        fragment_id: int,
+        active_only: bool = True
+    ) -> List[FragmentDecision]:
+        """
+        Obtiene todas las decisiones de un fragmento.
+
+        Args:
+            fragment_id: ID del fragmento
+            active_only: Si True, solo retorna decisiones activas
+
+        Returns:
+            Lista de decisiones ordenadas por order
+        """
+        stmt = select(FragmentDecision).where(
+            FragmentDecision.fragment_id == fragment_id
+        )
+
+        if active_only:
+            stmt = stmt.where(FragmentDecision.is_active == True)
+
+        stmt = stmt.order_by(FragmentDecision.order)
+
+        result = await self._session.execute(stmt)
+        decisions = list(result.scalars().all())
+
+        logger.debug(
+            f"📋 Decisiones para fragment_id={fragment_id}: {len(decisions)}"
+        )
+
+        return decisions

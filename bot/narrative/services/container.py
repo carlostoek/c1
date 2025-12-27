@@ -43,6 +43,7 @@ class NarrativeContainer:
         self._archetype_service = None
         self._requirements_service = None
         self._import_service = None
+        self._validation_service = None
 
     # ========================================
     # PROPERTIES (LAZY LOADING)
@@ -111,6 +112,14 @@ class NarrativeContainer:
             )
         return self._import_service
 
+    @property
+    def validation(self):
+        """Servicio de validación de integridad narrativa."""
+        if self._validation_service is None:
+            from bot.narrative.services.validation import NarrativeValidationService
+            self._validation_service = NarrativeValidationService(self._session)
+        return self._validation_service
+
     # ========================================
     # UTILIDADES
     # ========================================
@@ -137,6 +146,8 @@ class NarrativeContainer:
             loaded.append('requirements')
         if self._import_service is not None:
             loaded.append('import')
+        if self._validation_service is not None:
+            loaded.append('validation')
         return loaded
 
     def clear_cache(self):
@@ -148,6 +159,7 @@ class NarrativeContainer:
         self._archetype_service = None
         self._requirements_service = None
         self._import_service = None
+        self._validation_service = None
 
 
 # ========================================

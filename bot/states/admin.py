@@ -300,3 +300,59 @@ class JsonImportStates(StatesGroup):
 
     # Paso 4: Esperando confirmación final
     waiting_for_confirmation = State()
+
+
+class NarrativeAdminStates(StatesGroup):
+    """
+    Estados para administración de contenido narrativo (CRUD).
+
+    Flujos:
+    1. Crear/Editar Capítulo (4 estados crear + 3 editar)
+    2. Crear/Editar Fragmento (6 estados crear + 4 editar)
+    3. Crear/Editar Decisión (4 estados crear + 3 editar)
+
+    FSM Data esperada:
+    - chapter_id: int              # ID del capítulo actual
+    - fragment_key: str            # Key del fragmento actual
+    - decision_id: int             # ID de la decisión actual
+    - Campos específicos del paso actual
+    """
+
+    # ═══════ CAPÍTULOS ═══════
+    # Crear capítulo (4 pasos)
+    waiting_for_chapter_name = State()        # Nombre del capítulo
+    waiting_for_chapter_slug = State()        # Slug único
+    waiting_for_chapter_type = State()        # FREE o VIP (callback)
+    waiting_for_chapter_description = State() # Descripción (opcional, '-' omite)
+
+    # Editar capítulo (1 paso por campo)
+    editing_chapter_name = State()
+    editing_chapter_description = State()
+    editing_chapter_order = State()
+
+    # ═══════ FRAGMENTOS ═══════
+    # Crear fragmento (6 pasos)
+    waiting_for_fragment_key = State()        # Key único (ej: scene_1)
+    waiting_for_fragment_title = State()      # Título
+    waiting_for_fragment_speaker = State()    # diana/lucien/narrator (callback)
+    waiting_for_fragment_content = State()    # Contenido HTML
+    waiting_for_fragment_order = State()      # Orden en capítulo
+    waiting_for_fragment_flags = State()      # is_entry_point, is_ending (callbacks)
+
+    # Editar fragmento
+    editing_fragment_title = State()
+    editing_fragment_content = State()
+    editing_fragment_speaker = State()
+    editing_fragment_visual_hint = State()
+
+    # ═══════ DECISIONES ═══════
+    # Crear decisión (4 pasos)
+    waiting_for_decision_text = State()       # Texto del botón
+    waiting_for_decision_target = State()     # fragment_key destino
+    waiting_for_decision_cost = State()       # Costo en besitos (0 = gratis)
+    waiting_for_decision_grants = State()     # Besitos a otorgar (0 = ninguno)
+
+    # Editar decisión
+    editing_decision_text = State()
+    editing_decision_target = State()
+    editing_decision_cost = State()
