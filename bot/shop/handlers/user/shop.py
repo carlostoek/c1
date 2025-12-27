@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 # Router para handlers de tienda de usuario
 shop_user_router = Router(name="shop_user")
 
+# Aplicar middleware de database
+from bot.middlewares import DatabaseMiddleware
+shop_user_router.message.middleware(DatabaseMiddleware())
+shop_user_router.callback_query.middleware(DatabaseMiddleware())
+
 
 def _build_shop_main_keyboard() -> InlineKeyboardMarkup:
     """Construye teclado principal de la tienda."""

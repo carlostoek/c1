@@ -26,6 +26,13 @@ logger = logging.getLogger(__name__)
 # Router para handlers de admin de tienda
 shop_admin_router = Router(name="shop_admin")
 
+# Aplicar middlewares (Database primero, AdminAuth después)
+from bot.middlewares import DatabaseMiddleware, AdminAuthMiddleware
+shop_admin_router.message.middleware(DatabaseMiddleware())
+shop_admin_router.message.middleware(AdminAuthMiddleware())
+shop_admin_router.callback_query.middleware(DatabaseMiddleware())
+shop_admin_router.callback_query.middleware(AdminAuthMiddleware())
+
 
 def _build_shop_admin_keyboard() -> InlineKeyboardMarkup:
     """Construye teclado principal de admin de tienda."""

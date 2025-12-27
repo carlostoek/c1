@@ -25,6 +25,11 @@ logger = logging.getLogger(__name__)
 # Router para handlers de mochila
 backpack_router = Router(name="backpack")
 
+# Aplicar middleware de database
+from bot.middlewares import DatabaseMiddleware
+backpack_router.message.middleware(DatabaseMiddleware())
+backpack_router.callback_query.middleware(DatabaseMiddleware())
+
 
 def _build_backpack_main_keyboard() -> InlineKeyboardMarkup:
     """Construye teclado principal de la mochila."""

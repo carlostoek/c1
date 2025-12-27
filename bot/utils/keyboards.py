@@ -65,7 +65,8 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
     - Dashboard
     - VIP - Free (gestión de canales)
     - Gamificación
-    - Gestión Narrativa (NUEVO)
+    - Gestión Narrativa
+    - Gestión de Tienda (NUEVO)
     - Configurar Menús
     - Estadísticas - Configuración
 
@@ -80,6 +81,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
         ],
         [{"text": "🎮 Gamificación", "callback_data": "admin:gamification"}],
         [{"text": "📖 Gestión Narrativa", "callback_data": "admin:narrative"}],
+        [{"text": "🏪 Gestión de Tienda", "callback_data": "admin:shop"}],
         [{"text": "📋 Configurar Menús", "callback_data": "admin:menu_config"}],
         [
             {"text": "📊 Estadísticas", "callback_data": "admin:stats"},
@@ -228,6 +230,7 @@ async def dynamic_user_menu_keyboard(
             ]
 
     # Agregar botones fijos al final
+    keyboard_structure.append([{"text": "🏪 Tienda", "callback_data": "shop:main"}])
     keyboard_structure.append([{"text": "📖 Historia", "callback_data": "narr:start"}])
     keyboard_structure.append([{"text": "🎮 Juego Kinky", "callback_data": "start:profile"}])
 
