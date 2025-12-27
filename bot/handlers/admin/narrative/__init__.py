@@ -20,6 +20,6 @@ narrative_admin_router.message.middleware(AdminAuthMiddleware())
 narrative_admin_router.callback_query.middleware(AdminAuthMiddleware())
 
 # Importar handlers (esto registra los handlers en el router)
-from bot.handlers.admin.narrative import main, stats  # noqa: E402, F401
+from bot.handlers.admin.narrative import main, stats, import_handler  # noqa: E402, F401
 
 __all__ = ["narrative_admin_router"]

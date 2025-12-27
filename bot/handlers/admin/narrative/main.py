@@ -38,10 +38,11 @@ async def callback_narrative_menu(
         "📖 <b>Gestión de Narrativa</b>\n\n"
         f"📚 Capítulos totales: {len(chapters)}\n"
         f"✅ Capítulos activos: {len(active_chapters)}\n\n"
-        "<i>Usa el script de seed data para cargar contenido inicial.</i>"
+        "<i>Usa 'Importar JSON' para cargar contenido narrativo.</i>"
     )
 
     keyboard = create_inline_keyboard([
+        [{"text": "📥 Importar JSON", "callback_data": "narrative_admin:import"}],
         [{"text": "📊 Ver Estadísticas", "callback_data": "narrative_admin:stats"}],
         [{"text": "🔙 Volver", "callback_data": "admin:main"}]
     ])

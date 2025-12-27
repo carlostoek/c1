@@ -245,3 +245,58 @@ class MenuConfigStates(StatesGroup):
 
     # Editando mensaje de footer
     editing_footer_message = State()
+
+
+class JsonImportStates(StatesGroup):
+    """
+    Estados para el wizard de importación de fragmentos narrativos desde JSON.
+
+    Flujo completo:
+    1. Admin accede a menú narrativa -> "Importar JSON"
+       -> Bot muestra opciones: Capítulo completo o Solo fragmentos
+       -> Admin selecciona tipo de importación
+
+    2. Bot entra en waiting_for_json_file
+       -> Admin sube documento .json
+       -> Bot parsea y valida estructura
+       -> Si hay errores de formato: muestra error, mantiene estado
+       -> Si válido: detecta conflictos
+
+    3. Si hay conflictos (fragment_key ya existe):
+       -> Bot entra en resolving_conflicts
+       -> Muestra opciones: Actualizar todos, Omitir todos,
+          Revisar uno por uno, Cancelar
+
+    4. Si admin elige "Revisar uno por uno":
+       -> Bot entra en reviewing_single_conflict
+       -> Muestra cada fragmento conflictivo
+       -> Admin decide: Actualizar / Omitir para cada uno
+       -> Cuando termina todos: pasa a confirmación
+
+    5. Confirmación final (waiting_for_confirmation):
+       -> Bot muestra resumen de operaciones a realizar
+       -> Si confirma: procesa JSON
+       -> Si cancela: limpia FSM
+
+    FSM Data esperada:
+    - json_content: dict           # JSON parseado
+    - import_type: str             # "chapter" o "fragments"
+    - chapter_slug: str            # Slug del capítulo destino
+    - chapter_data: dict           # Datos del capítulo (si aplica)
+    - fragments: list[dict]        # Lista de fragmentos a procesar
+    - conflicts: list[dict]        # Fragment keys con conflicto
+    - conflict_resolutions: dict   # {fragment_key: "update"|"skip"}
+    - current_conflict_idx: int    # Índice del conflicto actual
+    """
+
+    # Paso 1: Esperando archivo JSON del admin
+    waiting_for_json_file = State()
+
+    # Paso 2: Resolviendo conflictos (opción global)
+    resolving_conflicts = State()
+
+    # Paso 3: Revisando conflicto individual
+    reviewing_single_conflict = State()
+
+    # Paso 4: Esperando confirmación final
+    waiting_for_confirmation = State()
