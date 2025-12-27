@@ -10,10 +10,14 @@ from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.services.container import ServiceContainer
+from bot.middlewares import DatabaseMiddleware
 
 logger = logging.getLogger(__name__)
 
 dynamic_menu_router = Router(name="dynamic_menu")
+
+# Aplicar middleware de database
+dynamic_menu_router.callback_query.middleware(DatabaseMiddleware())
 
 
 @dynamic_menu_router.callback_query(F.data.startswith("menu:"))
