@@ -17,10 +17,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.services.container import ServiceContainer
 from bot.states.admin import MenuConfigStates
 from bot.utils.keyboards import create_inline_keyboard
+from bot.middlewares import AdminAuthMiddleware, DatabaseMiddleware
 
 logger = logging.getLogger(__name__)
 
 menu_config_router = Router(name="menu_config")
+
+# Aplicar middlewares (orden correcto: Database primero, AdminAuth después)
+menu_config_router.message.middleware(DatabaseMiddleware())
+menu_config_router.message.middleware(AdminAuthMiddleware())
+menu_config_router.callback_query.middleware(DatabaseMiddleware())
+menu_config_router.callback_query.middleware(AdminAuthMiddleware())
 
 
 # ═══════════════════════════════════════════════════════════════
