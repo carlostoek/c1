@@ -34,6 +34,11 @@ from bot.gamification.handlers import (
     gamification_user_reactions_router,
     gamification_user_daily_gift_router,
 )
+from bot.shop.handlers import (
+    shop_admin_router,
+    shop_user_router,
+    backpack_router,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +81,11 @@ def register_all_handlers(dispatcher: Dispatcher) -> None:
     dispatcher.include_router(gamification_user_leaderboard_router)
     dispatcher.include_router(gamification_user_reactions_router)
     dispatcher.include_router(gamification_user_daily_gift_router)
+
+    # Registrar routers de tienda
+    dispatcher.include_router(shop_admin_router)
+    dispatcher.include_router(shop_user_router)
+    dispatcher.include_router(backpack_router)
 
     logger.info("Handlers registrados correctamente")
 

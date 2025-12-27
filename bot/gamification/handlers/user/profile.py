@@ -43,12 +43,12 @@ async def show_profile(message: Message, session: AsyncSession, gamification: Ga
         gamification: Container de servicios de gamificación
     """
     try:
-        # Usar helper sin botón de volver (acceso directo desde comando)
+        # Usar helper con botón de volver al menú principal
         summary, keyboard = await build_profile_menu(
             session=session,
             bot=message.bot,
             user_id=message.from_user.id,
-            show_back_button=False
+            show_back_button=True
         )
 
         await message.answer(summary, reply_markup=keyboard, parse_mode="HTML")
@@ -71,12 +71,12 @@ async def show_profile_callback(callback: CallbackQuery, session: AsyncSession, 
         gamification: Container de servicios de gamificación
     """
     try:
-        # Usar helper sin botón de volver (navegación interna)
+        # Usar helper con botón de volver al menú principal
         summary, keyboard = await build_profile_menu(
             session=session,
             bot=callback.bot,
             user_id=callback.from_user.id,
-            show_back_button=False
+            show_back_button=True
         )
 
         await callback.message.edit_text(summary, reply_markup=keyboard, parse_mode="HTML")

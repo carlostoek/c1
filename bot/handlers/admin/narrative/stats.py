@@ -164,31 +164,25 @@ async def callback_stats_by_chapter(
     if not chapters:
         text += "<i>No hay capítulos creados.</i>\n"
     else:
+        # Obtener todas las estadísticas con una única consulta optimizada
+        stats_by_chapter = await narrative.chapter.get_chapter_stats_bulk()
+
         for ch in chapters:
             status = "✅" if ch.is_active else "❌"
             type_emoji = "👑" if ch.chapter_type == ChapterType.VIP else "🆓"
 
-            # Contar fragmentos del capítulo
-            fragments_count = await narrative.chapter.get_chapter_fragments_count(ch.id)
-
-            # Contar decisiones del capítulo
-            fragments = await narrative.fragment.get_fragments_by_chapter(ch.id)
-            decisions_count = 0
-            entry_count = 0
-            ending_count = 0
-
-            for frag in fragments:
-                decisions = await narrative.decision.get_decisions_by_fragment(frag.id)
-                decisions_count += len(decisions)
-                if frag.is_entry_point:
-                    entry_count += 1
-                if frag.is_ending:
-                    ending_count += 1
+            # Obtener estadísticas del diccionario (default 0 si no hay datos)
+            stats = stats_by_chapter.get(ch.id, {
+                'fragments_count': 0,
+                'decisions_count': 0,
+                'entry_count': 0,
+                'ending_count': 0
+            })
 
             text += (
                 f"{status} {type_emoji} <b>{ch.name}</b>\n"
-                f"   📄 {fragments_count} fragmentos | 📋 {decisions_count} decisiones\n"
-                f"   🚪 {entry_count} entry | 🏁 {ending_count} endings\n\n"
+                f"   📄 {stats['fragments_count']} fragmentos | 📋 {stats['decisions_count']} decisiones\n"
+                f"   🚪 {stats['entry_count']} entry | 🏁 {stats['ending_count']} endings\n\n"
             )
 
     keyboard = create_inline_keyboard([

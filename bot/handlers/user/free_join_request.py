@@ -69,6 +69,10 @@ async def handle_free_join_request(
             logger.error(f"❌ Error declinando (canal no autorizado): {e}")
         return
 
+    # Los middlewares globales se encargan de:
+    # - Typing indicator (TypingIndicatorMiddleware)
+    # - Auto-reacción con ❤️ (AutoReactionMiddleware)
+
     # Crear solicitud (verifica duplicados internamente)
     success, message, request = await container.subscription.create_free_request_from_join_request(
         user_id=user_id,
@@ -85,25 +89,37 @@ async def handle_free_join_request(
         except Exception as e:
             logger.error(f"❌ Error declinando duplicada: {e}")
 
-        # Notificar tiempo restante
+        # Notificar tiempo restante con progreso visual
         if request:
+            from bot.utils.formatters import format_progress_with_time
+
             wait_time = await container.config.get_wait_time()
             minutes_since = request.minutes_since_request()
             minutes_remaining = max(0, wait_time - minutes_since)
+
+            # Generar barra de progreso
+            progress_bar = format_progress_with_time(minutes_remaining, wait_time, length=15)
 
             try:
                 await join_request.bot.send_message(
                     chat_id=user_id,
                     text=(
-                        f"⚠️ <b>Solicitud Duplicada</b>\n\n"
-                        f"Ya tienes una solicitud pendiente para el canal {channel_name}.\n\n"
-                        f"⏱️ Tiempo transcurrido: <b>{minutes_since} min</b>\n"
-                        f"⏱️ Tiempo restante: <b>{minutes_remaining} min</b>\n\n"
-                        f"Serás aprobado automáticamente cuando se cumpla el tiempo de espera."
+                        f"ℹ️ <b>Ya Tienes Una Solicitud Pendiente</b>\n\n"
+                        f"📺 Canal: <b>{channel_name}</b>\n\n"
+                        f"No es necesario solicitar de nuevo. Tu solicitud anterior sigue activa:\n\n"
+                        f"<b>Progreso de Aprobación:</b>\n"
+                        f"{progress_bar}\n\n"
+                        f"⏰ <b>Tiempo Estimado:</b>\n"
+                        f"• Tiempo transcurrido: <b>{minutes_since} min</b>\n"
+                        f"• Tiempo restante: <b>{minutes_remaining} min</b>\n"
+                        f"• Total configurado: <b>{wait_time} min</b>\n\n"
+                        f"✅ Serás aprobado <b>automáticamente</b> en {minutes_remaining} minutos.\n"
+                        f"No es necesario hacer nada, solo espera. 🎯"
                     ),
                     parse_mode="HTML"
                 )
-                logger.info(f"✅ Notificación duplicada enviada a user {user_id}")
+
+                logger.info(f"✅ Notificación duplicada enviada a user {user_id} con progreso visual")
             except Exception as e:
                 logger.warning(f"⚠️ No se pudo notificar duplicada a user {user_id}: {e}")
 
@@ -115,20 +131,34 @@ async def handle_free_join_request(
     # Obtener tiempo de espera
     wait_time = await container.config.get_wait_time()
 
-    # Enviar notificación automática
-    notification_sent = await container.subscription.send_free_request_notification(
-        user_id=user_id,
-        user_name=user_name,
-        channel_name=channel_name,
-        wait_time_minutes=wait_time
-    )
+    # Enviar notificación automática mejorada
+    try:
+        await join_request.bot.send_message(
+            chat_id=user_id,
+            text=(
+                f"👋 <b>¡Solicitud de Acceso Free Registrada!</b>\n\n"
+                f"📺 Canal: <b>{channel_name}</b>\n\n"
+                f"✅ Tu solicitud ha sido registrada en el sistema.\n\n"
+                f"⏰ <b>Tiempo de Espera:</b> {wait_time} minutos\n\n"
+                f"<b>¿Qué sucede ahora?</b>\n"
+                f"1. Tu solicitud está en la cola de aprobación\n"
+                f"2. En aproximadamente {wait_time} minutos serás aprobado automáticamente\n"
+                f"3. Recibirás una notificación cuando sea aprobada\n"
+                f"4. Entonces podrás acceder al canal Free\n\n"
+                f"💡 <b>Tips:</b>\n"
+                f"• Mantén el chat abierto para recibir notificaciones\n"
+                f"• No necesitas hacer nada más, es automático\n"
+                f"• Si hay problema, contacta al soporte\n\n"
+                f"¡Gracias por tu paciencia! ⏳"
+            ),
+            parse_mode="HTML"
+        )
 
-    if notification_sent:
         logger.info(
             f"✅ Usuario {user_id} notificado | "
             f"Aprobación automática en {wait_time} min"
         )
-    else:
+    except Exception as e:
         logger.warning(
-            f"⚠️ No se pudo notificar a user {user_id}, pero solicitud registrada"
+            f"⚠️ No se pudo notificar a user {user_id}, pero solicitud registrada: {e}"
         )

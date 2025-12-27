@@ -58,14 +58,19 @@ async def _show_chapters_page(
     page: int = 0,
     edit: bool = True
 ):
-    """Muestra página de capítulos."""
+    """Muestra página de capítulos con paginación a nivel de BD."""
     narrative = NarrativeContainer(session)
-    chapters = await narrative.chapter.get_all_chapters(active_only=False)
 
-    total = len(chapters)
-    start = page * CHAPTERS_PER_PAGE
-    end = start + CHAPTERS_PER_PAGE
-    page_chapters = chapters[start:end]
+    # Obtener total de capítulos con consulta optimizada
+    total = await narrative.chapter.get_chapters_count(active_only=False)
+
+    # Calcular offset y obtener solo los capítulos de la página actual
+    offset = page * CHAPTERS_PER_PAGE
+    page_chapters = await narrative.chapter.get_all_chapters(
+        active_only=False,
+        limit=CHAPTERS_PER_PAGE,
+        offset=offset
+    )
 
     # Header
     text = (
@@ -73,7 +78,7 @@ async def _show_chapters_page(
         f"Total: {total} capítulos\n\n"
     )
 
-    if not chapters:
+    if total == 0:
         text += "<i>No hay capítulos creados.</i>\n"
     else:
         for ch in page_chapters:
@@ -98,7 +103,8 @@ async def _show_chapters_page(
             "text": "⬅️ Anterior",
             "callback_data": f"narrative:chapters:page:{page - 1}"
         })
-    if end < total:
+    # Verificar si hay más páginas
+    if offset + CHAPTERS_PER_PAGE < total:
         pagination.append({
             "text": "Siguiente ➡️",
             "callback_data": f"narrative:chapters:page:{page + 1}"

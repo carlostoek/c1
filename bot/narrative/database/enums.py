@@ -21,6 +21,7 @@ class RequirementType(str, Enum):
     MIN_BESITOS = "besitos" # Besitos mínimos
     ARCHETYPE = "archetype" # Arquetipo específico
     DECISION = "decision"   # Decisión previa tomada
+    ITEM = "item"           # Posee item de la tienda (slug del item)
 
 
 class ArchetypeType(str, Enum):

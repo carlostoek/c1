@@ -188,6 +188,21 @@ class RequirementsService:
                     )
                 return True, None
 
+            # ITEM: Posee item de la tienda
+            elif req_type == RequirementType.ITEM:
+                item_slug = value  # slug del item requerido
+                has_item, item_name = await self._check_item_ownership(
+                    user_id,
+                    item_slug
+                )
+                if not has_item:
+                    return False, (
+                        requirement.rejection_message or
+                        f"🎒 Necesitas el artefacto '{item_name or item_slug}' para continuar.\n\n"
+                        f"Visita la tienda para obtenerlo."
+                    )
+                return True, None
+
             else:
                 logger.warning(f"⚠️ Tipo de requisito desconocido: {req_type}")
                 return False, "Requisito no válido"
@@ -370,6 +385,39 @@ class RequirementsService:
         except Exception as e:
             logger.error(f"❌ Error verificando decisión: {e}")
             return False
+
+    async def _check_item_ownership(
+        self,
+        user_id: int,
+        item_slug: str
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Verifica si usuario posee un item de la tienda.
+
+        Args:
+            user_id: ID del usuario
+            item_slug: Slug del item requerido
+
+        Returns:
+            Tupla (tiene_item, nombre_item)
+        """
+        try:
+            from bot.shop.services.container import get_shop_container
+
+            shop = get_shop_container(self._session)
+
+            # Verificar posesión por slug
+            has_item = await shop.inventory.has_item_by_slug(user_id, item_slug)
+
+            # Obtener nombre del item para el mensaje
+            item = await shop.shop.get_item_by_slug(item_slug)
+            item_name = item.name if item else None
+
+            return has_item, item_name
+
+        except Exception as e:
+            logger.error(f"❌ Error verificando posesión de item: {e}")
+            return False, None
 
     async def get_accessible_fragments(
         self,

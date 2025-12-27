@@ -126,7 +126,8 @@ async def build_profile_menu(
             {"text": "📋 Mis Misiones", "callback_data": "user:missions"},
             {"text": "🎁 Recompensas", "callback_data": "user:rewards"}
         ],
-        [{"text": "🏆 Leaderboard", "callback_data": "user:leaderboard"}]
+        [{"text": "🏆 Leaderboard", "callback_data": "user:leaderboard"}],
+        [{"text": "🎒 Mi Mochila", "callback_data": "backpack:main"}]
     ]
 
     # Obtener botones dinámicos configurados para "profile"
