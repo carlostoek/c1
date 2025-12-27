@@ -22,6 +22,13 @@ Guía completa de arquitectura, configuración, uso y desarrollo del bot de admi
 - **[SERVICES.md](./SERVICES.md)** - Documentación de servicios y lógica de negocio
 - **[API.md](./API.md)** - API interna, métodos principales y dependencias
 
+### Módulo Narrativo
+- **[narrativa/README.md](./narrativa/README.md)** - Documentación general del módulo narrativo
+- **[narrativa/API.md](./narrativa/API.md)** - Referencia de API del módulo narrativo
+- **[narrativa/SETUP.md](./narrativa/SETUP.md)** - Guía de instalación del módulo narrativo
+- **[narrativa/HANDLERS.md](./narrativa/HANDLERS.md)** - Documentación de handlers narrativos
+- **[narrativa/DATABASE.md](./narrativa/DATABASE.md)** - Documentación de modelos narrativos
+
 ### Operación y Mantenimiento
 - **[TESTING.md](./TESTING.md)** - Guía de testing y configuración
 - **[MAINTENANCE.md](./MAINTENANCE.md)** - Procedimientos de mantenimiento y troubleshooting

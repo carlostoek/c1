@@ -489,6 +489,17 @@ Sistema que permite a los administradores configurar dinámicamente los menús v
 - **Activación/desactivación:** Control granular sobre visibilidad de botones
 - **Integración con usuarios:** Menús se generan dinámicamente según rol del usuario
 
+### Narrative Module (T35)
+Sistema de historias interactivas con decisiones del usuario, requisitos de acceso y tracking de progreso:
+
+- **Capítulos y fragmentos narrativos:** Estructura modular para contenido narrativo
+- **Decisiones del usuario:** Ramificaciones narrativas basadas en elecciones del usuario
+- **Requisitos de acceso:** Control de acceso basado en VIP, besitos o arquetipo
+- **Tracking de progreso:** Registro del avance del usuario en la narrativa
+- **Detección de arquetipos:** Análisis de patrones de decisión para identificar tipo de usuario
+- **Integración con gamificación:** Recompensas y misiones vinculadas a la narrativa
+- **Sistema de recompensas:** Besitos, misiones y niveles por completar fragmentos
+
 **Ejemplo de uso de las background tasks:**
 ```python
 from aiogram import Bot
