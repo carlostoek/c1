@@ -8,11 +8,34 @@ sqlite3.OperationalError: no such column: narrative_fragments.extra_metadata
 ```
 
 ### Causa Raíz
-El proyecto usa `Base.metadata.create_all()` en `bot/database/engine.py` para crear tablas, pero **NO ejecuta automáticamente las migraciones de Alembic** que modifican columnas existentes.
+El proyecto usa `Base.metadata.create_all()` en `bot/database/engine.py` para crear tablas.
+
+**Comportamiento de `create_all()`:**
+- ✅ **BD Nueva:** Crea todas las tablas con el esquema actual del modelo (funciona correctamente)
+- ❌ **BD Existente:** NO modifica tablas existentes, solo crea las que faltan
+- ❌ **NO ejecuta migraciones de Alembic** para cambios en tablas existentes
+
+**Por qué ocurrió el error:**
+1. La tabla `narrative_fragments` ya existía en la BD
+2. Fue creada con una versión antigua del modelo (sin `extra_metadata`)
+3. Se agregó el campo `extra_metadata` al modelo Python
+4. `create_all()` no modificó la tabla existente
+5. SQLAlchemy esperaba la columna pero no existía en la BD física
 
 ### Solución Aplicada
 ```bash
+# Fix manual para bases de datos existentes
 sqlite3 bot.db "ALTER TABLE narrative_fragments ADD COLUMN extra_metadata JSON;"
+```
+
+### Verificación (BD desde cero)
+✅ **Confirmado:** Si borras `bot.db` y reinicias el bot, la columna `extra_metadata` se crea automáticamente.
+```bash
+# Test realizado 2025-12-28
+rm bot.db
+python main.py  # Crea BD desde cero
+sqlite3 bot.db "PRAGMA table_info(narrative_fragments);"
+# Resultado: columna extra_metadata presente (posición 12)
 ```
 
 ## Arquitectura Actual
@@ -127,6 +150,42 @@ for table in narrative_chapters narrative_fragments fragment_decisions fragment_
 done
 ```
 
+## FAQ - Preguntas Frecuentes
+
+### ¿Si borro la BD y reinicio el bot, se crea el campo correctamente?
+
+**Respuesta:** ✅ **SÍ**, completamente.
+
+Cuando inicializas la base de datos desde cero:
+1. `Base.metadata.create_all()` lee los modelos actuales de SQLAlchemy
+2. Crea todas las tablas con todos los campos definidos en los modelos
+3. Incluye campos nuevos como `extra_metadata`
+
+**El problema solo ocurre en bases de datos existentes** creadas antes de que se agregara el campo al modelo.
+
+### ¿Cuándo necesito aplicar migraciones manualmente?
+
+Solo cuando:
+1. Ya tienes una base de datos con datos
+2. Se modifica el esquema de una tabla existente en el modelo
+3. Quieres preservar los datos existentes
+
+**No necesitas migraciones manuales si:**
+- Empiezas con una BD nueva (el bot la crea correctamente)
+- Solo se agregan tablas nuevas (no modificaciones a existentes)
+
+### ¿Cómo saber si necesito aplicar una migración?
+
+Si ves errores como:
+```
+sqlite3.OperationalError: no such column: table_name.column_name
+```
+
+Entonces:
+1. Verifica que el campo existe en el modelo Python
+2. Verifica que NO existe en la tabla física: `sqlite3 bot.db "PRAGMA table_info(table_name);"`
+3. Aplica el cambio con `ALTER TABLE` o ejecuta la migración de Alembic
+
 ## Notas Importantes
 
 1. **SQLite y ALTER TABLE:** SQLite tiene limitaciones con `ALTER TABLE`. Solo soporta:
@@ -144,6 +203,8 @@ done
    ```bash
    cp bot.db bot.db.backup.$(date +%Y%m%d_%H%M%S)
    ```
+
+4. **Verificación después de `create_all()`:** El sistema crea correctamente todas las columnas cuando la BD es nueva. Verificado 2025-12-28.
 
 ## Referencias
 
