@@ -63,7 +63,7 @@ class FragmentVariant(Base):
     media_file_id_override: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # Decisiones adicionales para esta variante (JSON array de decision objects)
-    additional_decisions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    additional_decisions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     # Estado
     is_active: Mapped[bool] = mapped_column(default=True)
@@ -185,10 +185,10 @@ class FragmentChallenge(Base):
     question_image_file_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # Respuestas correctas (JSON array para múltiples respuestas válidas)
-    correct_answers: Mapped[str] = mapped_column(Text)  # JSON: ["7", "siete", "seven"]
+    correct_answers: Mapped[list] = mapped_column(JSON)  # ["7", "siete", "seven"]
 
     # Pistas progresivas (JSON array ordenado por dificultad)
-    hints: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    hints: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     # Configuración
     attempts_allowed: Mapped[int] = mapped_column(default=3)  # 0 = infinitos
@@ -197,6 +197,9 @@ class FragmentChallenge(Base):
     # Qué pasa si falla
     failure_redirect_key: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     failure_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Qué pasa si tiene éxito
+    success_redirect_key: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # Recompensa por éxito
     success_clue_slug: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Item slug
@@ -261,13 +264,13 @@ class FragmentTimeWindow(Base):
     )
 
     # Horas disponibles (JSON array: [20, 21, 22, 23] = 8PM-12AM)
-    available_hours: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    available_hours: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     # Días de la semana (JSON array: [0, 1, 2, 3, 4, 5, 6] = Lun-Dom)
-    available_days: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    available_days: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     # Fechas especiales (JSON array: ["2024-02-14", "2024-12-25"])
-    special_dates: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    special_dates: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     # Si special_dates está definido, ¿es inclusivo (solo esas fechas) o exclusivo (no esas fechas)?
     special_dates_inclusive: Mapped[bool] = mapped_column(default=True)

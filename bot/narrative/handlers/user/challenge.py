@@ -268,12 +268,16 @@ async def process_challenge_answer(
         challenge = await container.challenge.get_challenge_by_id(challenge_id)
         next_key = None
         if challenge:
-            # Buscar decisión que lleva adelante desde este fragmento
-            decisions = await container.decision.get_available_decisions(
-                challenge.fragment_key
-            )
-            if decisions:
-                next_key = decisions[0].target_fragment_key
+            # Usar success_redirect_key si está definido, sino buscar primera decisión (fallback)
+            if challenge.success_redirect_key:
+                next_key = challenge.success_redirect_key
+            else:
+                # Fallback: buscar primera decisión disponible
+                decisions = await container.decision.get_available_decisions(
+                    challenge.fragment_key
+                )
+                if decisions:
+                    next_key = decisions[0].target_fragment_key
 
         keyboard = build_result_keyboard(
             success=True,

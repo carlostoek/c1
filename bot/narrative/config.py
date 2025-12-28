@@ -4,6 +4,8 @@ Configuración del módulo de narrativa inmersiva.
 Define valores por defecto para cooldowns, límites y mecánicas
 de slowdown que controlan el ritmo de la experiencia narrativa.
 """
+import random
+from datetime import datetime
 from typing import Dict, Any
 
 
@@ -148,7 +150,6 @@ class NarrativeConfig:
         Returns:
             Mensaje aleatorio
         """
-        import random
         messages = cls.COOLDOWN_MESSAGES.get(cooldown_type, [])
         if messages:
             return random.choice(messages)
@@ -162,7 +163,6 @@ class NarrativeConfig:
         Returns:
             Nombre del período (morning, afternoon, evening, night)
         """
-        from datetime import datetime
         hour = datetime.utcnow().hour
 
         for period, (start, end) in cls.TIME_WINDOWS.items():

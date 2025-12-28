@@ -15,6 +15,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    JSON,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -87,7 +88,10 @@ class NarrativeFragment(Base):
     # Estado
     is_active: Mapped[bool] = mapped_column(default=True)
 
-    # Metadata
+    # Metadata adicional (JSON para información extra como grants_clue, etc.)
+    metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    # Metadata de timestamps
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     # Relationships

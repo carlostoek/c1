@@ -74,8 +74,10 @@ class ClueService:
             logger.debug(f"Usuario {user_id} ya tiene la pista {clue_slug}")
             return True, "Ya tienes esta pista", None
 
-        # Obtener o crear inventario del usuario
-        inventory = await self._get_or_create_inventory(user_id)
+        # Obtener o crear inventario del usuario usando el servicio compartido
+        from bot.shop.services.inventory import InventoryService
+        inventory_service = InventoryService(self._session)
+        inventory = await inventory_service.get_or_create_inventory(user_id)
 
         # Crear item en inventario
         inv_item = UserInventoryItem(
@@ -382,23 +384,4 @@ class ClueService:
     # ========================================
     # HELPERS PRIVADOS
     # ========================================
-
-    async def _get_or_create_inventory(
-        self,
-        user_id: int
-    ) -> UserInventory:
-        """Obtiene o crea inventario del usuario."""
-        stmt = select(UserInventory).where(UserInventory.user_id == user_id)
-        result = await self._session.execute(stmt)
-        inventory = result.scalar_one_or_none()
-
-        if inventory is None:
-            inventory = UserInventory(
-                user_id=user_id,
-                total_items=0,
-                total_spent=0
-            )
-            self._session.add(inventory)
-            await self._session.flush()
-
-        return inventory
+    # (Removed _get_or_create_inventory - now using InventoryService)

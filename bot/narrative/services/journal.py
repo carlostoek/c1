@@ -11,7 +11,7 @@ import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, case, outerjoin
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.narrative.database.models import (
@@ -76,50 +76,67 @@ class JournalService:
         Returns:
             Lista de capítulos con progreso
         """
-        # Obtener capítulos
-        stmt = select(NarrativeChapter).where(
-            NarrativeChapter.is_active == True
-        ).order_by(NarrativeChapter.order)
+        # Optimized query using GROUP BY and JOINs to avoid N+1 queries
+        # Build subquery for fragment counts
+        frag_counts = (
+            select(
+                NarrativeFragment.chapter_id,
+                func.count(NarrativeFragment.id).label('total_fragments')
+            )
+            .where(NarrativeFragment.is_active == True)
+            .group_by(NarrativeFragment.chapter_id)
+            .subquery()
+        )
+
+        # Build subquery for visited fragment counts
+        visit_counts = (
+            select(
+                NarrativeFragment.chapter_id,
+                func.count(func.distinct(UserFragmentVisit.fragment_key)).label('visited_fragments')
+            )
+            .select_from(UserFragmentVisit)
+            .join(
+                NarrativeFragment,
+                UserFragmentVisit.fragment_key == NarrativeFragment.fragment_key
+            )
+            .where(UserFragmentVisit.user_id == user_id)
+            .group_by(NarrativeFragment.chapter_id)
+            .subquery()
+        )
+
+        # Main query joining everything together
+        stmt = (
+            select(
+                NarrativeChapter,
+                func.coalesce(frag_counts.c.total_fragments, 0).label('total_fragments'),
+                func.coalesce(visit_counts.c.visited_fragments, 0).label('visited_fragments'),
+                ChapterCompletion.completed_at
+            )
+            .outerjoin(frag_counts, NarrativeChapter.id == frag_counts.c.chapter_id)
+            .outerjoin(visit_counts, NarrativeChapter.id == visit_counts.c.chapter_id)
+            .outerjoin(
+                ChapterCompletion,
+                and_(
+                    ChapterCompletion.user_id == user_id,
+                    ChapterCompletion.chapter_slug == NarrativeChapter.slug
+                )
+            )
+            .where(NarrativeChapter.is_active == True)
+            .order_by(NarrativeChapter.order)
+        )
 
         if chapter_id:
             stmt = stmt.where(NarrativeChapter.id == chapter_id)
 
         result = await self._session.execute(stmt)
-        chapters = list(result.scalars().all())
+        rows = result.all()
 
         progress_list = []
-
-        for chapter in chapters:
-            # Contar fragmentos del capítulo
-            frag_stmt = select(func.count()).where(
-                and_(
-                    NarrativeFragment.chapter_id == chapter.id,
-                    NarrativeFragment.is_active == True
-                )
-            )
-            frag_result = await self._session.execute(frag_stmt)
-            total_fragments = frag_result.scalar() or 0
-
-            # Contar fragmentos visitados
-            visit_stmt = (
-                select(func.count(UserFragmentVisit.id.distinct()))
-                .select_from(UserFragmentVisit)
-                .join(
-                    NarrativeFragment,
-                    UserFragmentVisit.fragment_key == NarrativeFragment.fragment_key
-                )
-                .where(
-                    and_(
-                        UserFragmentVisit.user_id == user_id,
-                        NarrativeFragment.chapter_id == chapter.id
-                    )
-                )
-            )
-            visit_result = await self._session.execute(visit_stmt)
-            visited_fragments = visit_result.scalar() or 0
-
-            # Verificar si completado
-            completion = await self._get_chapter_completion(user_id, chapter.slug)
+        for row in rows:
+            chapter = row[0]
+            total_fragments = row[1]
+            visited_fragments = row[2]
+            completed_at = row[3]
 
             progress_list.append({
                 "chapter_id": chapter.id,
@@ -133,8 +150,8 @@ class JournalService:
                     (visited_fragments / total_fragments * 100) if total_fragments > 0 else 0,
                     1
                 ),
-                "is_completed": completion is not None,
-                "completed_at": completion.completed_at if completion else None,
+                "is_completed": completed_at is not None,
+                "completed_at": completed_at,
             })
 
         return progress_list
@@ -401,35 +418,20 @@ class JournalService:
         fragment_key: str
     ) -> bool:
         """
-        Verifica si el fragmento es accesible.
+        Verifica si el fragmento es accesible para el usuario.
 
-        Simplificación: si no tiene requisitos, es accesible.
-        Si tiene requisitos, verificar con RequirementsService.
+        Utiliza RequirementsService para validar todos los requisitos.
         """
-        # Obtener fragmento con requisitos
-        stmt = select(NarrativeFragment).where(
-            NarrativeFragment.fragment_key == fragment_key
+        # Usar RequirementsService para validar requisitos
+        from bot.narrative.services.requirements import RequirementsService
+
+        requirements_service = RequirementsService(self._session)
+        can_access, _ = await requirements_service.can_access_fragment(
+            user_id=user_id,
+            fragment_key=fragment_key
         )
-        result = await self._session.execute(stmt)
-        fragment = result.scalar_one_or_none()
 
-        if not fragment:
-            return False
-
-        # Verificar requisitos
-        req_stmt = select(FragmentRequirement).where(
-            FragmentRequirement.fragment_id == fragment.id
-        )
-        req_result = await self._session.execute(req_stmt)
-        requirements = list(req_result.scalars().all())
-
-        if not requirements:
-            # Sin requisitos = accesible
-            return True
-
-        # TODO: Usar RequirementsService para verificar cada requisito
-        # Por ahora, asumimos que si tiene requisitos está bloqueado
-        return False
+        return can_access
 
     async def _get_blocking_reasons(
         self,

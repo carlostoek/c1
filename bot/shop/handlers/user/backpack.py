@@ -17,11 +17,12 @@ from typing import Optional, List, Dict, Any
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.shop.services.container import ShopContainer
 from bot.shop.database.enums import ItemType, ItemRarity, ObtainedVia
-from bot.shop.database.models import UserInventoryItem
+from bot.shop.database.models import UserInventoryItem, ShopItem
 
 logger = logging.getLogger(__name__)
 
@@ -185,18 +186,44 @@ def _build_item_actions_keyboard(
 
 
 async def _get_special_counts(container, user_id: int) -> tuple[int, int]:
-    """Obtiene conteo de pistas y recompensas."""
-    items = await container.inventory.get_inventory_items(user_id)
+    """
+    Obtiene conteo de pistas y recompensas usando queries eficientes.
 
-    clues_count = 0
-    rewards_count = 0
+    Optimizado para evitar cargar todos los items en memoria.
+    """
+    session = container._session
 
-    for inv_item in items:
-        item = inv_item.item
-        if _is_clue_item(item):
-            clues_count += 1
-        if inv_item.obtained_via == ObtainedVia.REWARD:
-            rewards_count += 1
+    # Contar recompensas - simple query por obtained_via
+    rewards_stmt = (
+        select(func.count())
+        .select_from(UserInventoryItem)
+        .where(
+            and_(
+                UserInventoryItem.user_id == user_id,
+                UserInventoryItem.obtained_via == ObtainedVia.REWARD.value
+            )
+        )
+    )
+    rewards_result = await session.execute(rewards_stmt)
+    rewards_count = rewards_result.scalar() or 0
+
+    # Contar pistas - require JOIN con ShopItem y filtrado por tipo NARRATIVE
+    # Usamos JSON extract para verificar is_clue en metadata
+    clues_stmt = (
+        select(func.count())
+        .select_from(UserInventoryItem)
+        .join(ShopItem, UserInventoryItem.item_id == ShopItem.id)
+        .where(
+            and_(
+                UserInventoryItem.user_id == user_id,
+                ShopItem.item_type == ItemType.NARRATIVE.value,
+                # SQLite json_extract: verificar si item_metadata contiene is_clue: true
+                func.json_extract(ShopItem.item_metadata, '$.is_clue') == True
+            )
+        )
+    )
+    clues_result = await session.execute(clues_stmt)
+    clues_count = clues_result.scalar() or 0
 
     return clues_count, rewards_count
 
@@ -747,7 +774,7 @@ async def callback_clue_detail(callback: CallbackQuery, session: AsyncSession):
         buttons.append([
             InlineKeyboardButton(
                 text="📖 Ver fragmento origen",
-                callback_data=f"narr:goto:{source_fragment}"
+                callback_data=f"story:goto:{source_fragment}"
             )
         ])
 

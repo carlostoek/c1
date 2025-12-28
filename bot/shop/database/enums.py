@@ -113,7 +113,7 @@ class NarrativeItemMetadata(TypedDict, total=False):
     clue_icon: Optional[str]              # Emoji específico de la pista
 
 
-class ObtainedVia:
+class ObtainedVia(str, Enum):
     """Modos de obtención de items en el inventario."""
 
     PURCHASE = "purchase"       # Comprado en tienda
