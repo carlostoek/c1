@@ -11,6 +11,21 @@ from bot.narrative.database.models import (
     UserDecisionHistory,
 )
 
+from bot.narrative.database.models_immersive import (
+    FragmentVariant,
+    UserFragmentVisit,
+    NarrativeCooldown,
+    FragmentChallenge,
+    UserChallengeAttempt,
+    FragmentTimeWindow,
+    ChapterCompletion,
+    DailyNarrativeLimit,
+)
+from bot.narrative.database.onboarding_models import (
+    UserOnboardingProgress,
+    OnboardingFragment,
+)
+
 __all__ = [
     # Enums
     "ChapterType",
@@ -23,4 +38,17 @@ __all__ = [
     "FragmentRequirement",
     "UserNarrativeProgress",
     "UserDecisionHistory",
+    # Models - Immersive
+    "FragmentVariant",
+    "UserFragmentVisit",
+    "NarrativeCooldown",
+    "FragmentChallenge",
+    "UserChallengeAttempt",
+    "FragmentTimeWindow",
+    "ChapterCompletion",
+    "DailyNarrativeLimit",
+    # Models - Onboarding
+    "UserOnboardingProgress",
+    "OnboardingFragment",
+>>>>>>> eb7f3f8 (feat: Sistema de onboarding narrativo post-aprobación Free)
 ]
