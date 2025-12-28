@@ -11,7 +11,9 @@ from bot.gamification.handlers.admin import (
     mission_config,
     reward_config,
     reaction_config,
-    daily_gift_config
+    daily_gift_config,
+    unified_wizard,
+    config_panel
 )
 from bot.gamification.handlers.user import (
     profile,
@@ -34,6 +36,8 @@ gamification_mission_config_router = mission_config.router
 gamification_reward_config_router = reward_config.router
 gamification_reaction_config_router = reaction_config.router
 gamification_daily_gift_config_router = daily_gift_config.router
+gamification_unified_wizard_router = unified_wizard.router
+gamification_config_panel_router = config_panel.router
 
 # Exportar routers user
 gamification_user_profile_router = profile.router
@@ -55,6 +59,8 @@ __all__ = [
     "gamification_reward_config_router",
     "gamification_reaction_config_router",
     "gamification_daily_gift_config_router",
+    "gamification_unified_wizard_router",
+    "gamification_config_panel_router",
     "gamification_user_profile_router",
     "gamification_user_missions_router",
     "gamification_user_rewards_router",

@@ -110,6 +110,19 @@ class JsonImportService:
         fragments = []
         conflicts = []
 
+        # 0. Validar que sea un diccionario
+        if not isinstance(json_content, dict):
+            errors.append(
+                f"El JSON debe ser un objeto (diccionario), no {type(json_content).__name__}. "
+                f"Asegúrate de usar la estructura correcta con 'type' y 'fragments'."
+            )
+            return ValidationResult(
+                is_valid=False,
+                import_type=None,
+                errors=errors,
+                warnings=warnings,
+            )
+
         # 1. Validar campo "type"
         import_type_str = json_content.get("type")
         if import_type_str not in ["chapter", "fragments"]:

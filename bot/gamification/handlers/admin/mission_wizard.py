@@ -149,13 +149,16 @@ async def enter_mission_description(message: Message, state: FSMContext):
         await state.set_state(MissionWizardStates.enter_weekly_target)
 
     elif mission_type == MissionType.ONE_TIME:
+        # ONE_TIME solo necesita type, no count (se completa manualmente)
+        await state.update_data(criteria={'type': 'one_time'})
+
         await message.answer(
             "✅ Descripción guardada\n\n"
-            "¿Cuántas reacciones se requieren para completar?\n\n"
-            "Ejemplo: 100",
+            "Paso 3/6: ¿Cuántos besitos otorgará al completarla?\n\n"
+            "<i>Nota: Esta misión se completará manualmente por el usuario.</i>",
             parse_mode="HTML"
         )
-        await state.set_state(MissionWizardStates.enter_specific_reaction)
+        await state.set_state(MissionWizardStates.enter_besitos_reward)
 
 
 # ========================================
@@ -208,42 +211,30 @@ async def enter_daily_count(message: Message, state: FSMContext):
 async def enter_weekly_target(message: Message, state: FSMContext):
     """Procesa objetivo semanal."""
     try:
-        count = int(message.text)
-        if count <= 0:
+        target = int(message.text)
+        if target <= 0:
             raise ValueError
     except ValueError:
         await message.answer("❌ Debe ser un número positivo")
         return
 
-    await state.update_data(criteria={'type': 'weekly', 'count': count})
+    await state.update_data(criteria={'type': 'weekly', 'target': target})
 
     await message.answer(
-        f"✅ Criterio: <b>{count} reacciones semanales</b>\n\n"
+        f"✅ Criterio: <b>{target} reacciones semanales</b>\n\n"
         f"Paso 3/6: ¿Cuántos besitos otorgará al completarla?",
         parse_mode="HTML"
     )
     await state.set_state(MissionWizardStates.enter_besitos_reward)
 
 
-@router.message(MissionWizardStates.enter_specific_reaction)
-async def enter_one_time_count(message: Message, state: FSMContext):
-    """Procesa cantidad para misión de una vez."""
-    try:
-        count = int(message.text)
-        if count <= 0:
-            raise ValueError
-    except ValueError:
-        await message.answer("❌ Debe ser un número positivo")
-        return
-
-    await state.update_data(criteria={'type': 'one_time', 'count': count})
-
-    await message.answer(
-        f"✅ Criterio: <b>{count} reacciones totales</b>\n\n"
-        f"Paso 3/6: ¿Cuántos besitos otorgará al completarla?",
-        parse_mode="HTML"
-    )
-    await state.set_state(MissionWizardStates.enter_besitos_reward)
+# NOTA: ONE_TIME ya no necesita este handler porque no pide count
+# (se completa manualmente, solo requiere type en criteria)
+#
+# @router.message(MissionWizardStates.enter_specific_reaction)
+# async def enter_one_time_count(message: Message, state: FSMContext):
+#     """Procesa cantidad para misión de una vez."""
+#     pass
 
 
 # ========================================
