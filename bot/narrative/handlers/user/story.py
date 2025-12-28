@@ -572,32 +572,16 @@ async def show_fragment(
     await container.engagement.record_visit(user_id, fragment_key)
     await container.engagement.increment_fragments_viewed(user_id)
 
-    # 4. Verificar si el fragmento otorga pista
-    fragment = await container.fragment.get_fragment(fragment_key)
-    if fragment and hasattr(fragment, 'metadata') and fragment.metadata:
-        import json
-        try:
-            metadata = json.loads(fragment.metadata) if isinstance(fragment.metadata, str) else fragment.metadata
-            if metadata.get("grants_clue"):
-                clue_slug = metadata.get("grants_clue")
-                await container.clue.grant_clue_from_fragment(
-                    user_id=user_id,
-                    clue_slug=clue_slug,
-                    fragment_key=fragment_key
-                )
-        except Exception as e:
-            logger.warning(f"Error procesando metadata de fragmento: {e}")
-
-    # 5. Obtener decisiones disponibles
+    # 4. Obtener decisiones disponibles
     decisions = await container.decision.get_available_decisions(fragment_key, user_id)
 
-    # 6. Formatear contenido
+    # 5. Formatear contenido
     content = format_fragment_content(
         fragment_data,
         is_return_visit=not is_first_visit
     )
 
-    # 7. Construir teclado
+    # 6. Construir teclado
     keyboard = build_decisions_keyboard(
         decisions=decisions,
         additional_decisions=fragment_data.get("additional_decisions"),
@@ -605,7 +589,7 @@ async def show_fragment(
         fragment_key=fragment_key
     )
 
-    # 8. Enviar o editar mensaje
+    # 7. Enviar o editar mensaje
     if is_new_message:
         await message.answer(
             content,
