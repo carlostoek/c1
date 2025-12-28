@@ -38,7 +38,7 @@ def upgrade() -> None:
         sa.Column('besitos_granted', sa.Integer(), default=0, nullable=False),
         sa.Column('started_at', sa.DateTime(), nullable=True),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.current_timestamp()),
     )
 
     # ============================================================
@@ -53,8 +53,8 @@ def upgrade() -> None:
         sa.Column('content', sa.Text(), nullable=False),
         sa.Column('decisions', sa.Text(), nullable=True),
         sa.Column('is_active', sa.Boolean(), default=True, nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.current_timestamp()),
+        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.func.current_timestamp(), onupdate=sa.func.current_timestamp()),
     )
     op.create_index('idx_onboarding_step', 'onboarding_fragments', ['step'])
 

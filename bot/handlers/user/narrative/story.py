@@ -13,6 +13,7 @@ from typing import Optional, List, Tuple
 
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.handlers.user.narrative import narrative_router
@@ -55,7 +56,6 @@ async def callback_start_story(
     # Verificar si completó onboarding (obligatorio para acceder a la historia)
     if not await narrative.onboarding.has_completed_onboarding(user_id):
         logger.info(f"🚫 Usuario {user_id} no ha completado onboarding, bloqueando acceso")
-        from aiogram.utils.keyboard import InlineKeyboardBuilder
         keyboard = InlineKeyboardBuilder()
         keyboard.button(text="📖 Iniciar Tutorial", callback_data="onboard:start")
         keyboard.button(text="🔙 Volver", callback_data="profile:back")

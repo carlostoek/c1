@@ -9,7 +9,6 @@ Responsabilidades:
 - Desbloquear acceso a narrativa completa
 """
 
-import json
 import logging
 from typing import Optional, List, Dict, Any
 
@@ -300,10 +299,7 @@ async def _complete_onboarding(
     # Marcar como completado
     await narrative.onboarding.mark_onboarding_completed(user_id)
 
-    # IMPORTANTE: Commit para persistir los cambios
-    await session.commit()
-
-    logger.info(f"✅ Onboarding persistido en BD para usuario {user_id}")
+    logger.info(f"✅ Onboarding completado para usuario {user_id}")
 
     # Obtener arquetipo detectado
     archetype = await narrative.onboarding.get_detected_archetype(user_id)
@@ -347,25 +343,19 @@ def _build_decisions_keyboard(
             callback_data=f"onboard:decision:{step}:0"
         )
     else:
-        try:
-            decisions = json.loads(fragment.decisions)
-            for i, decision in enumerate(decisions):
-                text = decision.get("text", "Opción")
+        decisions = fragment.decisions
+        for i, decision in enumerate(decisions):
+            text = decision.get("text", "Opción")
 
-                # Si tiene callback personalizado (paso 5)
-                custom_callback = decision.get("callback")
-                if custom_callback:
-                    keyboard.button(text=text, callback_data=custom_callback)
-                else:
-                    keyboard.button(
-                        text=text,
-                        callback_data=f"onboard:decision:{step}:{i}"
-                    )
-        except json.JSONDecodeError:
-            keyboard.button(
-                text="Continuar ➡️",
-                callback_data=f"onboard:decision:{step}:0"
-            )
+            # Si tiene callback personalizado (paso 5)
+            custom_callback = decision.get("callback")
+            if custom_callback:
+                keyboard.button(text=text, callback_data=custom_callback)
+            else:
+                keyboard.button(
+                    text=text,
+                    callback_data=f"onboard:decision:{step}:{i}"
+                )
 
     keyboard.adjust(1)
     return keyboard.as_markup()

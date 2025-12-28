@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import BigInteger, String, Boolean, Integer, Text, JSON
+from sqlalchemy.sql import func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from bot.database.base import Base
@@ -43,13 +44,13 @@ class UserOnboardingProgress(Base):
     current_step: Mapped[int] = mapped_column(Integer, default=0)
 
     # Detección de arquetipo durante onboarding
-    archetype_scores: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True
+    archetype_scores: Mapped[Optional[dict]] = mapped_column(
+        JSON, nullable=True
     )  # JSON: {"IMPULSIVE": 5, "CONTEMPLATIVE": 0, "SILENT": 0}
 
     # Decisiones tomadas (para análisis y personalización)
-    decisions_made: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True
+    decisions_made: Mapped[Optional[list]] = mapped_column(
+        JSON, nullable=True
     )  # JSON: [{"step": 1, "choice": 0, "archetype": "IMPULSIVE"}, ...]
 
     # Recompensas otorgadas
@@ -58,7 +59,7 @@ class UserOnboardingProgress(Base):
     # Timestamps
     started_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.current_timestamp())
 
     def __repr__(self) -> str:
         status = "completed" if self.completed else f"step {self.current_step}"
@@ -105,15 +106,15 @@ class OnboardingFragment(Base):
 
     # Decisiones como JSON array
     # Format: [{"text": "opción", "archetype_hint": "IMPULSIVE"}, ...]
-    decisions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    decisions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     # Estado
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Metadata
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.current_timestamp())
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow
+        server_default=func.current_timestamp(), onupdate=func.current_timestamp()
     )
 
     def __repr__(self) -> str:

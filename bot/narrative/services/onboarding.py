@@ -4,7 +4,6 @@ Servicio de gestión del onboarding narrativo.
 Maneja el flujo de introducción de nuevos usuarios al sistema narrativo,
 incluyendo detección de arquetipo y otorgamiento de besitos iniciales.
 """
-import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
@@ -17,6 +16,8 @@ from bot.narrative.database.onboarding_models import (
     OnboardingFragment,
 )
 from bot.narrative.database.enums import ArchetypeType
+from bot.gamification.services.container import GamificationContainer
+from bot.gamification.database.enums import TransactionType
 
 logger = logging.getLogger(__name__)
 
@@ -77,14 +78,13 @@ class OnboardingService:
                 started=False,
                 completed=False,
                 current_step=0,
-                archetype_scores=json.dumps({
+                archetype_scores={
                     "IMPULSIVE": 0,
                     "CONTEMPLATIVE": 0,
                     "SILENT": 0
-                }),
-                decisions_made=json.dumps([]),
-                besitos_granted=0,
-                created_at=datetime.now(timezone.utc)
+                },
+                decisions_made=[],
+                besitos_granted=0
             )
             self._session.add(progress)
             await self._session.flush()
@@ -178,20 +178,20 @@ class OnboardingService:
         progress = await self.get_or_create_progress(user_id)
 
         # Registrar decisión
-        decisions = json.loads(progress.decisions_made or "[]")
+        decisions = progress.decisions_made or []
         decisions.append({
             "step": step,
             "choice": choice_index,
             "archetype": archetype_hint,
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
-        progress.decisions_made = json.dumps(decisions)
+        progress.decisions_made = decisions
 
         # Actualizar puntuaciones de arquetipo
-        if archetype_hint and archetype_hint in ["IMPULSIVE", "CONTEMPLATIVE", "SILENT"]:
-            scores = json.loads(progress.archetype_scores or "{}")
+        if archetype_hint and archetype_hint in {ArchetypeType.IMPULSIVE.value, ArchetypeType.CONTEMPLATIVE.value, ArchetypeType.SILENT.value}:
+            scores = progress.archetype_scores or {}
             scores[archetype_hint] = scores.get(archetype_hint, 0) + 5
-            progress.archetype_scores = json.dumps(scores)
+            progress.archetype_scores = scores
 
         await self._session.flush()
         logger.debug(
@@ -230,12 +230,12 @@ class OnboardingService:
 
         # Otorgar besitos reales usando el servicio de gamificación
         try:
-            from bot.gamification.services.container import GamificationContainer
             gamification = GamificationContainer(self._session)
-            await gamification.besitos.add_besitos(
+            await gamification.besito.grant_besitos(
                 user_id=user_id,
                 amount=amount,
-                reason="Bienvenida al sistema narrativo"
+                transaction_type=TransactionType.REWARD,
+                description="Bienvenida al sistema narrativo"
             )
             logger.info(f"🎁 {amount} besitos de bienvenida otorgados a usuario {user_id}")
         except Exception as e:
@@ -272,7 +272,7 @@ class OnboardingService:
         """
         progress = await self.get_or_create_progress(user_id)
 
-        scores = json.loads(progress.archetype_scores or "{}")
+        scores = progress.archetype_scores or {}
         if not scores:
             return None
 
@@ -333,11 +333,7 @@ class OnboardingService:
         if not fragment.decisions:
             return []
 
-        try:
-            return json.loads(fragment.decisions)
-        except json.JSONDecodeError:
-            logger.error(f"❌ Error parseando decisiones del paso {fragment.step}")
-            return []
+        return fragment.decisions
 
     async def get_onboarding_summary(self, user_id: int) -> Dict[str, Any]:
         """
@@ -360,7 +356,7 @@ class OnboardingService:
             "progress_percent": progress.progress_percent,
             "besitos_granted": progress.besitos_granted,
             "detected_archetype": archetype.value if archetype else None,
-            "decisions_count": len(json.loads(progress.decisions_made or "[]")),
+            "decisions_count": len(progress.decisions_made or []),
             "started_at": progress.started_at.isoformat() if progress.started_at else None,
             "completed_at": progress.completed_at.isoformat() if progress.completed_at else None,
         }

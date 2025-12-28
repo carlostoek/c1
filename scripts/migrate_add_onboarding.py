@@ -11,7 +11,6 @@ Uso:
     python scripts/migrate_add_onboarding.py
 """
 import asyncio
-import json
 import logging
 import sys
 from datetime import datetime
@@ -40,10 +39,10 @@ Cada elección que hagas tendrá consecuencias. Algunas te costarán besitos �
 Acabas de recibir <b>30 besitos de bienvenida</b>. ✨
 
 ¿Cómo te gusta enfrentar las historias?""",
-        "decisions": json.dumps([
+        "decisions": [
             {"text": "Me gusta actuar rápido y seguir mi instinto", "archetype_hint": "IMPULSIVE"},
             {"text": "Prefiero analizar antes de decidir", "archetype_hint": "CONTEMPLATIVE"}
-        ])
+        ]
     },
     {
         "step": 2,
@@ -54,11 +53,11 @@ Acabas de recibir <b>30 besitos de bienvenida</b>. ✨
 Imagina que encuentras una puerta misteriosa en un bosque oscuro.
 
 ¿Qué harías?""",
-        "decisions": json.dumps([
+        "decisions": [
             {"text": "Abrir la puerta inmediatamente", "archetype_hint": "IMPULSIVE"},
             {"text": "Examinar la puerta primero", "archetype_hint": "CONTEMPLATIVE"},
             {"text": "Observar desde lejos", "archetype_hint": "SILENT"}
-        ])
+        ]
     },
     {
         "step": 3,
@@ -74,9 +73,9 @@ Los besitos son la moneda de este mundo. Los usarás para:
 Puedes ganar más completando misiones y avanzando en la historia.
 
 Recuerda, algunas decisiones tienen costo... ¡pero las mejores recompensas requieren inversión!""",
-        "decisions": json.dumps([
+        "decisions": [
             {"text": "Entendido, continuemos"}
-        ])
+        ]
     },
     {
         "step": 4,
@@ -89,10 +88,10 @@ Tu forma de tomar decisiones me dice mucho sobre ti.
 Este conocimiento me ayudará a adaptar la historia a tu estilo.
 
 ¿Listo para descubrir qué tipo de viajero eres?""",
-        "decisions": json.dumps([
+        "decisions": [
             {"text": "Sí, quiero saber"},
             {"text": "Sigamos adelante"}
-        ])
+        ]
     },
     {
         "step": 5,
@@ -103,10 +102,10 @@ Este conocimiento me ayudará a adaptar la historia a tu estilo.
 La historia completa te espera. ¿Estás preparado para sumergirte en el mundo de Diana y Lucien?
 
 <i>Recuerda: cada decisión cuenta, cada camino es único.</i>""",
-        "decisions": json.dumps([
+        "decisions": [
             {"text": "📖 Comenzar la Historia", "callback": "narr:start"},
-            {"text": "📚 Ver mi Diario de Viaje", "callback": "journal:view"}
-        ])
+            {"text": "📚 Ver mi Diario de Viaje", "callback": "journal:main"}
+        ]
     }
 ]
 
