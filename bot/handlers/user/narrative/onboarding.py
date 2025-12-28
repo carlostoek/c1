@@ -300,6 +300,11 @@ async def _complete_onboarding(
     # Marcar como completado
     await narrative.onboarding.mark_onboarding_completed(user_id)
 
+    # IMPORTANTE: Commit para persistir los cambios
+    await session.commit()
+
+    logger.info(f"✅ Onboarding persistido en BD para usuario {user_id}")
+
     # Obtener arquetipo detectado
     archetype = await narrative.onboarding.get_detected_archetype(user_id)
     archetype_name = _get_archetype_display_name(archetype)
@@ -375,7 +380,7 @@ def _build_completed_keyboard() -> InlineKeyboardMarkup:
     """
     keyboard = InlineKeyboardBuilder()
     keyboard.button(text="📖 Comenzar Historia", callback_data="narr:start")
-    keyboard.button(text="📚 Ver Diario", callback_data="journal:view")
+    keyboard.button(text="📚 Ver Diario", callback_data="journal:main")
     keyboard.adjust(1)
     return keyboard.as_markup()
 

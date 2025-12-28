@@ -337,9 +337,8 @@ async def callback_goto_from_journal(callback: CallbackQuery, session: AsyncSess
     callback.data = f"story:goto:{fragment_key}"
 
     # Importar y llamar el handler de story
-    from bot.narrative.handlers.user.story import show_fragment, NarrativeContainer
+    from bot.narrative.handlers.user.story import show_fragment
 
-    container = NarrativeContainer(callback.message.chat.id)  # type: ignore
     user_id = callback.from_user.id
 
     await show_fragment(
