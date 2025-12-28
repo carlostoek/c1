@@ -11,6 +11,7 @@ Verifica:
 """
 import pytest
 import json
+import random
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -21,6 +22,11 @@ from bot.narrative.database.onboarding_models import (
     OnboardingFragment,
 )
 from bot.narrative.database.enums import ArchetypeType
+
+
+def generate_unique_user_id() -> int:
+    """Genera un user_id único para evitar conflictos entre tests."""
+    return random.randint(1_000_000_000, 9_999_999_999)
 
 
 class TestOnboardingWelcome:
@@ -36,7 +42,7 @@ class TestOnboardingWelcome:
         - Se envía mensaje con botón "Comenzar Tutorial"
         """
         async with get_session() as session:
-            user_id = 111111
+            user_id = generate_unique_user_id()
 
             # Mock del bot send_message
             mock_bot.send_message = AsyncMock(return_value=Mock())
@@ -82,7 +88,7 @@ class TestOnboardingCompleteFlow:
         - Completar marca completed=True
         """
         async with get_session() as session:
-            user_id = 222222
+            user_id = generate_unique_user_id()
             narrative = NarrativeContainer(session)
 
             # Iniciar onboarding
@@ -125,7 +131,7 @@ class TestOnboardingBlocksStoryAccess:
         - Después de completar, retorna True
         """
         async with get_session() as session:
-            user_id = 333333
+            user_id = generate_unique_user_id()
             narrative = NarrativeContainer(session)
 
             # Usuario nuevo no ha completado
@@ -156,7 +162,7 @@ class TestOnboardingOnlyOnce:
         - has_completed_onboarding evita re-ejecución
         """
         async with get_session() as session:
-            user_id = 444444
+            user_id = generate_unique_user_id()
             narrative = NarrativeContainer(session)
 
             # Primera ejecución
@@ -183,7 +189,7 @@ class TestArchetypeDetection:
         Test 5a: Detectar arquetipo IMPULSIVE con decisiones apropiadas.
         """
         async with get_session() as session:
-            user_id = 555551
+            user_id = generate_unique_user_id()
             narrative = NarrativeContainer(session)
 
             # Registrar 3 decisiones IMPULSIVE
@@ -208,7 +214,7 @@ class TestArchetypeDetection:
         Test 5b: Detectar arquetipo CONTEMPLATIVE con decisiones apropiadas.
         """
         async with get_session() as session:
-            user_id = 555552
+            user_id = generate_unique_user_id()
             narrative = NarrativeContainer(session)
 
             # Registrar 3 decisiones CONTEMPLATIVE
@@ -293,7 +299,7 @@ class TestOnboardingSummary:
         Test adicional: Verificar resumen de estado de onboarding.
         """
         async with get_session() as session:
-            user_id = 666666
+            user_id = generate_unique_user_id()
             narrative = NarrativeContainer(session)
 
             # Iniciar onboarding
