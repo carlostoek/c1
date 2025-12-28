@@ -278,6 +278,26 @@ class ChapterService:
         result = await self._session.execute(stmt)
         return result.scalar_one()
 
+    async def get_chapters_by_type(
+        self,
+        chapter_type: ChapterType,
+        active_only: bool = True
+    ) -> List[NarrativeChapter]:
+        """
+        Obtiene capítulos por tipo.
+
+        Args:
+            chapter_type: Tipo de capítulo (FREE o VIP)
+            active_only: Si True, solo retorna activos
+
+        Returns:
+            Lista de capítulos
+        """
+        return await self.get_all_chapters(
+            active_only=active_only,
+            chapter_type=chapter_type
+        )
+
     async def get_chapter_stats_bulk(self) -> dict:
         """
         Obtiene estadísticas de todos los capítulos con una única consulta optimizada.

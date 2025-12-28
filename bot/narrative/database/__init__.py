@@ -1,7 +1,14 @@
 """
 Base de datos del módulo de narrativa.
 """
-from bot.narrative.database.enums import ChapterType, RequirementType, ArchetypeType
+from bot.narrative.database.enums import (
+    ChapterType,
+    RequirementType,
+    ArchetypeType,
+    VariantConditionType,
+    ChallengeType,
+    CooldownType,
+)
 from bot.narrative.database.models import (
     NarrativeChapter,
     NarrativeFragment,
@@ -10,17 +17,39 @@ from bot.narrative.database.models import (
     UserNarrativeProgress,
     UserDecisionHistory,
 )
+from bot.narrative.database.models_immersive import (
+    FragmentVariant,
+    UserFragmentVisit,
+    NarrativeCooldown,
+    FragmentChallenge,
+    UserChallengeAttempt,
+    FragmentTimeWindow,
+    ChapterCompletion,
+    DailyNarrativeLimit,
+)
 
 __all__ = [
     # Enums
     "ChapterType",
     "RequirementType",
     "ArchetypeType",
-    # Models
+    "VariantConditionType",
+    "ChallengeType",
+    "CooldownType",
+    # Models - Core
     "NarrativeChapter",
     "NarrativeFragment",
     "FragmentDecision",
     "FragmentRequirement",
     "UserNarrativeProgress",
     "UserDecisionHistory",
+    # Models - Immersive
+    "FragmentVariant",
+    "UserFragmentVisit",
+    "NarrativeCooldown",
+    "FragmentChallenge",
+    "UserChallengeAttempt",
+    "FragmentTimeWindow",
+    "ChapterCompletion",
+    "DailyNarrativeLimit",
 ]

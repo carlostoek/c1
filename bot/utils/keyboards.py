@@ -232,6 +232,10 @@ async def dynamic_user_menu_keyboard(
     # Agregar botones fijos al final
     keyboard_structure.append([{"text": "🏪 Tienda", "callback_data": "shop:main"}])
     keyboard_structure.append([{"text": "📖 Historia", "callback_data": "narr:start"}])
+    keyboard_structure.append([
+        {"text": "🎒 Mochila", "callback_data": "backpack:main"},
+        {"text": "📔 Diario", "callback_data": "journal:main"}
+    ])
     keyboard_structure.append([{"text": "🎮 Juego Kinky", "callback_data": "start:profile"}])
 
     return create_inline_keyboard(keyboard_structure)
