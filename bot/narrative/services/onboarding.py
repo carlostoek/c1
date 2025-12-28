@@ -188,7 +188,8 @@ class OnboardingService:
         progress.decisions_made = decisions
 
         # Actualizar puntuaciones de arquetipo
-        if archetype_hint and archetype_hint in {ArchetypeType.IMPULSIVE.value, ArchetypeType.CONTEMPLATIVE.value, ArchetypeType.SILENT.value}:
+        valid_archetypes = {e.value for e in ArchetypeType if e != ArchetypeType.UNKNOWN}
+        if archetype_hint and archetype_hint in valid_archetypes:
             scores = progress.archetype_scores or {}
             scores[archetype_hint] = scores.get(archetype_hint, 0) + 5
             progress.archetype_scores = scores
@@ -255,7 +256,7 @@ class OnboardingService:
         """
         stmt = select(UserOnboardingProgress).where(
             UserOnboardingProgress.user_id == user_id,
-            UserOnboardingProgress.completed == True
+            UserOnboardingProgress.completed.is_(True)
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None

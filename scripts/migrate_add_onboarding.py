@@ -11,10 +11,11 @@ Uso:
     python scripts/migrate_add_onboarding.py
 """
 import asyncio
+import json
 import logging
 import sys
 from datetime import datetime
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 
 # Configurar logging
 logging.basicConfig(
@@ -129,11 +130,10 @@ async def migrate_add_onboarding():
         engine = get_engine()
 
         async with engine.begin() as conn:
-            # Verificar tabla user_onboarding_progress
-            result = await conn.execute(
-                text("SELECT name FROM sqlite_master WHERE type='table' AND name='user_onboarding_progress'")
+            # Verificar tabla user_onboarding_progress usando inspect (database-agnostic)
+            exists = await conn.run_sync(
+                lambda sync_conn: inspect(sync_conn).has_table('user_onboarding_progress')
             )
-            exists = result.scalar() is not None
 
             if exists:
                 logger.info("✅ Tabla 'user_onboarding_progress' creada correctamente")
@@ -141,11 +141,10 @@ async def migrate_add_onboarding():
                 logger.error("❌ Tabla 'user_onboarding_progress' no encontrada")
                 return False
 
-            # Verificar tabla onboarding_fragments
-            result = await conn.execute(
-                text("SELECT name FROM sqlite_master WHERE type='table' AND name='onboarding_fragments'")
+            # Verificar tabla onboarding_fragments usando inspect (database-agnostic)
+            exists = await conn.run_sync(
+                lambda sync_conn: inspect(sync_conn).has_table('onboarding_fragments')
             )
-            exists = result.scalar() is not None
 
             if exists:
                 logger.info("✅ Tabla 'onboarding_fragments' creada correctamente")
@@ -181,7 +180,7 @@ async def migrate_add_onboarding():
                         "speaker": fragment["speaker"],
                         "title": fragment["title"],
                         "content": fragment["content"],
-                        "decisions": fragment["decisions"],
+                        "decisions": json.dumps(fragment["decisions"]),
                         "now": now
                     }
                 )

@@ -21,7 +21,6 @@ from bot.handlers.user.narrative import narrative_router
 from bot.narrative.services.container import NarrativeContainer
 from bot.narrative.database.onboarding_models import OnboardingFragment
 from bot.narrative.database.enums import ArchetypeType
-from bot.utils.keyboards import create_inline_keyboard
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +57,7 @@ async def send_onboarding_welcome(
             return True
 
         # Otorgar besitos de bienvenida
-        besitos_granted = await narrative.onboarding.grant_welcome_besitos(user_id, amount=30)
+        await narrative.onboarding.grant_welcome_besitos(user_id, amount=30)
 
         # Crear keyboard con un solo botón
         keyboard = InlineKeyboardBuilder()
