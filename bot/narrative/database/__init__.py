@@ -27,6 +27,10 @@ from bot.narrative.database.models_immersive import (
     ChapterCompletion,
     DailyNarrativeLimit,
 )
+from bot.narrative.database.onboarding_models import (
+    UserOnboardingProgress,
+    OnboardingFragment,
+)
 
 __all__ = [
     # Enums
@@ -52,4 +56,7 @@ __all__ = [
     "FragmentTimeWindow",
     "ChapterCompletion",
     "DailyNarrativeLimit",
+    # Models - Onboarding
+    "UserOnboardingProgress",
+    "OnboardingFragment",
 ]

@@ -27,6 +27,8 @@ except ImportError:
 # Importar modelos de narrativa para registrarlos en metadata
 try:
     import bot.narrative.database.models  # noqa: F401
+    import bot.narrative.database.models_immersive  # noqa: F401
+    import bot.narrative.database.onboarding_models  # noqa: F401
 except ImportError:
     pass
 

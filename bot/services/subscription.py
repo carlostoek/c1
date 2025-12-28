@@ -742,17 +742,18 @@ class SubscriptionService:
                     user_id=request.user_id
                 )
 
-                # 2. Notificar al usuario
+                # 2. Enviar onboarding welcome (reemplaza notificación simple)
                 try:
-                    chat = await self.bot.get_chat(free_channel_id)
-                    await self.bot.send_message(
-                        chat_id=request.user_id,
-                        text=f"¡Felicidades! Tu solicitud de acceso al canal '{chat.title}' ha sido aprobada."
+                    from bot.handlers.user.narrative.onboarding import send_onboarding_welcome
+                    await send_onboarding_welcome(
+                        bot=self.bot,
+                        user_id=request.user_id,
+                        session=self.session
                     )
-                    logger.info(f"✅ Notificación de aprobación enviada a user {request.user_id}")
+                    logger.info(f"✅ Onboarding welcome enviado a user {request.user_id}")
                 except Exception as notify_err:
                     logger.warning(
-                        f"⚠️ No se pudo notificar a user {request.user_id} sobre la aprobación: {notify_err}"
+                        f"⚠️ No se pudo enviar onboarding a user {request.user_id}: {notify_err}"
                     )
 
                 # 3. Eliminar la solicitud para limpiar el estado

@@ -52,6 +52,23 @@ async def callback_start_story(
     narrative = NarrativeContainer(session, callback.bot)
     container = ServiceContainer(session, callback.bot)
 
+    # Verificar si completó onboarding (obligatorio para acceder a la historia)
+    if not await narrative.onboarding.has_completed_onboarding(user_id):
+        logger.info(f"🚫 Usuario {user_id} no ha completado onboarding, bloqueando acceso")
+        from aiogram.utils.keyboard import InlineKeyboardBuilder
+        keyboard = InlineKeyboardBuilder()
+        keyboard.button(text="📖 Iniciar Tutorial", callback_data="onboard:start")
+        keyboard.button(text="🔙 Volver", callback_data="profile:back")
+        keyboard.adjust(1)
+        await callback.message.edit_text(
+            "🔒 <b>Tutorial Pendiente</b>\n\n"
+            "Debes completar el tutorial de introducción antes de acceder a la historia.\n\n"
+            "<i>El tutorial te enseñará las mecánicas del sistema y te otorgará besitos de bienvenida.</i>",
+            parse_mode="HTML",
+            reply_markup=keyboard.as_markup()
+        )
+        return
+
     # Obtener o crear progreso
     progress = await narrative.progress.get_or_create_progress(user_id)
 
