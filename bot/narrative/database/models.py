@@ -89,7 +89,7 @@ class NarrativeFragment(Base):
     is_active: Mapped[bool] = mapped_column(default=True)
 
     # Metadata adicional (JSON para información extra como grants_clue, etc.)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    extra_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Metadata de timestamps
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

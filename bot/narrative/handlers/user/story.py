@@ -574,17 +574,17 @@ async def show_fragment(
 
     # 4. Verificar si el fragmento otorga pista
     fragment = await container.fragment.get_fragment(fragment_key)
-    if fragment and fragment.metadata:
+    if fragment and fragment.extra_metadata:
         try:
-            if fragment.metadata.get("grants_clue"):
-                clue_slug = fragment.metadata.get("grants_clue")
+            if fragment.extra_metadata.get("grants_clue"):
+                clue_slug = fragment.extra_metadata.get("grants_clue")
                 await container.clue.grant_clue_from_fragment(
                     user_id=user_id,
                     clue_slug=clue_slug,
                     fragment_key=fragment_key
                 )
         except Exception as e:
-            logger.warning(f"Error procesando metadata de fragmento: {e}")
+            logger.warning(f"Error procesando extra_metadata de fragmento: {e}")
 
     # 5. Obtener decisiones disponibles
     decisions = await container.decision.get_available_decisions(fragment_key, user_id)
