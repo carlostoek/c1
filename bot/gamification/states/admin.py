@@ -23,7 +23,8 @@ class MissionWizardStates(StatesGroup):
     3. Definir recompensa en besitos
     4. (Opcional) Configurar auto level-up
     5. (Opcional) Configurar recompensas unlock
-    6. Confirmar creación
+    6. (Opcional) Configurar items de tienda como recompensa
+    7. Confirmar creación
     """
 
     # Paso 1: Tipo
@@ -47,11 +48,29 @@ class MissionWizardStates(StatesGroup):
     enter_level_besitos = State()
     enter_level_order = State()
 
-    # Paso 5: Recompensas
+    # Paso 5: Recompensas (badges, etc)
     choose_rewards = State()
     create_new_reward = State()
     enter_reward_name = State()
     enter_reward_description = State()
+
+    # Paso 5.1: Items de tienda como recompensa (Fase 1 - Cross-module)
+    choose_shop_items = State()  # Elegir si agregar items de tienda
+    select_shop_category = State()  # Seleccionar categoría
+    select_shop_item = State()  # Seleccionar item específico
+    enter_shop_item_quantity = State()  # Cantidad a otorgar
+
+    # Paso 5.2: Condiciones narrativas (Fase 2 - Cross-module)
+    choose_narrative_conditions = State()  # Elegir si agregar condiciones narrativas
+    select_narrative_condition_type = State()  # Tipo: chapter, fragment, decision, archetype
+    select_narrative_chapter = State()  # Seleccionar capítulo
+    enter_narrative_fragment_key = State()  # Introducir fragment key
+    enter_narrative_decision_key = State()  # Introducir decision key
+    select_narrative_archetype = State()  # Seleccionar arquetipo
+
+    # Paso 5.3: VIP como recompensa (Fase 3 - Cross-module)
+    choose_vip_reward = State()  # Elegir si otorgar VIP
+    enter_vip_days = State()  # Cantidad de días VIP
 
     # Paso 6: Confirmación
     confirm = State()
@@ -87,6 +106,12 @@ class RewardWizardStates(StatesGroup):
     select_level = State()
     enter_min_besitos = State()
     add_multiple_conditions = State()
+
+    # Paso 3.1: Condiciones narrativas para unlock
+    select_narrative_chapter = State()  # Seleccionar capítulo
+    enter_narrative_fragment_key = State()  # Introducir fragment key
+    enter_narrative_decision_key = State()  # Introducir decision key
+    select_narrative_archetype = State()  # Seleccionar arquetipo
 
     # Paso 4: Confirmación
     confirm = State()
@@ -251,3 +276,67 @@ class DailyGiftConfigStates(StatesGroup):
     """
 
     waiting_for_besitos = State()
+
+
+class UnifiedWizardStates(StatesGroup):
+    """
+    Estados para wizard unificado de creación cross-module.
+
+    Permite crear objetos de cualquier módulo desde un único punto:
+    - Misiones (gamificación)
+    - Recompensas (gamificación)
+    - Items de Tienda (shop)
+    - Capítulos/Fragmentos (narrativa)
+
+    Flujo:
+    1. Menú central con opciones de creación
+    2. Redirige al wizard específico según selección
+    3. Al finalizar, vuelve al menú central
+    """
+
+    # Menú principal
+    main_menu = State()
+
+    # Sub-wizards para cada módulo (redireccionan a wizards específicos)
+    creating_mission = State()
+    creating_reward = State()
+    creating_shop_item = State()
+    creating_chapter = State()
+
+    # Wizard de Item de Tienda (inline, no existe wizard separado)
+    shop_select_category = State()
+    shop_enter_name = State()
+    shop_enter_description = State()
+    shop_enter_price = State()
+    shop_select_type = State()
+    shop_select_rarity = State()
+    shop_enter_icon = State()
+    shop_confirm = State()
+
+    # Wizard de Capítulo (inline, no existe wizard separado)
+    chapter_enter_name = State()
+    chapter_enter_slug = State()
+    chapter_enter_description = State()
+    chapter_select_type = State()
+    chapter_enter_order = State()
+    chapter_confirm = State()
+
+
+class ConfigPanelStates(StatesGroup):
+    """
+    Estados para el panel de configuración central.
+
+    Dashboard con vista unificada de objetos de todos los módulos.
+    Permite gestionar, activar/desactivar y ver estadísticas.
+    """
+
+    # Vista principal
+    main_dashboard = State()
+
+    # Filtros y búsqueda
+    filter_by_module = State()
+    search_objects = State()
+
+    # Acciones rápidas
+    toggle_active = State()
+    quick_edit = State()

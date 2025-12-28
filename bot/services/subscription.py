@@ -382,6 +382,88 @@ class SubscriptionService:
 
         return subscriber
 
+    async def grant_vip_days(
+        self,
+        user_id: int,
+        days: int,
+        extend_existing: bool = True,
+        source: str = "reward"
+    ) -> Tuple[bool, str, Optional[VIPSubscriber]]:
+        """
+        Otorga días VIP a un usuario (usado por recompensas de gamificación).
+
+        Si el usuario ya es VIP y extend_existing=True:
+        - Extiende su suscripción agregando los días
+
+        Si el usuario no es VIP o extend_existing=False:
+        - Crea nueva suscripción desde ahora
+
+        Args:
+            user_id: ID del usuario
+            days: Cantidad de días a otorgar
+            extend_existing: Si extender suscripción existente (default: True)
+            source: Fuente de la recompensa (para logging)
+
+        Returns:
+            Tuple[bool, str, Optional[VIPSubscriber]]:
+                - bool: True si éxito
+                - str: Mensaje descriptivo
+                - Optional[VIPSubscriber]: Suscriptor creado/actualizado
+        """
+        if days < 1:
+            return False, "days debe ser al menos 1", None
+
+        # Calcular duración en horas
+        duration_hours = days * 24
+
+        # Verificar si usuario ya es VIP
+        result = await self.session.execute(
+            select(VIPSubscriber).where(
+                VIPSubscriber.user_id == user_id
+            )
+        )
+        existing_subscriber = result.scalar_one_or_none()
+
+        if existing_subscriber and extend_existing:
+            # Extender suscripción existente
+            extension = timedelta(hours=duration_hours)
+
+            if existing_subscriber.is_expired():
+                # Si expiró, partir desde ahora
+                existing_subscriber.expiry_date = datetime.utcnow() + extension
+            else:
+                # Si aún activo, extender desde fecha actual
+                existing_subscriber.expiry_date += extension
+
+            existing_subscriber.status = "active"
+
+            logger.info(
+                f"✅ VIP extendido por {days} días ({source}): user {user_id} "
+                f"(nueva expiración: {existing_subscriber.expiry_date})"
+            )
+
+            return True, f"Suscripción VIP extendida por {days} días", existing_subscriber
+
+        # Crear nueva suscripción
+        expiry_date = datetime.utcnow() + timedelta(hours=duration_hours)
+
+        subscriber = VIPSubscriber(
+            user_id=user_id,
+            join_date=datetime.utcnow(),
+            expiry_date=expiry_date,
+            status="active",
+            token_id=None  # Sin token asociado (viene de reward)
+        )
+
+        self.session.add(subscriber)
+
+        logger.info(
+            f"✅ Nuevo VIP por {days} días ({source}): user {user_id} "
+            f"(expira: {expiry_date})"
+        )
+
+        return True, f"Suscripción VIP activada por {days} días", subscriber
+
     async def expire_vip_subscribers(self) -> int:
         """
         Marca como expirados los suscriptores VIP cuya fecha pasó.

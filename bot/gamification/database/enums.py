@@ -47,6 +47,12 @@ class RewardType(str, Enum):
     PERMISSION = "permission"
     TITLE = "title"
     BESITOS = "besitos"
+    # Cross-module rewards (Fase 1 - Integración Tienda)
+    SHOP_ITEM = "shop_item"  # Otorga item específico de la tienda
+    # Cross-module rewards (Fase 2 - Integración Narrativa)
+    NARRATIVE_UNLOCK = "narrative_unlock"  # Desbloquea contenido narrativo
+    # Cross-module rewards (Fase 3 - Integración VIP)
+    VIP_DAYS = "vip_days"  # Otorga días de suscripción VIP
 
     def __str__(self) -> str:
         return self.value
@@ -177,10 +183,6 @@ class TitleMetadata(TypedDict):
     prefix: Optional[str]  # Emoji o text prefix
 
 
-# Union de todos los metadatos posibles
-RewardMetadata = BadgeMetadata | PermissionMetadata | ItemMetadata | TitleMetadata
-
-
 class UnlockCondition(TypedDict):
     """Condición para desbloquear una recompensa (legacy)."""
 
@@ -231,3 +233,49 @@ class BesitosMetadata(TypedDict):
 
     amount: int
     multiplier: Optional[float]  # Multiplicador de besitos (ej: 1.5x)
+
+
+class ShopItemMetadata(TypedDict):
+    """Metadata para recompensas tipo shop_item (integración tienda).
+
+    Permite otorgar items de la tienda como recompensa de misiones.
+    El item debe existir previamente en la tienda.
+    """
+
+    item_id: int  # ID del ShopItem en la tienda
+    item_slug: str  # Slug del item (para validación)
+    quantity: int  # Cantidad a otorgar (default: 1)
+
+
+class NarrativeUnlockMetadata(TypedDict):
+    """Metadata para recompensas tipo narrative_unlock (integración narrativa).
+
+    Permite desbloquear contenido narrativo como recompensa de misiones.
+    """
+
+    unlock_type: Literal["chapter", "fragment"]  # Qué desbloquear
+    chapter_slug: Optional[str]  # Slug del capítulo (si unlock_type=chapter)
+    fragment_key: Optional[str]  # Key del fragmento (si unlock_type=fragment)
+
+
+class VipDaysMetadata(TypedDict):
+    """Metadata para recompensas tipo vip_days (integración VIP).
+
+    Permite otorgar días de suscripción VIP como recompensa de misiones.
+    """
+
+    days: int  # Cantidad de días VIP a otorgar
+    extend_existing: bool  # Si extender suscripción existente (default: True)
+
+
+# Union de todos los metadatos posibles
+RewardMetadata = (
+    BadgeMetadata
+    | PermissionMetadata
+    | ItemMetadata
+    | TitleMetadata
+    | BesitosMetadata
+    | ShopItemMetadata
+    | NarrativeUnlockMetadata
+    | VipDaysMetadata
+)

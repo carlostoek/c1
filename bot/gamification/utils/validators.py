@@ -184,7 +184,7 @@ def validate_reward_metadata(
         is_valid, error = validate_json_structure(
             metadata,
             required_fields=['amount'],
-            optional_fields=[],
+            optional_fields=['multiplier'],
             field_types={'amount': int}
         )
         if not is_valid:
@@ -192,6 +192,67 @@ def validate_reward_metadata(
 
         if metadata['amount'] <= 0:
             return False, "amount must be > 0"
+
+        return True, "OK"
+
+    elif reward_type == RewardType.SHOP_ITEM:
+        # SHOP_ITEM requiere item_id o item_slug
+        has_id = 'item_id' in metadata and metadata['item_id']
+        has_slug = 'item_slug' in metadata and metadata['item_slug']
+
+        if not has_id and not has_slug:
+            return False, "SHOP_ITEM requires item_id or item_slug"
+
+        is_valid, error = validate_json_structure(
+            metadata,
+            required_fields=[],
+            optional_fields=['item_id', 'item_slug', 'quantity'],
+            field_types={
+                'item_id': int,
+                'item_slug': str,
+                'quantity': int
+            }
+        )
+        if not is_valid:
+            return False, error
+
+        # Validar quantity si existe
+        quantity = metadata.get('quantity', 1)
+        if quantity < 1:
+            return False, "quantity must be >= 1"
+
+        return True, "OK"
+
+    elif reward_type == RewardType.NARRATIVE_UNLOCK:
+        # NARRATIVE_UNLOCK requiere unlock_type y chapter_slug o fragment_key
+        unlock_type = metadata.get('unlock_type')
+        if unlock_type not in ('chapter', 'fragment'):
+            return False, "NARRATIVE_UNLOCK requires unlock_type='chapter' or 'fragment'"
+
+        if unlock_type == 'chapter' and not metadata.get('chapter_slug'):
+            return False, "NARRATIVE_UNLOCK with unlock_type='chapter' requires chapter_slug"
+
+        if unlock_type == 'fragment' and not metadata.get('fragment_key'):
+            return False, "NARRATIVE_UNLOCK with unlock_type='fragment' requires fragment_key"
+
+        return True, "OK"
+
+    elif reward_type == RewardType.VIP_DAYS:
+        # VIP_DAYS requiere days
+        is_valid, error = validate_json_structure(
+            metadata,
+            required_fields=['days'],
+            optional_fields=['extend_existing'],
+            field_types={
+                'days': int,
+                'extend_existing': bool
+            }
+        )
+        if not is_valid:
+            return False, error
+
+        if metadata['days'] <= 0:
+            return False, "days must be > 0"
 
         return True, "OK"
 

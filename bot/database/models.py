@@ -278,8 +278,8 @@ class VIPSubscriber(Base):
         index=True
     )  # "active" o "expired"
 
-    # Token usado
-    token_id = Column(Integer, ForeignKey("invitation_tokens.id"), nullable=False)
+    # Token usado (nullable para VIP otorgado por recompensas sin token)
+    token_id = Column(Integer, ForeignKey("invitation_tokens.id"), nullable=True)
     token = relationship("InvitationToken", back_populates="subscribers")
 
     # Usuario (relación inversa)

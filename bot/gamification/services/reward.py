@@ -461,6 +461,36 @@ class RewardService:
                     reference_id=user_reward.id
                 )
 
+        # Si es SHOP_ITEM, otorgar item de tienda
+        if reward.reward_type == RewardType.SHOP_ITEM.value:
+            metadata = json.loads(reward.reward_metadata) if reward.reward_metadata else {}
+            item_id = metadata.get('item_id')
+            item_slug = metadata.get('item_slug')
+            quantity = metadata.get('quantity', 1)
+
+            if item_id or item_slug:
+                from bot.gamification.services.unified import UnifiedRewardService
+                unified_service = UnifiedRewardService(self.session)
+
+                success, msg, _ = await unified_service.grant_shop_item(
+                    user_id=user_id,
+                    item_id=item_id,
+                    quantity=quantity,
+                    source=obtained_via.value,
+                    reference_id=user_reward.id
+                ) if item_id else await unified_service.grant_shop_item_by_slug(
+                    user_id=user_id,
+                    item_slug=item_slug,
+                    quantity=quantity,
+                    source=obtained_via.value,
+                    reference_id=user_reward.id
+                )
+
+                if not success:
+                    logger.warning(
+                        f"Failed to grant shop item for reward {reward.name}: {msg}"
+                    )
+
         logger.info(f"User {user_id} obtained reward {reward.name} via {obtained_via.value}")
         return True, f"Recompensa obtenida: {reward.name}", user_reward
 
@@ -554,6 +584,36 @@ class RewardService:
                     description=f"Recompensa: {reward.name}",
                     reference_id=user_reward.id
                 )
+
+        # Si es SHOP_ITEM, otorgar item de tienda
+        if reward.reward_type == RewardType.SHOP_ITEM.value:
+            metadata = json.loads(reward.reward_metadata) if reward.reward_metadata else {}
+            item_id = metadata.get('item_id')
+            item_slug = metadata.get('item_slug')
+            quantity = metadata.get('quantity', 1)
+
+            if item_id or item_slug:
+                from bot.gamification.services.unified import UnifiedRewardService
+                unified_service = UnifiedRewardService(self.session)
+
+                success, msg, _ = await unified_service.grant_shop_item(
+                    user_id=user_id,
+                    item_id=item_id,
+                    quantity=quantity,
+                    source=ObtainedVia.PURCHASE.value,
+                    reference_id=user_reward.id
+                ) if item_id else await unified_service.grant_shop_item_by_slug(
+                    user_id=user_id,
+                    item_slug=item_slug,
+                    quantity=quantity,
+                    source=ObtainedVia.PURCHASE.value,
+                    reference_id=user_reward.id
+                )
+
+                if not success:
+                    logger.warning(
+                        f"Failed to grant shop item for purchased reward {reward.name}: {msg}"
+                    )
 
         logger.info(f"User {user_id} purchased reward {reward.name}")
         return True, f"Recompensa comprada: {reward.name}", user_reward

@@ -37,6 +37,9 @@ class GamificationContainer:
         self._stats_service = None
         self._notification_service = None
         self._daily_gift_service = None
+        self._unified_reward_service = None
+        self._narrative_condition_service = None
+        self._config_panel_service = None
 
         # Orchestrators (lazy loaded)
         self._mission_orchestrator = None
@@ -133,6 +136,30 @@ class GamificationContainer:
         return self._daily_gift_service
 
     @property
+    def unified_reward(self):
+        """Servicio unificado de recompensas cross-module."""
+        if self._unified_reward_service is None:
+            from bot.gamification.services.unified import UnifiedRewardService
+            self._unified_reward_service = UnifiedRewardService(self._session)
+        return self._unified_reward_service
+
+    @property
+    def narrative_condition(self):
+        """Servicio de verificación de condiciones narrativas."""
+        if self._narrative_condition_service is None:
+            from bot.gamification.services.narrative_condition import NarrativeConditionService
+            self._narrative_condition_service = NarrativeConditionService(self._session)
+        return self._narrative_condition_service
+
+    @property
+    def config_panel(self):
+        """Servicio de panel de configuración central (cross-module)."""
+        if self._config_panel_service is None:
+            from bot.gamification.services.config_panel import ConfigurationPanelService
+            self._config_panel_service = ConfigurationPanelService(self._session)
+        return self._config_panel_service
+
+    @property
     def mission_orchestrator(self):
         """Orquestador de creación de misiones."""
         if self._mission_orchestrator is None:
@@ -183,6 +210,12 @@ class GamificationContainer:
             loaded.append('notifications')
         if self._daily_gift_service is not None:
             loaded.append('daily_gift')
+        if self._unified_reward_service is not None:
+            loaded.append('unified_reward')
+        if self._narrative_condition_service is not None:
+            loaded.append('narrative_condition')
+        if self._config_panel_service is not None:
+            loaded.append('config_panel')
         if self._mission_orchestrator is not None:
             loaded.append('mission_orchestrator')
         if self._reward_orchestrator is not None:
@@ -203,6 +236,9 @@ class GamificationContainer:
         self._stats_service = None
         self._notification_service = None
         self._daily_gift_service = None
+        self._unified_reward_service = None
+        self._narrative_condition_service = None
+        self._config_panel_service = None
         self._mission_orchestrator = None
         self._reward_orchestrator = None
         self._configuration_orchestrator = None
