@@ -1,7 +1,7 @@
 """add narrative phase5 fields
 
-Revision ID: 020
-Revises: 019
+Revision ID: 021_add_narrative_phase5_fields
+Revises: 020_add_conversion_tracking_tables
 Create Date: 2025-12-30
 
 Extiende modelos de narrativa con campos de Fase 5:
@@ -17,8 +17,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
-revision: str = '020'
-down_revision: Union[str, None] = '019'
+revision: str = '021_add_narrative_phase5_fields'
+down_revision: Union[str, None] = '020_add_conversion_tracking_tables'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

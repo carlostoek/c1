@@ -18,7 +18,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '018_add_archetype_behavior_tracking'
-down_revision: Union[str, None] = '017_add_economy_config_fields'
+down_revision: Union[str, None] = '017'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

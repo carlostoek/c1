@@ -265,7 +265,7 @@ class UserMission(Base):
     mission_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("missions.id")
     )
-    progress: Mapped[str] = mapped_column(String(500))
+    progress: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[str] = mapped_column(String(20))
     started_at: Mapped[datetime] = mapped_column(DateTime)
     completed_at: Mapped[Optional[datetime]] = mapped_column(

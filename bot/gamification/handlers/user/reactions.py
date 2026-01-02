@@ -31,6 +31,33 @@ router = Router(name="gamification_reactions")
 router.callback_query.middleware(DatabaseMiddleware())
 
 
+async def get_reaction_counts(
+    session: AsyncSession,
+    broadcast_message_id: int
+) -> Dict[int, int]:
+    """Obtiene contadores de reacciones por tipo para un mensaje.
+
+    Args:
+        session: Sesión de BD
+        broadcast_message_id: ID del BroadcastMessage
+
+    Returns:
+        Dict con reaction_type_id como clave y count como valor
+        Ej: {1: 3, 2: 5} - 3 reacciones de tipo 1, 5 de tipo 2
+    """
+    stmt = (
+        select(
+            CustomReaction.reaction_type_id,
+            func.count(CustomReaction.id).label('count')
+        )
+        .where(CustomReaction.broadcast_message_id == broadcast_message_id)
+        .group_by(CustomReaction.reaction_type_id)
+    )
+
+    result = await session.execute(stmt)
+    return {row.reaction_type_id: row.count for row in result}
+
+
 @router.callback_query(F.data.startswith("react:"))
 async def handle_reaction_button(
     callback: CallbackQuery,

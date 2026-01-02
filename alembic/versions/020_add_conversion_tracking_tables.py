@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '020_add_conversion_tracking_tables'
-down_revision = '019_add_behavior_tracking_tables'  # Ajustar según la última migración
+down_revision = '019_add_gabinete_features'
 branch_labels = None
 depends_on = None
 
