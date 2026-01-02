@@ -37,6 +37,7 @@ SEEDS = [
         "check_table": "onboarding_fragments",
         "min_count": 5,
         "description": "Fragmentos del onboarding narrativo (5 pasos)",
+        "post_script": "fix_onboarding_fragments.py",
     },
     {
         "name": "Protocol Levels",
@@ -221,6 +222,13 @@ async def main():
     print("-" * 70)
 
     if not seeds_to_run:
+        # Ejecutar post_scripts aunque datos ya estén cargados
+        print("\n🔧 Aplicando fixes de mantenimiento...")
+        for seed in SEEDS:
+            if "post_script" in seed:
+                print(f"   🔧 {seed['post_script']}")
+                run_seed_script(seed["post_script"])
+
         print("\n✅ Todos los datos ya están cargados. ¡Listo para producción!")
         await close_db()
         return 0
@@ -243,6 +251,15 @@ async def main():
         if success:
             print(f"   ✅ Completado")
             success_count += 1
+
+            # Ejecutar post_script si existe
+            if "post_script" in seed:
+                print(f"   🔧 Ejecutando fix: {seed['post_script']}")
+                post_success, post_output = run_seed_script(seed["post_script"])
+                if post_success:
+                    print(f"   ✅ Fix aplicado")
+                else:
+                    print(f"   ⚠️  Fix falló: {post_output[:100]}...")
         else:
             print(f"   ❌ Error: {output[:200]}...")
             error_count += 1
