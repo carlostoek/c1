@@ -225,13 +225,15 @@ async def _show_fragment(
             reply_markup=keyboard
         )
     except Exception as e:
-        logger.error(f"❌ Error al mostrar fragmento: {e}")
-        # Si falla editar, enviar nuevo mensaje
-        await message.answer(
-            text,
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
+        # Ignorar error si el mensaje no cambió
+        if "message is not modified" not in str(e):
+            logger.error(f"❌ Error al mostrar fragmento: {e}")
+            # Si falla editar, enviar nuevo mensaje
+            await message.answer(
+                text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
 
 
 async def _build_decisions_keyboard(

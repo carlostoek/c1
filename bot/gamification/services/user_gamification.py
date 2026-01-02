@@ -46,13 +46,15 @@ class UserGamificationService:
             UserGamification del usuario con current_level cargado
         """
         # Usar selectinload para cargar la relación current_level y evitar greenlet_spawn
+        # Usar .first() en lugar de .scalar_one_or_none() para evitar error si hay duplicados
         stmt = (
             select(UserGamification)
             .options(selectinload(UserGamification.current_level))
             .where(UserGamification.user_id == user_id)
+            .limit(1)
         )
         result = await self.session.execute(stmt)
-        user = result.scalar_one_or_none()
+        user = result.scalars().first()
 
         if not user:
             # Obtener nivel inicial (order=1)
