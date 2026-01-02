@@ -38,22 +38,25 @@ class ReactionService:
     async def create_reaction(
         self,
         emoji: str,
-        name: str,
-        besitos_value: int = 1
+        besitos_value: int = 1,
+        name: Optional[str] = None
     ) -> Reaction:
         """Crea nueva reacción en catálogo.
 
         Args:
             emoji: Emoji de la reacción
-            name: Nombre descriptivo de la reacción
             besitos_value: Besitos que otorga
+            name: Nombre descriptivo (opcional, se genera automáticamente)
 
         Returns:
             Reacción creada
         """
+        # Generar nombre automático si no se proporciona
+        reaction_name = name if name else f"Reacción {emoji}"
+
         reaction = Reaction(
             emoji=emoji,
-            name=name,
+            name=reaction_name,
             besitos_value=besitos_value,
             active=True
         )
