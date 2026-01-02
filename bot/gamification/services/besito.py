@@ -49,27 +49,25 @@ class BesitoService:
             logger.warning(f"Attempted to grant {amount} besitos to user {user_id}")
             return 0.0
 
-        # Transacción atómica: balance y transacción se actualizan juntos
-        async with self.session.begin():
-            # Obtener o crear perfil de gamificación
-            user_gamif = await self._get_or_create_user_gamification(user_id)
+        # Obtener o crear perfil de gamificación
+        user_gamif = await self._get_or_create_user_gamification(user_id)
 
-            # Actualizar balances
-            user_gamif.total_besitos += amount
-            user_gamif.besitos_earned += amount
+        # Actualizar balances
+        user_gamif.total_besitos += amount
+        user_gamif.besitos_earned += amount
 
-            # Crear registro de transacción
-            transaction = BesitoTransaction(
-                user_id=user_id,
-                amount=amount,
-                transaction_type=transaction_type.value,
-                description=description or f"Besitos otorgados ({transaction_type.value})",
-                reference_id=reference_id,
-                balance_after=user_gamif.total_besitos,
-                created_at=datetime.now(UTC)
-            )
-            self.session.add(transaction)
-
+        # Crear registro de transacción
+        transaction = BesitoTransaction(
+            user_id=user_id,
+            amount=amount,
+            transaction_type=transaction_type.value,
+            description=description or f"Besitos otorgados ({transaction_type.value})",
+            reference_id=reference_id,
+            balance_after=user_gamif.total_besitos,
+            created_at=datetime.now(UTC)
+        )
+        self.session.add(transaction)
+        await self.session.flush()
         await self.session.refresh(user_gamif)
 
         logger.info(
@@ -174,29 +172,27 @@ class BesitoService:
         if amount <= 0:
             return False, "Cantidad inválida", 0.0
 
-        # Transacción atómica: balance y transacción se actualizan juntos
-        async with self.session.begin():
-            user_gamif = await self._get_or_create_user_gamification(user_id)
+        user_gamif = await self._get_or_create_user_gamification(user_id)
 
-            if user_gamif.total_besitos < amount:
-                return False, f"Besitos insuficientes ({user_gamif.total_besitos})", user_gamif.total_besitos
+        if user_gamif.total_besitos < amount:
+            return False, f"Besitos insuficientes ({user_gamif.total_besitos})", user_gamif.total_besitos
 
-            # Deducir
-            user_gamif.total_besitos -= amount
-            user_gamif.besitos_spent += amount
+        # Deducir
+        user_gamif.total_besitos -= amount
+        user_gamif.besitos_spent += amount
 
-            # Crear registro de transacción (amount negativo)
-            transaction = BesitoTransaction(
-                user_id=user_id,
-                amount=-amount,  # Negativo para indicar gasto
-                transaction_type=transaction_type.value,
-                description=description or f"Besitos gastados ({transaction_type.value})",
-                reference_id=reference_id,
-                balance_after=user_gamif.total_besitos,
-                created_at=datetime.now(UTC)
-            )
-            self.session.add(transaction)
-
+        # Crear registro de transacción (amount negativo)
+        transaction = BesitoTransaction(
+            user_id=user_id,
+            amount=-amount,  # Negativo para indicar gasto
+            transaction_type=transaction_type.value,
+            description=description or f"Besitos gastados ({transaction_type.value})",
+            reference_id=reference_id,
+            balance_after=user_gamif.total_besitos,
+            created_at=datetime.now(UTC)
+        )
+        self.session.add(transaction)
+        await self.session.flush()
         await self.session.refresh(user_gamif)
 
         logger.info(
@@ -220,13 +216,12 @@ class BesitoService:
         result = await self.session.execute(stmt)
         user_gamif = result.scalar_one_or_none()
 
-        # Si no existe, crear en transacción
+        # Si no existe, crear
         if not user_gamif:
-            async with self.session.begin():
-                user_gamif = UserGamification(user_id=user_id)
-                self.session.add(user_gamif)
-                await self.session.flush()
-                logger.info(f"Created UserGamification for user {user_id} in get_balance")
+            user_gamif = UserGamification(user_id=user_id)
+            self.session.add(user_gamif)
+            await self.session.flush()
+            logger.info(f"Created UserGamification for user {user_id} in get_balance")
 
         return user_gamif.total_besitos
 

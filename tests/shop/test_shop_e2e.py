@@ -10,6 +10,7 @@ Prueba los flujos completos:
 """
 
 import pytest
+import pytest_asyncio
 from datetime import datetime, UTC
 
 from bot.database import init_db, close_db, get_session
@@ -17,7 +18,7 @@ from bot.shop.services.container import ShopContainer, reset_shop_container
 from bot.shop.database.enums import ItemType, ItemRarity, PurchaseStatus
 
 
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def setup_db():
     """Setup y teardown de BD para cada test."""
     await init_db()
@@ -26,20 +27,20 @@ async def setup_db():
     await close_db()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def session():
     """Proporciona sesión de BD."""
     async with get_session() as sess:
         yield sess
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def shop_container(session):
     """Proporciona container de tienda."""
     return ShopContainer(session)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def sample_category(shop_container):
     """Crea categoría de prueba."""
     return await shop_container.shop.create_category(
@@ -49,7 +50,7 @@ async def sample_category(shop_container):
     )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def sample_item(shop_container, sample_category):
     """Crea producto de prueba."""
     success, msg, item = await shop_container.shop.create_item(
@@ -64,7 +65,7 @@ async def sample_item(shop_container, sample_category):
     return item
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def user_with_besitos(session):
     """Crea usuario con besitos para comprar."""
     from bot.gamification.database.models import UserGamification
@@ -73,7 +74,12 @@ async def user_with_besitos(session):
     user_id = 12345678
 
     # Crear usuario
-    user = User(user_id=user_id, username="test_buyer")
+    user = User(
+        user_id=user_id,
+        username="test_buyer",
+        first_name="Test",
+        last_name="Buyer"
+    )
     session.add(user)
 
     # Crear gamificación con besitos
@@ -249,7 +255,7 @@ async def test_cannot_purchase_insufficient_besitos(shop_container, sample_categ
     user_id = 99999
 
     # Crear usuario pobre
-    user = User(user_id=user_id, username="poor_user")
+    user = User(user_id=user_id, username="poor_user", first_name="Poor", last_name="User")
     session.add(user)
     gamif = UserGamification(user_id=user_id, total_besitos=5)
     session.add(gamif)
@@ -355,7 +361,7 @@ async def test_grant_item(shop_container, sample_item, session):
     from bot.database.models import User
 
     user_id = 77777
-    user = User(user_id=user_id, username="gift_receiver")
+    user = User(user_id=user_id, username="gift_receiver", first_name="Gift", last_name="Receiver")
     session.add(user)
     await session.commit()
 
@@ -555,7 +561,7 @@ async def test_limited_stock(shop_container, sample_category, user_with_besitos,
 
     # Crear segundo usuario
     user2_id = 88888
-    user2 = User(user_id=user2_id, username="second_buyer")
+    user2 = User(user_id=user2_id, username="second_buyer", first_name="Second", last_name="Buyer")
     session.add(user2)
     gamif2 = UserGamification(user_id=user2_id, total_besitos=100)
     session.add(gamif2)
