@@ -32,6 +32,13 @@ from bot.database.engine import get_session, init_db, close_db
 SEEDS = [
     # (nombre, script, tabla_a_verificar, modelo, mínimo_esperado, descripción)
     {
+        "name": "Onboarding Fragments",
+        "script": "migrate_add_onboarding.py",
+        "check_table": "onboarding_fragments",
+        "min_count": 5,
+        "description": "Fragmentos del onboarding narrativo (5 pasos)",
+    },
+    {
         "name": "Protocol Levels",
         "script": "seed_protocol_levels.py",
         "check_table": "levels",
