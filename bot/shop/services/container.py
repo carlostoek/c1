@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from aiogram import Bot
     from bot.shop.services.shop import ShopService
     from bot.shop.services.inventory import InventoryService
+    from bot.shop.services.discounts import DiscountService
+    from bot.shop.services.recommendations import RecommendationService
 
 
 # Instancia global del container
@@ -44,6 +46,8 @@ class ShopContainer:
         # Instancias lazy
         self._shop: Optional["ShopService"] = None
         self._inventory: Optional["InventoryService"] = None
+        self._discounts: Optional["DiscountService"] = None
+        self._recommendations: Optional["RecommendationService"] = None
 
     @property
     def shop(self) -> "ShopService":
@@ -61,6 +65,22 @@ class ShopContainer:
             self._inventory = InventoryService(self._session)
         return self._inventory
 
+    @property
+    def discounts(self) -> "DiscountService":
+        """Obtiene el servicio de descuentos (lazy loading)."""
+        if self._discounts is None:
+            from bot.shop.services.discounts import DiscountService
+            self._discounts = DiscountService(self._session)
+        return self._discounts
+
+    @property
+    def recommendations(self) -> "RecommendationService":
+        """Obtiene el servicio de recomendaciones (lazy loading)."""
+        if self._recommendations is None:
+            from bot.shop.services.recommendations import RecommendationService
+            self._recommendations = RecommendationService(self._session)
+        return self._recommendations
+
     def get_loaded_services(self) -> list:
         """Retorna lista de servicios actualmente cargados."""
         loaded = []
@@ -68,6 +88,10 @@ class ShopContainer:
             loaded.append("shop")
         if self._inventory is not None:
             loaded.append("inventory")
+        if self._discounts is not None:
+            loaded.append("discounts")
+        if self._recommendations is not None:
+            loaded.append("recommendations")
         return loaded
 
 
@@ -102,6 +126,8 @@ def get_shop_container(
         # Reset de servicios para usar nueva sesión
         _shop_container._shop = None
         _shop_container._inventory = None
+        _shop_container._discounts = None
+        _shop_container._recommendations = None
 
     return _shop_container
 

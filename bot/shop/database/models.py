@@ -102,6 +102,10 @@ class ShopItem(Base):
         requires_vip: Si requiere ser VIP para comprar
         is_featured: Si está destacado en la tienda
         is_active: Si está disponible para compra
+        is_hidden: Si está oculto (solo visible para nivel 6+)
+        available_from: Fecha de disponibilidad inicial (None = siempre disponible)
+        available_until: Fecha de fin de disponibilidad (None = disponible indefinidamente)
+        event_name: Nombre del evento si es temporal
         order: Orden de visualización
         created_by: ID del admin que lo creó
         created_at: Fecha de creación
@@ -144,6 +148,13 @@ class ShopItem(Base):
     # Estado y ordenamiento
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Disponibilidad temporal
+    available_from: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    available_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    event_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
     order: Mapped[int] = mapped_column(Integer, default=0)
 
     # Auditoría
@@ -193,6 +204,60 @@ class ShopItem(Base):
     def is_in_stock(self) -> bool:
         """Verifica si hay stock disponible."""
         return self.stock is None or self.stock > 0
+
+    @property
+    def is_temporal(self) -> bool:
+        """Verifica si el item es temporal (tiene fechas de disponibilidad)."""
+        return self.available_from is not None or self.available_until is not None
+
+    @property
+    def is_available(self) -> bool:
+        """
+        Verifica si el item está disponible actualmente.
+
+        Considera:
+        - is_active
+        - Fechas de disponibilidad temporal
+        - Stock
+        """
+        now = datetime.now(UTC)
+
+        # Debe estar activo
+        if not self.is_active:
+            return False
+
+        # Verificar disponibilidad temporal
+        if self.available_from and now < self.available_from:
+            return False
+        if self.available_until and now > self.available_until:
+            return False
+
+        # Verificar stock
+        return self.is_in_stock
+
+    @property
+    def time_until_expiry(self) -> Optional[int]:
+        """
+        Retorna segundos hasta que expire el item (si es temporal).
+
+        Returns:
+            Segundos restantes o None si no expira
+        """
+        if not self.available_until:
+            return None
+        return int((self.available_until - datetime.now(UTC)).total_seconds())
+
+    @property
+    def time_until_available(self) -> Optional[int]:
+        """
+        Retorna segundos hasta que el item esté disponible (si está en el futuro).
+
+        Returns:
+            Segundos restantes o None si ya está disponible
+        """
+        if not self.available_from:
+            return None
+        return int((self.available_from - datetime.now(UTC)).total_seconds())
 
 
 class UserInventory(Base):
