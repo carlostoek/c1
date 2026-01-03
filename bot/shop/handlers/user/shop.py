@@ -97,12 +97,12 @@ async def _track_shop_action(
 
 
 def _build_cabinet_main_keyboard() -> InlineKeyboardMarkup:
-    """Construye teclado principal del Gabinete."""
+    """Construye teclado principal del Gabinete con categorías FASE 4."""
     buttons = [
-        [InlineKeyboardButton(text="📜 Artefactos Narrativos", callback_data="shop:cat:artefactos-narrativos")],
-        [InlineKeyboardButton(text="💾 Contenido Digital", callback_data="shop:cat:contenido-digital")],
-        [InlineKeyboardButton(text="🧪 Consumibles", callback_data="shop:cat:consumibles")],
-        [InlineKeyboardButton(text="✨ Cosméticos", callback_data="shop:cat:cosmeticos")],
+        [InlineKeyboardButton(text="⚡ Efímeros", callback_data="shop:cat:consumible")],
+        [InlineKeyboardButton(text="🎖️ Distintivos", callback_data="shop:cat:cosmetic")],
+        [InlineKeyboardButton(text="🔑 Llaves", callback_data="shop:cat:narrative")],
+        [InlineKeyboardButton(text="💎 Reliquias", callback_data="shop:cat:digital")],
         [InlineKeyboardButton(text="⭐ Destacados", callback_data="shop:featured")],
         [InlineKeyboardButton(text="🎒 Mi Mochila", callback_data="backpack:main")],
         [InlineKeyboardButton(text="🔙 Volver", callback_data="menu:main")],
@@ -352,7 +352,7 @@ async def callback_shop_item_detail(callback: CallbackQuery, session: AsyncSessi
         return
 
     # Verificar si puede adquirir
-    can_buy, reason = await container.shop.can_purchase(user_id, item_id)
+    can_buy, reason = await container.shop.can_purchase_item(user_id, item_id)
 
     # Obtener besitos del usuario
     try:
@@ -375,16 +375,34 @@ async def callback_shop_item_detail(callback: CallbackQuery, session: AsyncSessi
     if item.long_description:
         text += f"\n{item.long_description}\n"
 
-    text += (
-        f"\n💋 <b>Precio:</b> {item.price_besitos} Besitos\n"
-        f"💰 <b>Su saldo:</b> {user_besitos} Besitos\n"
-    )
+    # FASE 4: Precio con descuento
+    pricing = await container.discounts.calculate_price_with_discount(user_id, item)
+    discount_pct = pricing["discount_percentage"]
+
+    if discount_pct > 0:
+        text += (
+            f"\n💋 <b>Precio:</b> <s>{pricing['original_price']}</s> → "
+            f"<b>{pricing['final_price']}</b> Besitos\n"
+            f"✨ <b>Descuento:</b> {discount_pct}% (ahorras {pricing['savings']} Besitos)\n"
+        )
+    else:
+        text += f"\n💋 <b>Precio:</b> {item.price_besitos} Besitos\n"
+
+    text += f"💰 <b>Su saldo:</b> {user_besitos} Besitos\n"
 
     if item.stock is not None:
         text += f"📦 <b>Disponibles:</b> {item.stock}\n"
 
     if item.requires_vip:
         text += "⭐ <b>Requiere:</b> Suscripción VIP\n"
+
+    # FASE 4: Información de item temporal
+    if item.is_temporal:
+        if item.time_until_expiry:
+            hours_left = item.time_until_expiry // 3600
+            text += f"⏰ <b>Expira en:</b> {hours_left} horas\n"
+        if item.event_name:
+            text += f"🎉 <b>Evento:</b> {item.event_name}\n"
 
     # Verificar si ya lo tiene
     has_item = await container.inventory.has_item(user_id, item_id)
