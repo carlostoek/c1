@@ -14,7 +14,7 @@ La Fase 0 consiste en 4 entregables que establecen los fundamentos para la expan
 |------------|--------|-------------|
 | F0.1 | ✅ Completado | Biblioteca de Mensajes de Lucien V1 |
 | F0.2 | ✅ Completado | Mapeo de Arquetipos Expandido |
-| F0.3 | ⏳ Pendiente | Inventario del Gabinete (Tienda) |
+| F0.3 | ✅ Completado | Inventario del Gabinete (Tienda) |
 | F0.4 | ⏳ Pendiente | Estructura de Contenido Narrativo |
 
 ---
@@ -78,25 +78,39 @@ La Fase 0 consiste en 4 entregables que establecen los fundamentos para la expan
 
 ---
 
-## 🎯 F0.3: INVENTARIO DEL GABINETE (TIENDA)
+## 🎯 F0.3: INVENTARIO DEL GABINETE (TIENDA) ✅
 
 **Archivo:** `bot/shop/config/initial_inventory.py`
 
 **Tareas:**
-- [ ] Crear CATEGORY_MAPPING (mapeo narrativo de categorías)
-- [ ] Crear CATEGORY_DESCRIPTIONS (descripciones para UI)
-- [ ] Definir lista INITIAL_ITEMS (9 items iniciales)
-  - [ ] Sello del Visitante (badge)
-  - [ ] Susurro Efímero (audio)
-  - [ ] Pase de Prioridad (consumable)
-  - [ ] Insignia del Observador (badge)
-  - [ ] Llave del Fragmento Oculto (narrative)
-  - [ ] Vistazo al Sensorium (content)
-  - [ ] El Primer Secreto (chapter)
-  - [ ] Marca del Confidente (badge)
-  - [ ] Reliquia de Diana (collectible)
-- [ ] Implementar función get_seed_data()
-- [ ] Implementar función validate_item()
+- [x] Crear CATEGORY_MAPPING (mapeo narrativo de categorías)
+- [x] Crear CATEGORY_DESCRIPTIONS (descripciones para UI)
+- [x] Definir lista INITIAL_ITEMS (9 items iniciales)
+  - [x] Sello del Visitante (badge)
+  - [x] Susurro Efímero (audio)
+  - [x] Pase de Prioridad (consumable)
+  - [x] Insignia del Observador (badge)
+  - [x] Llave del Fragmento Oculto (narrative)
+  - [x] Vistazo al Sensorium (content)
+  - [x] El Primer Secreto (chapter)
+  - [x] Marca del Confidente (badge)
+  - [x] Reliquia de Diana (collectible)
+- [x] Implementar función get_seed_data()
+- [x] Implementar función validate_item()
+
+**Items por Categoría:**
+- **Distintivos (COSMETIC):** 3 items (badges de reconocimiento)
+- **Efímeros (CONSUMABLE):** 2 items (audio, priority pass)
+- **Llaves (NARRATIVE):** 2 items (fragmentos, capítulos secretos)
+- **Reliquias (DIGITAL):** 2 items (sensorium, collectible)
+
+**Estadísticas:**
+- ~700 líneas de código
+- 9 items iniciales definidos
+- Valor total: 125 Besitos
+- Rango de precios: 2 - 40 Besitos
+- 5 funciones helper (get_seed_data, validate_item, filters, format, stats)
+- 100% type hints y documentación
 
 **Nota:** El sistema shop YA EXISTE con modelos completos. Este archivo solo define datos iniciales con contenido narrativo apropiado. Precios en BESITOS (sistema existente).
 
@@ -125,9 +139,9 @@ La Fase 0 consiste en 4 entregables que establecen los fundamentos para la expan
 ## 📊 PROGRESO GENERAL
 
 ```
-Progreso: 2/4 entregables (50%)
+Progreso: 3/4 entregables (75%)
 
-█████████░░░░░░░░░░░░░░░░░░░░░░░░░░░  50%
+██████████████░░░░░░░░░░░░░░░░░░░░░░  75%
 ```
 
 ---
@@ -156,7 +170,7 @@ Antes de pasar a Fase 1, se debe completar:
 
 - [x] lucien_messages.py existe con todas las categorías (BESITOS, no Favores)
 - [x] archetypes.py existe con los 6 arquetipos
-- [ ] initial_inventory.py existe con 9 items definidos (precios en besitos)
+- [x] initial_inventory.py existe con 9 items definidos (precios en besitos)
 - [ ] story_content.py existe con Nivel 1 completo
 - [x] Ningún archivo existente fue modificado
 - [x] Todos los archivos tienen type hints completos
