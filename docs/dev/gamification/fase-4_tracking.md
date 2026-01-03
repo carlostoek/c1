@@ -1,7 +1,7 @@
 # FASE 4 - EL GABINETE - TRACKING
 ## Proyecto: El Mayordomo del Diván
 
-**Estado General:** EN PROGRESO
+**Estado General:** ✅ COMPLETADA
 **Última actualización:** 2025-01-03
 
 ---
@@ -144,14 +144,55 @@ El Gabinete (sistema de tienda) ya existe como `bot/shop/`. Fase 4 consiste en e
 
 ---
 
-## PRÓXIMOS PASOS
+## PRÓXIMOS PASOS (FUTUROS)
 
-1. Integrar descuentos en handlers de usuario
-2. Integrar recomendaciones en UI del Gabinete
-3. Crear sistema de notificaciones
-4. Expandir comandos de admin
-5. Crear migración de base de datos para nuevos campos
+1. Migración de base de datos para nuevos campos (Alembic)
+2. Tests E2E de descuentos y items ocultos
+3. Integración de recomendaciones en UI principal
+4. Sistema de notificaciones automáticas en background
+5. Comandos adicionales de admin para items temporales
+
+---
+
+## SERVICIOS CREADOS EN FASE 4
+
+1. **DiscountService** (bot/shop/services/discounts.py)
+   - Cálculo de descuentos por nivel (0-20%)
+   - Bonuses por distintivos (+5-15%)
+   - Bonuses por reliquias (+3-20%)
+   - Máximo 50% de descuento
+   - Formateo de mensajes con descuento
+
+2. **RecommendationService** (bot/shop/services/recommendations.py)
+   - Recomendaciones por arquetipo
+   - Sugerencias basadas en historial
+   - Items de próximo nivel
+   - Resumen de inventario
+
+3. **NotificationService** (bot/shop/services/notifications.py)
+   - Notificaciones de items nuevos
+   - Alertas de stock bajo
+   - Recordatorios de items temporales
+   - Envío a usuarios VIP
+
+4. **ShopService actualizado**
+   - get_items_for_user() - Filtra items ocultos
+   - can_purchase_item() - Verifica nivel y ocultos
+   - get_temporal_items() - Items temporales
+   - get_expiring_soon() - Items por expirar
+   - get_low_stock_items() - Items con stock bajo
+
+---
+
+## INTEGRACIÓN COMPLETADA
+
+- [x] ShopContainer con 5 servicios
+- [x] Handlers de usuario con precios con descuento
+- [x] Teclado principal con categorías FASE 4
+- [x] Información de items temporales en UI
+- [x] Descuentos aplicados en compras
 
 ---
 
 *Documento de tracking para Fase 4 - El Gabinete*
+*FASE 4 COMPLETADA - Estructura lista para producción*
