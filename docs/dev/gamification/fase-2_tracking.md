@@ -74,13 +74,13 @@
 ---
 
 ### F2.5 - Historial de Transacciones
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Agregar callback para historial en besitos handler
-- [ ] Handler de historial con paginación
-- [ ] Método get_recent_transactions en besito service
-- [ ] Mensajes de Lucien para historial
-- [ ] Integración en menú
+- [x] Agregar callback para historial en besitos handler
+- [x] Handler de historial con paginación (user)
+- [x] Método get_recent_transactions en besito service (ya existía)
+- [x] Mensajes de Lucien para historial (HISTORY_HEADER, EMPTY_STATE)
+- [x] Integración en menú (botón "Ver Historial" agregado)
 
 ---
 
