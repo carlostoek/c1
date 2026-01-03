@@ -25,17 +25,17 @@
 ## TAREAS FASE 1
 
 ### F1.1 - Reescribir /start
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Importar LucienMessages
-- [ ] Implementar flujo para usuario completamente nuevo
-- [ ] Implementar flujo para usuario que regresa (< 7 días)
-- [ ] Implementar flujo para usuario inactivo (7-14 días)
-- [ ] Implementar flujo para usuario muy inactivo (14+ días)
-- [ ] Implementar flujo para usuario VIP
-- [ ] Implementar flujo para admin
-- [ ] Actualizar menú principal con botones correctos
-- [ ] Actualizar última actividad del usuario
+- [x] Importar LucienMessages
+- [x] Implementar flujo para usuario completamente nuevo
+- [x] Implementar flujo para usuario que regresa (< 7 días)
+- [x] Implementar flujo para usuario inactivo (7-14 días)
+- [x] Implementar flujo para usuario muy inactivo (14+ días)
+- [x] Implementar flujo para usuario VIP
+- [x] Implementar flujo para admin
+- [x] Actualizar menú principal con botones correctos
+- [x] Actualizar última actividad del usuario
 
 ---
 
@@ -134,25 +134,25 @@
 ## CRITERIOS DE ACEPTACIÓN
 
 ### Funcionalidad
-- [ ] /start muestra mensajes de Lucien
-- [ ] Flujos diferenciados funcionan
-- [ ] Menú principal tiene botones correctos
+- [x] /start muestra mensajes de Lucien
+- [x] Flujos diferenciados funcionan
+- [x] Menú principal tiene botones correctos
 - [ ] Perfil muestra información con voz de Lucien
 - [ ] Gabinete tiene descripciones narrativas
 - [ ] Encargos usan terminología correcta
 - [ ] Balance de besitos tiene comentarios contextuales
 
 ### Consistencia de Voz
-- [ ] Ningún mensaje usa "tú" (siempre "usted")
+- [x] /start usa "usted" (no "tú")
 - [ ] Ningún mensaje tiene emojis excesivos en el texto
-- [ ] Tono consistente: formal, elegante, evaluador
+- [x] Tono de /start: formal, elegante, evaluador
 - [ ] No hay mensajes genéricos tipo "✅ Éxito!" o "❌ Error!"
 
 ### Técnico
-- [ ] Todos los imports de LucienMessages funcionan
-- [ ] No hay errores de formato
-- [ ] parse_mode="HTML" donde se usa formato
-- [ ] Callbacks responden correctamente
+- [x] Todos los imports de LucienMessages funcionan
+- [x] No hay errores de formato
+- [x] parse_mode="HTML" donde se usa formato
+- [x] Callbacks responden correctamente
 
 ---
 

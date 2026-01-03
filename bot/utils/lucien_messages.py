@@ -621,6 +621,96 @@ class LucienMessages:
         msg = messages.get(message_key, "")
         return msg.format(**kwargs) if kwargs else msg
 
+    # =========================================================================
+    # 10. START (/start handler - Comando principal)
+    # =========================================================================
+
+    @staticmethod
+    def start(message_key: str, **kwargs) -> str:
+        """
+        Mensajes para el comando /start.
+
+        Mensajes disponibles:
+        - NEW_USER_1: Primera parte de bienvenida a usuario nuevo
+        - NEW_USER_2: Segunda parte de bienvenida a usuario nuevo
+        - RETURNING_USER: Usuario que regresa (< 7 días)
+        - INACTIVE_USER: Usuario inactivo (7-14 días)
+        - LONG_INACTIVE_USER: Usuario muy inactivo (14+ días)
+        - VIP_USER: Usuario VIP activo
+        - ADMIN: Administrador
+        """
+        messages = {
+            "NEW_USER_1": (
+                "Buenas noches. O días. El tiempo es relativo cuando se trata de Diana.\n\n"
+                "Soy Lucien. Administro el acceso a su universo. "
+                "No soy su amigo. No soy su enemigo. Soy el filtro.\n\n"
+                "Diana no recibe a cualquiera. Mi trabajo es determinar si usted merece su atención.\n\n"
+                "Por ahora, solo observe. Su comportamiento dirá más que mil palabras."
+            ),
+
+            "NEW_USER_2": (
+                "Permítame explicar cómo funciona este... protocolo.\n\n"
+                "<b>Los Besitos</b>\n"
+                "Cada interacción tiene valor. Reacciones, misiones completadas, "
+                "descubrimientos. Todo se acumula. Todo es notado.\n\n"
+                "<b>Los Niveles</b>\n"
+                "Hay 7 niveles de reconocimiento. Comienza como Visitante. "
+                "Dónde termine... depende enteramente de usted.\n\n"
+                "<b>El Gabinete</b>\n"
+                "Hay una colección de objetos que Diana permite adquirir. "
+                "Algunos son efímeros. Otros... permanentes.\n\n"
+                "¿Está preparado para comenzar? O prefiere observar desde la seguridad?"
+            ),
+
+            "RETURNING_USER": (
+                "Ha regresado. Interesante.\n\n"
+                "Han pasado {days_away} días desde su última visita. "
+                "La persistencia... es una cualidad que Diana nota. "
+                "O encuentra admirable. O perturbadora. Aún no he decidido cuál es su caso.\n\n"
+                "Continúe donde lo dejó. Estoy observando."
+            ),
+
+            "INACTIVE_USER": (
+                "Una semana.\n\n"
+                "Siete días sin su presencia. "
+                "Diana está comenzando a olvidar que existe.\n\n"
+                "Es un proceso natural. Los que no se presentan... "
+                "desaparecen de la memoria.\n\n"
+                "Regrese si desea ser recordado."
+            ),
+
+            "LONG_INACTIVE_USER": (
+                "Dos semanas.\n\n"
+                "Francamente, había asumido que no regresaría.\n\n"
+                "Muchos no lo hacen. "
+                "Diana rara vez los menciona después de un tiempo.\n\n"
+                "Pero usted está leyendo esto. "
+                "Así que supongo que hay... algo de interés restante.\n\n"
+                "O curiosidad morbosa. Ambas son válidas."
+            ),
+
+            "VIP_USER": (
+                "Bienvenido de nuevo, {user_name}.\n\n"
+                "Su estatus VIP permanece activo. "
+                "Diana valor su... persistencia.\n\n"
+                "<b>Días restantes:</b> {days_remaining}\n\n"
+                "El círculo íntimo sigue aquí. "
+                "Aproveche mientras pueda. Nada es permanente."
+            ),
+
+            "ADMIN": (
+                "Ah, {user_name}.\n\n"
+                "Diana ha confiado en usted. "
+                "Usted gestiona lo que yo solo observo.\n\n"
+                "Use /admin para acceder al panel de control. "
+                "Tengo entendido que prefiere la eficiencia.\n\n"
+                "No me decepcione. Diana tiene estándares altos."
+            ),
+        }
+
+        msg = messages.get(message_key, "")
+        return msg.format(**kwargs) if kwargs else msg
+
 
 # =============================================================================
 # FUNCIONES HELPER PARA USO CONVENIENTE
@@ -653,6 +743,7 @@ def get_lucien_message(category: str, message_key: str, **kwargs) -> str:
         "missions": LucienMessages.missions,
         "retention": LucienMessages.retention,
         "conversion": LucienMessages.conversion,
+        "start": LucienMessages.start,
     }
 
     method = category_methods.get(category)
