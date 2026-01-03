@@ -24,6 +24,61 @@ from bot.utils.keyboards import create_inline_keyboard
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# FASE 3: TRACKING DE COMPORTAMIENTO
+# =============================================================================
+
+async def _track_content_view(
+    session: AsyncSession,
+    user_id: int,
+    fragment: NarrativeFragment
+):
+    """
+    Registra visualización de contenido narrativo (FASE 3).
+
+    Args:
+        session: Sesión de BD
+        user_id: ID del usuario
+        fragment: Fragmento narrativo visto
+    """
+    try:
+        from bot.gamification.services.behavior_tracking import BehaviorTrackingService
+
+        tracking = BehaviorTrackingService(session)
+
+        # Determinar si el contenido es emotivo/personal basado en tags
+        is_emotional = False
+        is_personal = False
+        tags = []
+
+        if fragment.tags:
+            tags_list = fragment.tags.split(',') if fragment.tags else []
+            tags = [t.strip() for t in tags_list]
+
+            # Tags emotivos
+            emotional_tags = ["emotional", "personal", "vulnerable", "intimate",
+                            "diary", "letter", "confession", "memory", "diana_story"]
+            is_emotional = any(tag in emotional_tags for tag in tags)
+            is_personal = any(tag in ["personal", "diana_story"] for tag in tags)
+
+        # Registrar interacción con contenido
+        await tracking.track_content_interaction(
+            user_id=user_id,
+            content_id=fragment.fragment_key,
+            content_type="narrative",
+            interaction_type="view",
+            is_emotional=is_emotional,
+            is_personal=is_personal,
+            tags=tags if tags else None
+        )
+
+        logger.debug(f"📊 Tracking: Usuario {user_id} vio fragmento {fragment.fragment_key}")
+
+    except Exception as e:
+        # No fallar el flujo principal por errores de tracking
+        logger.warning(f"⚠️ Error en tracking de vista de contenido: {e}")
+
+
 @narrative_router.callback_query(F.data == "narr:start")
 async def callback_start_story(
     callback: CallbackQuery,
@@ -211,6 +266,9 @@ async def _show_fragment(
             parse_mode="HTML",
             reply_markup=keyboard
         )
+
+    # FASE 3: Tracking de visualización de contenido
+    await _track_content_view(message.chat.id if hasattr(message, 'chat') else user_id, user_id, fragment)
 
 
 async def _build_decisions_keyboard(

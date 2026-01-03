@@ -30,6 +30,72 @@ shop_user_router.message.middleware(DatabaseMiddleware())
 shop_user_router.callback_query.middleware(DatabaseMiddleware())
 
 
+# =============================================================================
+# FASE 3: TRACKING DE COMPORTAMIENTO
+# =============================================================================
+
+async def _track_shop_action(
+    session: AsyncSession,
+    user_id: int,
+    action_type: str,
+    item_id: Optional[int] = None,
+    item_category: Optional[str] = None
+):
+    """
+    Registra acciones en la tienda para tracking de comportamiento (FASE 3).
+
+    Args:
+        session: Sesión de BD
+        user_id: ID del usuario
+        action_type: Tipo de acción (view_category, view_item, purchase)
+        item_id: ID del item (opcional)
+        item_category: Categoría del item (opcional)
+    """
+    try:
+        from bot.gamification.services.behavior_tracking import BehaviorTrackingService
+
+        tracking = BehaviorTrackingService(session)
+
+        if action_type == "view_category":
+            # Exploración de categoría
+            await tracking.track_button_click(
+                user_id=user_id,
+                button_id=f"shop:cat:{item_category}",
+                context="shop_category",
+                time_to_click=0.0,  # No tenemos tiempo exacto
+                is_exploration=True,
+                is_direct_action=False
+            )
+
+        elif action_type == "view_item":
+            # Ver detalles de item (exploración)
+            await tracking.track_button_click(
+                user_id=user_id,
+                button_id=f"shop:item:{item_id}",
+                context="shop_item_detail",
+                time_to_click=0.0,
+                is_exploration=True,
+                is_direct_action=False
+            )
+
+        elif action_type == "purchase":
+            # Compra (acción directa)
+            await tracking.track_button_click(
+                user_id=user_id,
+                button_id=f"shop:buy:{item_id}",
+                context="shop_purchase",
+                time_to_click=0.0,
+                is_exploration=False,
+                is_direct_action=True
+            )
+
+        logger.debug(f"📊 Tracking: Usuario {user_id} acción shop: {action_type}")
+
+    except Exception as e:
+        # No fallar el flujo principal por errores de tracking
+        logger.warning(f"⚠️ Error en tracking de shop: {e}")
+
+
 def _build_cabinet_main_keyboard() -> InlineKeyboardMarkup:
     """Construye teclado principal del Gabinete."""
     buttons = [
@@ -213,6 +279,9 @@ async def callback_shop_category(callback: CallbackQuery, session: AsyncSession)
         f"📦 {len(items)} artículos disponibles"
     )
 
+    # FASE 3: Tracking de vista de categoría
+    await _track_shop_action(session, callback.from_user.id, "view_category", item_category=category_slug)
+
     await callback.message.edit_text(
         text,
         reply_markup=_build_category_keyboard(items, category_slug, page),
@@ -322,6 +391,9 @@ async def callback_shop_item_detail(callback: CallbackQuery, session: AsyncSessi
     if has_item:
         text += f"\n{LucienMessages.shop('SHOP_ALREADY_OWNED')}"
 
+    # FASE 3: Tracking de vista de item
+    await _track_shop_action(session, user_id, "view_item", item_id=item_id)
+
     await callback.message.edit_text(
         text,
         reply_markup=_build_item_detail_keyboard(item_id, can_buy, reason),
@@ -342,6 +414,9 @@ async def callback_shop_buy(callback: CallbackQuery, session: AsyncSession):
     success, message, purchase = await container.shop.purchase_item(user_id, item_id)
 
     if success:
+        # FASE 3: Tracking de compra exitosa
+        await _track_shop_action(session, user_id, "purchase", item_id=item_id)
+
         item = await container.shop.get_item(item_id)
         text = (
             f"🎉 <b>Adquisición Exitosa</b>\n\n"

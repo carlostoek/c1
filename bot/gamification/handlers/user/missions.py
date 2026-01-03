@@ -22,6 +22,71 @@ router = Router()
 router.callback_query.middleware(DatabaseMiddleware())
 
 
+# =============================================================================
+# FASE 3: TRACKING DE COMPORTAMIENTO
+# =============================================================================
+
+async def _track_mission_action(
+    session,
+    user_id: int,
+    action_type: str,
+    mission_id: Optional[int] = None
+):
+    """
+    Registra acciones de misiones para tracking de comportamiento (FASE 3).
+
+    Args:
+        session: Sesión de BD
+        user_id: ID del usuario
+        action_type: Tipo de acción (view_list, view_mission, claim_reward)
+        mission_id: ID de la misión (opcional)
+    """
+    try:
+        from bot.gamification.services.behavior_tracking import BehaviorTrackingService
+
+        tracking = BehaviorTrackingService(session)
+
+        if action_type == "view_list":
+            # Ver lista de misiones (exploración)
+            await tracking.track_button_click(
+                user_id=user_id,
+                button_id="user:missions",
+                context="mission_list",
+                time_to_click=0.0,
+                is_exploration=True,
+                is_direct_action=False
+            )
+
+        elif action_type == "view_mission":
+            # Ver detalles de misión (exploración)
+            await tracking.track_content_interaction(
+                user_id=user_id,
+                content_id=f"mission:{mission_id}",
+                content_type="mission",
+                interaction_type="view",
+                is_emotional=False,
+                is_personal=False
+            )
+
+        elif action_type == "claim_reward":
+            # Reclamar recompensa (acción directa/realización)
+            await tracking.track_button_click(
+                user_id=user_id,
+                button_id=f"user:mission:claim:{mission_id}",
+                context="mission_claim",
+                time_to_click=0.0,
+                is_exploration=False,
+                is_direct_action=True
+            )
+
+        logger.debug(f"📊 Tracking: Usuario {user_id} acción misión: {action_type}")
+
+    except Exception as e:
+        # No fallar el flujo principal por errores de tracking
+        import logging
+        logging.getLogger(__name__).warning(f"⚠️ Error en tracking de misión: {e}")
+
+
 @router.callback_query(F.data == "user:missions")
 async def show_missions(callback: CallbackQuery, gamification: GamificationContainer):
     """
@@ -38,6 +103,9 @@ async def show_missions(callback: CallbackQuery, gamification: GamificationConta
     """
     try:
         user_id = callback.from_user.id
+
+        # FASE 3: Tracking de vista de lista de misiones
+        await _track_mission_action(callback, user_id, "view_list")
 
         # Obtener encargos del usuario
         in_progress = await gamification.mission.get_user_missions(
@@ -134,6 +202,9 @@ async def claim_mission_reward(callback: CallbackQuery, gamification: Gamificati
         )
 
         if success:
+            # FASE 3: Tracking de reclamación de recompensa
+            await _track_mission_action(callback, user_id, "claim_reward", mission_id)
+
             await callback.answer(
                 LucienMessages.missions('MISSION_CLAIM_SUCCESS'),
                 show_alert=True
@@ -168,6 +239,9 @@ async def view_mission_progress(callback: CallbackQuery, gamification: Gamificat
     try:
         mission_id = int(callback.data.split(":")[-1])
         user_id = callback.from_user.id
+
+        # FASE 3: Tracking de vista de detalles de misión
+        await _track_mission_action(callback, user_id, "view_mission", mission_id)
 
         # Obtener encargo y progreso
         mission = await gamification.mission.get_mission(mission_id)

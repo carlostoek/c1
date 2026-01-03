@@ -25,6 +25,54 @@ from bot.utils.keyboards import create_inline_keyboard
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# FASE 3: TRACKING DE COMPORTAMIENTO
+# =============================================================================
+
+async def _track_decision(
+    session: AsyncSession,
+    user_id: int,
+    decision_id: int,
+    time_to_decide: Optional[float],
+    options_available: int,
+    is_systematic: bool = False,
+    is_emotional: bool = False
+):
+    """
+    Registra decisión narrativa para tracking de comportamiento (FASE 3).
+
+    Args:
+        session: Sesión de BD
+        user_id: ID del usuario
+        decision_id: ID de la decisión tomada
+        time_to_decide: Segundos para tomar la decisión
+        options_available: Cantidad de opciones disponibles
+        is_systematic: Si siguió un patrón lógico/ordenado
+        is_emotional: Si la elección fue emotiva
+    """
+    try:
+        from bot.gamification.services.behavior_tracking import BehaviorTrackingService
+
+        tracking = BehaviorTrackingService(session)
+
+        # Registrar decisión
+        await tracking.track_decision(
+            user_id=user_id,
+            decision_id=str(decision_id),
+            time_to_decide=time_to_decide if time_to_decide else 0.0,
+            options_available=options_available,
+            decision_type="narrative",
+            is_systematic=is_systematic,
+            is_emotional=is_emotional
+        )
+
+        logger.debug(f"📊 Tracking: Usuario {user_id} tomó decisión {decision_id} en {time_to_decide}s")
+
+    except Exception as e:
+        # No fallar el flujo principal por errores de tracking
+        logger.warning(f"⚠️ Error en tracking de decisión: {e}")
+
+
 @narrative_router.callback_query(F.data.startswith("narr:decision:"))
 async def callback_process_decision(
     callback: CallbackQuery,
@@ -96,6 +144,28 @@ async def callback_process_decision(
             reply_markup=keyboard
         )
         return
+
+    # FASE 3: Tracking de decisión tomada
+    # Obtener cantidad de decisiones disponibles para este fragmento
+    available_decisions = await narrative.decision.get_available_decisions(
+        progress.current_fragment_key if progress.current_fragment_key else "",
+        user_id=user_id
+    )
+    options_count = len(available_decisions) if available_decisions else 1
+
+    # Determinar si fue sistemática/ejecutiva (primera opción = más directo)
+    # Esto es una simplificación; podría mejorarse con análisis más profundo
+    is_systematic = (decision_id == sorted([d.id for d in available_decisions])[0]) if available_decisions else False
+
+    await _track_decision(
+        session=session,
+        user_id=user_id,
+        decision_id=decision_id,
+        time_to_decide=response_time,
+        options_available=options_count,
+        is_systematic=is_systematic,
+        is_emotional=False  # Podría derivarse de tags del fragmento
+    )
 
     # Incrementar contador de decisiones
     await narrative.progress.increment_decisions(user_id)
