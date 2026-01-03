@@ -114,6 +114,53 @@ class TemplateCategory(str, Enum):
         return self.value
 
 
+class InteractionType(str, Enum):
+    """Tipos de interacción para tracking de comportamiento (FASE 3).
+
+    Define todos los tipos de interacciones que se trackean para
+    detección de arquetipos. Corregido para no depender de TEXT_RESPONSE.
+    """
+
+    # Navegación
+    BUTTON_CLICK = "button_click"                    # Click en botón inline
+    MENU_NAVIGATION = "menu_navigation"             # Navegación entre menús
+    BACK_CLICKED = "back_clicked"                   # Click en "volver"
+
+    # Contenido
+    CONTENT_VIEW = "content_view"                   # Vio contenido
+    CONTENT_COMPLETE = "content_complete"           # Completó contenido (llegó al final)
+    CONTENT_REVISIT = "content_revisit"             # Revisitó contenido antiguo
+    EASTER_EGG_FOUND = "easter_egg_found"           # Encontró easter egg
+    DETAILS_EXPANDED = "details_expanded"           # Expandió detalles/leyenda
+
+    # Decisiones
+    DECISION_MADE = "decision_made"                 # Tomó decisión narrativa
+    CHOICE_SELECTED = "choice_selected"             # Selección en opciones
+
+    # Evaluaciones/Desafíos
+    QUIZ_START = "quiz_start"                       # Inició evaluación
+    QUIZ_ANSWER = "quiz_answer"                     # Respondió pregunta
+    QUIZ_COMPLETE = "quiz_complete"                 # Completó evaluación
+    PUZZLE_SOLVED = "puzzle_solved"                 # Resolver puzzle/código
+
+    # Sesión
+    SESSION_START = "session_start"                 # Inicio de sesión
+    SESSION_END = "session_end"                     # Fin de sesión (inactividad)
+    RETURN_AFTER_INACTIVITY = "return_after_inactivity"  # Regresó después de X días
+
+    # Acciones específicas
+    SKIP_ACTION = "skip_action"                     # Usó "saltar"
+    RETRY_ACTION = "retry_action"                   # Reintentó acción fallida
+    INFO_REQUEST = "info_request"                   # Pidió más información
+
+    # Contenido específico
+    EMOTIONAL_VIEW = "emotional_view"               # Vio contenido emocional/personal
+    PERSONAL_STORY_VIEW = "personal_story_view"     # Vio historia personal de Diana
+
+    def __str__(self) -> str:
+        return self.value
+
+
 # ============================================================
 # TYPEDDICTS PARA VALIDACIÓN JSON
 # ============================================================

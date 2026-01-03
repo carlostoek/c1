@@ -45,6 +45,21 @@ class UserGamification(Base):
         onupdate=lambda: datetime.now(UTC)
     )
 
+    # FASE 3: Arquetipo detectado
+    archetype: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )
+    archetype_confidence: Mapped[float] = mapped_column(
+        Integer, default=0
+    )  # Stored as int*100 (0-100)
+    archetype_scores: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # JSON string: {"EXPLORER": 70, "DIRECT": 30, ...}
+    archetype_detected_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    archetype_version: Mapped[int] = mapped_column(Integer, default=1)
+
     # Relaciones
     current_level: Mapped[Optional["Level"]] = relationship(
         "Level",
@@ -621,4 +636,157 @@ class DailyGiftClaim(Base):
     __table_args__ = (
         Index('idx_daily_gift_last_claim', 'last_claim_date'),
         Index('idx_daily_gift_streak', 'current_streak'),
+    )
+
+
+class UserBehaviorSignals(Base):
+    """Señales de comportamiento del usuario para detección de arquetipos.
+
+    Almacena métricas de comportamiento que se utilizan para detectar
+    el arquetipo del usuario (EXPLORER, DIRECT, ROMANTIC, ANALYTICAL, PERSISTENT, PATIENT).
+
+    Este modelo es CORREGIDO para FASE 3 - No depende de TEXT_RESPONSE,
+    sino de interacciones reales con botones y navegación.
+
+    Attributes:
+        user_id: ID del usuario (PK, 1-to-1 con users)
+
+        # Métricas de exploración (EXPLORER)
+        content_sections_visited: Secciones únicas visitadas
+        content_completion_rate: % de contenido disponible visto (0-1)
+        easter_eggs_found: Easter eggs encontrados
+        avg_time_on_content: Segundos promedio en contenido
+        revisits_old_content: Veces que revisó contenido antiguo (>7 días)
+        unique_content_per_session: Contenido único promedio por sesión
+        explore_depth: Profundidad máxima de navegación
+
+        # Métricas de velocidad/eficiencia (DIRECT)
+        avg_time_to_click: Segundos desde ver botón hasta click
+        avg_decision_time: Segundos para tomar decisión narrativa
+        actions_per_session: Acciones promedio por sesión
+        quick_actions_count: Clicks < 3 segundos
+        direct_navigation_ratio: % de acciones que van directo al objetivo (0-1)
+        skips_explanation: Veces que saltó explicación
+
+        # Métricas emocionales (ROMANTIC) - DERIVADAS DE TAGS DE CONTENIDO
+        emotional_content_views: Veces que vio contenido emocional/personal
+        personal_stories_accessed: Veces que accedió a historias personales de Diana
+        likes_vs_saves_ratio: Ratio de reacciones emocionales vs acciones frías (0-1)
+        repeat_emotional_visits: Veces que revisó contenido emotivo
+        diana_mnemonics_interactions: Interacciones con mementos/referencias a Diana
+
+        # Métricas de análisis (ANALYTICAL)
+        evaluation_scores_avg: Promedio en evaluaciones (0-100)
+        evaluation_completion_rate: % de evaluaciones completadas (0-1)
+        info_requests: Veces que pidió "más info" (botones de información)
+        systematic_exploration: Visitó secciones en orden secuencial (0-1)
+        details_viewed: Veces que expandió detalles/leyendas
+        puzzle_completion_time: Tiempo promedio en resolver puzzles
+
+        # Métricas de persistencia (PERSISTENT)
+        return_after_inactivity: Veces que volvió después de 7+ días
+        retry_failed_actions: Reintentos de acciones fallidas
+        incomplete_flows_completed: Flujos abandonados y luego completados
+        account_age_days: Días desde primera interacción
+        return_rate: % de veces que regresa después de inactividad (0-1)
+        streak_restarts: Veces que reinició racha perdida
+
+        # Métricas de paciencia (PATIENT)
+        skip_actions_used: Veces que usó "saltar" o "skip"
+        current_streak: Racha actual (de F2.3)
+        best_streak: Mejor racha histórica
+        avg_session_duration: Duración promedio de sesión en segundos
+        session_consistency: Regularidad de sesiones (desviación estándar, 0-1)
+        slow_decision_count: Decisiones tomadas > 30 segundos
+
+        # Métricas generales
+        total_interactions: Total de interacciones registradas
+        total_sessions: Total de sesiones
+        first_interaction_at: Primera interacción registrada
+        last_interaction_at: Última interacción registrada
+        last_updated_at: Última actualización de señales
+
+    Relaciones:
+        user: Usuario del sistema core (via users table)
+    """
+    __tablename__ = "user_behavior_signals"
+
+    # Primary key
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        primary_key=True
+    )
+
+    # Exploration metrics (EXPLORER)
+    content_sections_visited: Mapped[int] = mapped_column(Integer, default=0)
+    content_completion_rate: Mapped[float] = mapped_column(Integer, default=0.0)  # Stored as int*100
+    easter_eggs_found: Mapped[int] = mapped_column(Integer, default=0)
+    avg_time_on_content: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    revisits_old_content: Mapped[int] = mapped_column(Integer, default=0)
+    unique_content_per_session: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    explore_depth: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Speed/efficiency metrics (DIRECT)
+    avg_time_to_click: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    avg_decision_time: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    actions_per_session: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    quick_actions_count: Mapped[int] = mapped_column(Integer, default=0)
+    direct_navigation_ratio: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    skips_explanation: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Emotional metrics (ROMANTIC) - DERIVED FROM CONTENT TAGS
+    emotional_content_views: Mapped[int] = mapped_column(Integer, default=0)
+    personal_stories_accessed: Mapped[int] = mapped_column(Integer, default=0)
+    likes_vs_saves_ratio: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    repeat_emotional_visits: Mapped[int] = mapped_column(Integer, default=0)
+    diana_mnemonics_interactions: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Analysis metrics (ANALYTICAL)
+    evaluation_scores_avg: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    evaluation_completion_rate: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    info_requests: Mapped[int] = mapped_column(Integer, default=0)
+    systematic_exploration: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    details_viewed: Mapped[int] = mapped_column(Integer, default=0)
+    puzzle_completion_time: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+
+    # Persistence metrics (PERSISTENT)
+    return_after_inactivity: Mapped[int] = mapped_column(Integer, default=0)
+    retry_failed_actions: Mapped[int] = mapped_column(Integer, default=0)
+    incomplete_flows_completed: Mapped[int] = mapped_column(Integer, default=0)
+    account_age_days: Mapped[int] = mapped_column(Integer, default=0)
+    return_rate: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    streak_restarts: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Patience metrics (PATIENT)
+    skip_actions_used: Mapped[int] = mapped_column(Integer, default=0)
+    current_streak: Mapped[int] = mapped_column(Integer, default=0)
+    best_streak: Mapped[int] = mapped_column(Integer, default=0)
+    avg_session_duration: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    session_consistency: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    slow_decision_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    # General metrics
+    total_interactions: Mapped[int] = mapped_column(Integer, default=0)
+    total_sessions: Mapped[int] = mapped_column(Integer, default=0)
+    first_interaction_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True
+    )
+    last_interaction_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True
+    )
+    last_updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False
+    )
+
+    # Índices para optimización
+    __table_args__ = (
+        Index('idx_behavior_total_interactions', 'total_interactions'),
+        Index('idx_behavior_last_interaction', 'last_interaction_at'),
+        Index('idx_behavior_user_updated', 'user_id', 'last_updated_at'),
     )
