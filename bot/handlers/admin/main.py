@@ -185,6 +185,9 @@ async def callback_admin_gamification(callback: CallbackQuery, session: AsyncSes
         ],
         [
             {"text": "💰 Transacciones", "callback_data": "gamif:admin:transactions"},
+            {"text": "🎭 Arquetipos", "callback_data": "gamif:admin:archetypes"}
+        ],
+        [
             {"text": "🔧 Configuración", "callback_data": "gamif:admin:config"}
         ],
         [
