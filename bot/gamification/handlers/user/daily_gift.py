@@ -14,6 +14,7 @@ import logging
 
 from bot.middlewares import DatabaseMiddleware
 from bot.gamification.services.container import GamificationContainer
+from bot.utils.lucien_messages import LucienMessages
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ async def cmd_daily_gift(message: Message, gamification: GamificationContainer):
     except Exception as e:
         logger.error(f"Error in cmd_daily_gift for user {user_id}: {e}", exc_info=True)
         await message.answer(
-            "❌ Error al procesar el regalo diario. Intenta nuevamente.",
+            LucienMessages.errors("ERROR_PROCESSING"),
             parse_mode="HTML"
         )
 
@@ -82,7 +83,7 @@ async def callback_daily_gift(callback: CallbackQuery, gamification: Gamificatio
         if not status['system_enabled']:
             # Sistema desactivado
             await callback.answer(
-                "❌ El sistema de regalo diario está desactivado actualmente.",
+                LucienMessages.errors("DISABLED_SHORT"),
                 show_alert=True
             )
             return
@@ -123,7 +124,7 @@ async def callback_daily_gift(callback: CallbackQuery, gamification: Gamificatio
     except Exception as e:
         logger.error(f"Error in callback_daily_gift for user {user_id}: {e}", exc_info=True)
         await callback.answer(
-            "❌ Error al cargar el regalo diario.",
+            LucienMessages.errors("LOADING_SHORT"),
             show_alert=True
         )
 
@@ -171,6 +172,6 @@ async def callback_claim_daily_gift(callback: CallbackQuery, gamification: Gamif
     except Exception as e:
         logger.error(f"Error in callback_claim_daily_gift for user {user_id}: {e}", exc_info=True)
         await callback.answer(
-            "❌ Error al reclamar el regalo. Intenta nuevamente.",
+            LucienMessages.errors("CLAIM_SHORT"),
             show_alert=True
         )

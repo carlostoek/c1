@@ -21,6 +21,7 @@ from bot.database.models import BroadcastMessage
 from bot.gamification.database.models import CustomReaction
 from bot.gamification.services.container import GamificationContainer
 from bot.middlewares import DatabaseMiddleware
+from bot.utils.lucien_messages import LucienMessages
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ async def handle_reaction_button(
                 )
             else:
                 await callback.answer(
-                    "⚠️ Error al registrar reacción",
+                    LucienMessages.errors("CLAIM_SHORT"),
                     show_alert=True
                 )
             return
@@ -164,13 +165,13 @@ async def handle_reaction_button(
     except ValueError as e:
         logger.error(f"Invalid callback data: {callback.data} - {e}")
         await callback.answer(
-            "⚠️ Formato de datos inválido",
+            LucienMessages.errors("NOT_FOUND_SHORT"),
             show_alert=True
         )
     except Exception as e:
         logger.error(f"Error handling reaction button: {e}", exc_info=True)
         await callback.answer(
-            "⚠️ Error al procesar reacción",
+            LucienMessages.errors("PROCESSING_SHORT"),
             show_alert=True
         )
 

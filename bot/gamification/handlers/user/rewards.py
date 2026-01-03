@@ -13,6 +13,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 
 from bot.middlewares import DatabaseMiddleware
 from bot.gamification.services.container import GamificationContainer
+from bot.utils.lucien_messages import LucienMessages
 
 router = Router()
 
@@ -87,7 +88,7 @@ async def show_rewards(callback: CallbackQuery, gamification: GamificationContai
         await callback.answer()
 
     except Exception as e:
-        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
+        await callback.answer(LucienMessages.errors("ERROR_SHORT"), show_alert=True)
 
 
 @router.callback_query(F.data.startswith("user:reward:buy:"))
@@ -119,7 +120,7 @@ async def buy_reward(callback: CallbackQuery, gamification: GamificationContaine
             # Recargar lista de recompensas
             await show_rewards(callback, gamification)
         else:
-            await callback.answer(f"❌ {message}", show_alert=True)
+            await callback.answer(message, show_alert=True)
 
     except Exception as e:
-        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
+        await callback.answer(LucienMessages.errors("ERROR_SHORT"), show_alert=True)

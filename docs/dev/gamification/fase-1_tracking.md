@@ -104,17 +104,16 @@
 ---
 
 ### F1.7 - Centralizar mensajes de error
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Buscar mensajes genéricos de error en proyecto
-- [ ] Reemplazar ERROR_GENERIC
-- [ ] Reemplazar ERROR_NOT_FOUND
-- [ ] Reemplazar ERROR_PERMISSION
-- [ ] Reemplazar ERROR_RATE_LIMITED
-- [ ] Reemplazar ERROR_INVALID_INPUT
-- [ ] Reemplazar ERROR_TIMEOUT
-- [ ] Reemplazar ERROR_MAINTENANCE
-- [ ] Crear versiones SHORT para callbacks (< 200 chars)
+- [x] Buscar mensajes genéricos de error en proyecto
+- [x] Agregar ERROR_PROCESSING, ERROR_DISABLED, ERROR_CLAIM, ERROR_LOADING
+- [x] Reemplazar errores en daily_gift.py (4 reemplazos)
+- [x] Reemplazar errores en leaderboard.py (1 reemplazo)
+- [x] Reemplazar errores en reactions.py (3 reemplazos)
+- [x] Reemplazar errores en rewards.py (2 reemplazos)
+- [x] Versiones SHORT para callbacks (< 200 chars)
+- [x] Importar LucienMessages en todos los handlers actualizados
 
 ---
 

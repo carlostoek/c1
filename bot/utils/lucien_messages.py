@@ -405,6 +405,10 @@ class LucienMessages:
         - ERROR_PERMISSION_DENIED: Sin permisos
         - ERROR_RATE_LIMITED: Demasiadas acciones
         - ERROR_MAINTENANCE: Sistema en mantenimiento
+        - ERROR_PROCESSING: Error al procesar (acción genérica)
+        - ERROR_DISABLED: Feature desactivado
+        - ERROR_CLAIM: Error al reclamar/adquirir
+        - ERROR_LOADING: Error al cargar información
         """
         messages = {
             "ERROR_GENERIC": (
@@ -449,12 +453,49 @@ class LucienMessages:
                 "O quizás no. La incertidumbre es parte del encanto."
             ),
 
+            # Errores específicos para F1.7
+            "ERROR_PROCESSING": (
+                "Algo ha fallado al procesar su solicitud.\n\n"
+                "Intente nuevamente. "
+                "Si el problema persiste, regrese más tarde.\n\n"
+                "Diana aprecia la persistencia, "
+                "pero no la insistencia contraproducente."
+            ),
+
+            "ERROR_DISABLED": (
+                "Esta función no está disponible actualmente.\n\n"
+                "Diana ha decidido desactivarla temporalmente. "
+                "Por razones que no me corresponde explicar.\n\n"
+                "Intente más tarde. O acepte que algunas cosas "
+                "no están bajo su control."
+            ),
+
+            "ERROR_CLAIM": (
+                "No se pudo completar la acción.\n\n"
+                "Intente nuevamente. "
+                "Si persiste el problema,可能是 un "
+                "asunto temporal. O permanente.\n\n"
+                "Solo el tiempo lo dirá."
+            ),
+
+            "ERROR_LOADING": (
+                "No se pudo cargar la información.\n\n"
+                "Algo ha interferido con el proceso. "
+                "Intente nuevamente en un momento.\n\n"
+                "La paciencia es una virtud. "
+                "Diana lo diría. Probablemente."
+            ),
+
             # Versiones cortas para callback.answer() (limite 200 chars)
             "ERROR_SHORT": "Algo ha fallado. Intente de nuevo.",
             "NOT_FOUND_SHORT": "No existe. O ya no existe.",
             "PERMISSION_SHORT": "No tiene autorización.",
             "INACTIVE_SHORT": "No disponible. Intente más tarde.",
             "RATE_LIMIT_SHORT": "Demasiado rápido. Espere.",
+            "PROCESSING_SHORT": "Fallo al procesar. Intente de nuevo.",
+            "DISABLED_SHORT": "No disponible actualmente.",
+            "CLAIM_SHORT": "No se pudo completar.",
+            "LOADING_SHORT": "Error al cargar. Intente de nuevo.",
         }
 
         msg = messages.get(message_key, "")
