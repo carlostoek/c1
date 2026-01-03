@@ -292,11 +292,11 @@ class ScoreDefinitions:
         session_duration = signals.get("avg_session_duration", 0.0) / 100.0
 
         score = (
-            normalize(time_to_click, *ranges.AVG_TIME_TO_CLICK) * weights["time_to_click"] +
-            (1 - normalize(decision_time, *ranges.AVG_DECISION_TIME)) * weights["decision_time"] +
+            normalize_inverted(time_to_click, *ranges.AVG_TIME_TO_CLICK) * weights["time_to_click"] +
+            normalize_inverted(decision_time, *ranges.AVG_DECISION_TIME) * weights["decision_time"] +
             normalize(actions_per_session, *ranges.ACTIONS_PER_SESSION) * weights["actions_per_session"] +
             normalize(direct_nav, *ranges.DIRECT_NAVIGATION_RATIO) * weights["direct_nav"] +
-            (1 - normalize(session_duration, *ranges.AVG_SESSION_DURATION)) * weights["session_duration"]
+            normalize_inverted(session_duration, *ranges.AVG_SESSION_DURATION) * weights["session_duration"]
         )
 
         return min(1.0, max(0.0, score))

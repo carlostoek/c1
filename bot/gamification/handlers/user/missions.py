@@ -12,6 +12,7 @@ from typing import Optional
 
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.middlewares import DatabaseMiddleware
 from bot.gamification.services.container import GamificationContainer
@@ -90,7 +91,7 @@ async def _track_mission_action(
 
 
 @router.callback_query(F.data == "user:missions")
-async def show_missions(callback: CallbackQuery, gamification: GamificationContainer):
+async def show_missions(callback: CallbackQuery, gamification: GamificationContainer, session: AsyncSession):
     """
     Lista encargos del usuario agrupados por estado.
 
@@ -102,12 +103,13 @@ async def show_missions(callback: CallbackQuery, gamification: GamificationConta
     Args:
         callback: Callback query del usuario
         gamification: Container de servicios de gamificación
+        session: Sesión de base de datos
     """
     try:
         user_id = callback.from_user.id
 
         # FASE 3: Tracking de vista de lista de misiones
-        await _track_mission_action(callback, user_id, "view_list")
+        await _track_mission_action(session, user_id, "view_list")
 
         # Obtener encargos del usuario
         in_progress = await gamification.mission.get_user_missions(
@@ -180,7 +182,7 @@ async def show_missions(callback: CallbackQuery, gamification: GamificationConta
 
 
 @router.callback_query(F.data.startswith("user:mission:claim:"))
-async def claim_mission_reward(callback: CallbackQuery, gamification: GamificationContainer):
+async def claim_mission_reward(callback: CallbackQuery, gamification: GamificationContainer, session: AsyncSession):
     """
     Reclama reconocimiento de un encargo cumplido.
 
@@ -193,6 +195,7 @@ async def claim_mission_reward(callback: CallbackQuery, gamification: Gamificati
     Args:
         callback: Callback query con ID de encargo
         gamification: Container de servicios de gamificación
+        session: Sesión de base de datos
     """
     try:
         mission_id = int(callback.data.split(":")[-1])
@@ -205,14 +208,14 @@ async def claim_mission_reward(callback: CallbackQuery, gamification: Gamificati
 
         if success:
             # FASE 3: Tracking de reclamación de recompensa
-            await _track_mission_action(callback, user_id, "claim_reward", mission_id)
+            await _track_mission_action(session, user_id, "claim_reward", mission_id)
 
             await callback.answer(
                 LucienMessages.missions('MISSION_CLAIM_SUCCESS'),
                 show_alert=True
             )
             # Recargar lista de encargos
-            await show_missions(callback, gamification)
+            await show_missions(callback, gamification, session)
         else:
             await callback.answer(message, show_alert=True)
 
@@ -224,7 +227,7 @@ async def claim_mission_reward(callback: CallbackQuery, gamification: Gamificati
 
 
 @router.callback_query(F.data.startswith("user:mission:view:"))
-async def view_mission_progress(callback: CallbackQuery, gamification: GamificationContainer):
+async def view_mission_progress(callback: CallbackQuery, gamification: GamificationContainer, session: AsyncSession):
     """
     Muestra progreso detallado de un encargo en curso.
 
@@ -237,13 +240,14 @@ async def view_mission_progress(callback: CallbackQuery, gamification: Gamificat
     Args:
         callback: Callback query con ID de encargo
         gamification: Container de servicios de gamificación
+        session: Sesión de base de datos
     """
     try:
         mission_id = int(callback.data.split(":")[-1])
         user_id = callback.from_user.id
 
         # FASE 3: Tracking de vista de detalles de misión
-        await _track_mission_action(callback, user_id, "view_mission", mission_id)
+        await _track_mission_action(session, user_id, "view_mission", mission_id)
 
         # Obtener encargo y progreso
         mission = await gamification.mission.get_mission(mission_id)

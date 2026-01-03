@@ -49,7 +49,7 @@ class UserGamification(Base):
     archetype: Mapped[Optional[str]] = mapped_column(
         String(50), nullable=True
     )
-    archetype_confidence: Mapped[float] = mapped_column(
+    archetype_confidence: Mapped[int] = mapped_column(
         Integer, default=0
     )  # Stored as int*100 (0-100)
     archetype_scores: Mapped[Optional[str]] = mapped_column(
@@ -720,50 +720,50 @@ class UserBehaviorSignals(Base):
 
     # Exploration metrics (EXPLORER)
     content_sections_visited: Mapped[int] = mapped_column(Integer, default=0)
-    content_completion_rate: Mapped[float] = mapped_column(Integer, default=0.0)  # Stored as int*100
+    content_completion_rate: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
     easter_eggs_found: Mapped[int] = mapped_column(Integer, default=0)
-    avg_time_on_content: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    avg_time_on_content: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
     revisits_old_content: Mapped[int] = mapped_column(Integer, default=0)
-    unique_content_per_session: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    unique_content_per_session: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
     explore_depth: Mapped[int] = mapped_column(Integer, default=0)
 
     # Speed/efficiency metrics (DIRECT)
-    avg_time_to_click: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
-    avg_decision_time: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
-    actions_per_session: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    avg_time_to_click: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
+    avg_decision_time: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
+    actions_per_session: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
     quick_actions_count: Mapped[int] = mapped_column(Integer, default=0)
-    direct_navigation_ratio: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    direct_navigation_ratio: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
     skips_explanation: Mapped[int] = mapped_column(Integer, default=0)
 
     # Emotional metrics (ROMANTIC) - DERIVED FROM CONTENT TAGS
     emotional_content_views: Mapped[int] = mapped_column(Integer, default=0)
     personal_stories_accessed: Mapped[int] = mapped_column(Integer, default=0)
-    likes_vs_saves_ratio: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    likes_vs_saves_ratio: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
     repeat_emotional_visits: Mapped[int] = mapped_column(Integer, default=0)
     diana_mnemonics_interactions: Mapped[int] = mapped_column(Integer, default=0)
 
     # Analysis metrics (ANALYTICAL)
-    evaluation_scores_avg: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
-    evaluation_completion_rate: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    evaluation_scores_avg: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
+    evaluation_completion_rate: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
     info_requests: Mapped[int] = mapped_column(Integer, default=0)
-    systematic_exploration: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    systematic_exploration: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
     details_viewed: Mapped[int] = mapped_column(Integer, default=0)
-    puzzle_completion_time: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    puzzle_completion_time: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
 
     # Persistence metrics (PERSISTENT)
     return_after_inactivity: Mapped[int] = mapped_column(Integer, default=0)
     retry_failed_actions: Mapped[int] = mapped_column(Integer, default=0)
     incomplete_flows_completed: Mapped[int] = mapped_column(Integer, default=0)
     account_age_days: Mapped[int] = mapped_column(Integer, default=0)
-    return_rate: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    return_rate: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
     streak_restarts: Mapped[int] = mapped_column(Integer, default=0)
 
     # Patience metrics (PATIENT)
     skip_actions_used: Mapped[int] = mapped_column(Integer, default=0)
     current_streak: Mapped[int] = mapped_column(Integer, default=0)
     best_streak: Mapped[int] = mapped_column(Integer, default=0)
-    avg_session_duration: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
-    session_consistency: Mapped[float] = mapped_column(Integer, default=0)  # Stored as int*100
+    avg_session_duration: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
+    session_consistency: Mapped[int] = mapped_column(Integer, default=0)  # Stored as int*100
     slow_decision_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # General metrics
