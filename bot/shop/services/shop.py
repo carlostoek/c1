@@ -771,3 +771,264 @@ class ShopService:
             "total_purchases": total_purchases,
             "total_revenue": total_revenue
         }
+
+    # ========================================
+    # ITEMS OCULTOS Y VISIBILIDAD
+    # ========================================
+
+    async def get_items_for_user(
+        self,
+        user_id: int,
+        active_only: bool = True,
+        item_type: Optional[ItemType] = None,
+        category_id: Optional[int] = None
+    ) -> List[ShopItem]:
+        """
+        Obtiene items visibles para un usuario específico.
+
+        Filtra items ocultos (is_hidden=True) si el usuario no tiene
+        nivel suficiente (nivel 6+ requerido).
+
+        Args:
+            user_id: ID del usuario
+            active_only: Solo productos activos
+            item_type: Filtrar por tipo (opcional)
+            category_id: Filtrar por categoría (opcional)
+
+        Returns:
+            Lista de items visibles para el usuario
+        """
+        stmt = select(ShopItem).order_by(ShopItem.order, ShopItem.name)
+
+        if active_only:
+            stmt = stmt.where(ShopItem.is_active == True)
+        if item_type:
+            stmt = stmt.where(ShopItem.item_type == item_type.value)
+        if category_id:
+            stmt = stmt.where(ShopItem.category_id == category_id)
+
+        result = await self.session.execute(stmt)
+        all_items = list(result.scalars().all())
+
+        # Filtrar items ocultos si el usuario no tiene nivel suficiente
+        if not await self._can_see_hidden_items(user_id):
+            items = [item for item in all_items if not item.is_hidden]
+        else:
+            items = all_items
+
+        return items
+
+    async def _can_see_hidden_items(self, user_id: int) -> bool:
+        """
+        Verifica si un usuario puede ver items ocultos.
+
+        Los items ocultos requieren nivel 6+ (Confidente o Guardian).
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            True si el usuario puede ver items ocultos
+        """
+        try:
+            from bot.gamification.database.models import UserGamification
+            from bot.gamification.database.models import Level
+
+            user_gamif = await self.session.get(UserGamification, user_id)
+            if not user_gamif or not user_gamif.current_level_id:
+                return False
+
+            level = await self.session.get(Level, user_gamif.current_level_id)
+            if not level:
+                return False
+
+            # Nivel 6+ puede ver items ocultos
+            return level.order >= 6
+
+        except Exception as e:
+            logger.error(f"Error checking if user {user_id} can see hidden items: {e}")
+            return False
+
+    async def get_user_level_order(self, user_id: int) -> int:
+        """
+        Obtiene el nivel (orden) de un usuario.
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            Orden del nivel (1-7) o 1 si no se puede determinar
+        """
+        try:
+            from bot.gamification.database.models import UserGamification
+            from bot.gamification.database.models import Level
+
+            user_gamif = await self.session.get(UserGamification, user_id)
+            if not user_gamif or not user_gamif.current_level_id:
+                return 1
+
+            level = await self.session.get(Level, user_gamif.current_level_id)
+            if not level:
+                return 1
+
+            return level.order
+
+        except Exception as e:
+            logger.error(f"Error getting user {user_id} level: {e}")
+            return 1
+
+    async def can_purchase_item(
+        self,
+        user_id: int,
+        item_id: int,
+        quantity: int = 1
+    ) -> Tuple[bool, str]:
+        """
+        Verifica si un usuario puede comprar un item (versión mejorada).
+
+        Esta versión incluye verificación de:
+        - Nivel requerido (level_required en metadata)
+        - Items ocultos
+        - Stock
+        - Maximum por usuario
+        - VIP requerido
+        - Besitos suficientes
+
+        Args:
+            user_id: ID del usuario
+            item_id: ID del item
+            quantity: Cantidad a comprar
+
+        Returns:
+            (can_purchase, reason)
+        """
+        item = await self.get_item(item_id)
+        if not item:
+            return False, "Producto no encontrado"
+
+        if not item.is_active:
+            return False, "Producto no disponible"
+
+        # Verificar disponibilidad temporal
+        if not item.is_available:
+            if item.available_from and not item.is_available:
+                return False, "Este item aún no está disponible"
+            if item.available_until and not item.is_available:
+                return False, "Este item ya no está disponible"
+
+        # Verificar items ocultos
+        if item.is_hidden and not await self._can_see_hidden_items(user_id):
+            return False, "Este item requiere nivel 6+ (Confidente)"
+
+        # Verificar nivel requerido (está en metadata)
+        if item.item_metadata:
+            try:
+                import json
+                metadata = json.loads(item.item_metadata)
+                level_required = metadata.get("level_required")
+                if level_required:
+                    user_level = await self.get_user_level_order(user_id)
+                    if user_level < level_required:
+                        return False, f"Este item requiere nivel {level_required}"
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # Verificar stock
+        if item.stock is not None and item.stock < quantity:
+            return False, f"Stock insuficiente (disponible: {item.stock})"
+
+        # Verificar máximo por usuario
+        if item.max_per_user is not None:
+            owned = await self._get_user_item_quantity(user_id, item_id)
+            if owned + quantity > item.max_per_user:
+                return False, f"Máximo {item.max_per_user} por usuario (tienes {owned})"
+
+        # Verificar VIP si es requerido
+        if item.requires_vip:
+            is_vip = await self._check_vip_status(user_id)
+            if not is_vip:
+                return False, "Este producto requiere ser VIP"
+
+        # Verificar besitos
+        user_besitos = await self._get_user_besitos(user_id)
+        total_price = item.price_besitos * quantity
+        if user_besitos < total_price:
+            return False, f"Besitos insuficientes (necesitas {total_price}, tienes {user_besitos})"
+
+        return True, "OK"
+
+    # ========================================
+    # ITEMS TEMPORALES Y LIMITADOS
+    # ========================================
+
+    async def get_temporal_items(
+        self,
+        active_only: bool = True
+    ) -> List[ShopItem]:
+        """
+        Obtiene items temporales (con fechas de disponibilidad).
+
+        Args:
+            active_only: Solo productos activos
+
+        Returns:
+            Lista de items temporales
+        """
+        stmt = select(ShopItem).where(
+            ShopItem.available_from != None
+        ).order_by(ShopItem.available_until)
+
+        if active_only:
+            stmt = stmt.where(ShopItem.is_active == True)
+
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_expiring_soon(
+        self,
+        hours: int = 24
+    ) -> List[ShopItem]:
+        """
+        Obtiene items que expiran pronto.
+
+        Args:
+            hours: Horas restantes para considerar "pronto"
+
+        Returns:
+            Lista de items que expiran pronto
+        """
+        from datetime import timedelta
+
+        soon = datetime.now(UTC) + timedelta(hours=hours)
+
+        stmt = select(ShopItem).where(
+            ShopItem.is_active == True,
+            ShopItem.available_until != None,
+            ShopItem.available_until <= soon
+        ).order_by(ShopItem.available_until)
+
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_low_stock_items(
+        self,
+        threshold: int = 10
+    ) -> List[ShopItem]:
+        """
+        Obtiene items con stock bajo.
+
+        Args:
+            threshold: Umbral de stock bajo
+
+        Returns:
+            Lista de items con stock <= threshold
+        """
+        stmt = select(ShopItem).where(
+            ShopItem.is_active == True,
+            ShopItem.stock != None,
+            ShopItem.stock <= threshold,
+            ShopItem.stock > 0
+        ).order_by(ShopItem.stock)
+
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
