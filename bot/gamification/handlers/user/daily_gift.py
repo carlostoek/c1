@@ -163,7 +163,7 @@ async def callback_claim_daily_gift(callback: CallbackQuery, gamification: Gamif
                 text += "\n\n🎊 ¡Nuevo récord personal!"
 
             await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
-            await callback.answer("✅ Regalo reclamado exitosamente", show_alert=False)
+            await callback.answer(LucienMessages.confirm("CLAIM_SUCCESS_SHORT"), show_alert=False)
 
         else:
             # Error o ya reclamó

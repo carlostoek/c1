@@ -118,15 +118,15 @@
 ---
 
 ### F1.8 - Centralizar confirmaciones
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Buscar mensajes genéricos de confirmación
-- [ ] Reemplazar CONFIRM_ACTION
-- [ ] Reemplazar CONFIRM_SAVED
-- [ ] Reemplazar CONFIRM_PURCHASE
-- [ ] Reemplazar CONFIRM_MISSION_COMPLETE
-- [ ] Reemplazar CONFIRM_LEVEL_UP
-- [ ] Reemplazar CONFIRM_REGISTRATION
+- [x] Buscar mensajes genéricos de confirmación
+- [x] Crear sección CONFIRM en lucien_messages.py
+- [x] Mensajes: ACTION_COMPLETED, CLAIM_SUCCESS, PURCHASE_SUCCESS, ITEM_USED, SAVED, LEVEL_UP, MISSION_COMPLETE
+- [x] Versiones cortas: CLAIM_SUCCESS_SHORT, ACTION_COMPLETED_SHORT, SAVED_SHORT
+- [x] Actualizar get_lucien_message helper con categoría "confirm"
+- [x] Reemplazar "✅ Regalo reclamado exitosamente" → LucienMessages.confirm("CLAIM_SUCCESS_SHORT")
+- [x] Validar compilación
 
 ---
 

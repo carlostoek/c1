@@ -502,7 +502,80 @@ class LucienMessages:
         return msg.format(**kwargs) if kwargs else msg
 
     # =========================================================================
-    # 6. TIENDA/GABINETE
+    # 6. CONFIRMACIONES (Éxito y Validación)
+    # =========================================================================
+
+    @staticmethod
+    def confirm(message_key: str, **kwargs) -> str:
+        """
+        Mensajes de confirmación y éxito.
+
+        Mensajes disponibles:
+        - ACTION_COMPLETED: Acción completada exitosamente
+        - CLAIM_SUCCESS: Reclamado exitosamente
+        - PURCHASE_SUCCESS: Compra/adquisición completada
+        - ITEM_USED: Ítem usado correctamente
+        - SAVED: Cambios guardados
+        - LEVEL_UP: Subió de nivel (requiere new_level)
+        - MISSION_COMPLETE: Misión completada (requiere mission_name)
+        """
+        messages = {
+            "ACTION_COMPLETED": (
+                "Acción completada.\n\n"
+                "Diana ha sido notificada. "
+                "Como le corresponde."
+            ),
+
+            "CLAIM_SUCCESS": (
+                "Reclamado exitosamente.\n\n"
+                "Diana aprecia su... diligencia. "
+                "Continúe así."
+            ),
+
+            "PURCHASE_SUCCESS": (
+                "Adquisición completada.\n\n"
+                "Espero que valga la pena. "
+                "Diana tiene buen gusto. Generalmente.\n\n"
+                "Disfrútelo."
+            ),
+
+            "ITEM_USED": (
+                "Ítem utilizado.\n\n"
+                "Efectos aplicados. "
+                "Si los había.\n\n"
+                "No me pregunte por detalles. "
+                "Solo estoy aquí para observar."
+            ),
+
+            "SAVED": (
+                "Guardado.\n\n"
+                "Todo queda registrado. "
+                "Olvide su privacidad."
+            ),
+
+            "LEVEL_UP": (
+                "Nivel alcanzado: <b>{new_level}</b>\n\n"
+                "Diana estará... informada.\n\n"
+                "Interesante."
+            ),
+
+            "MISSION_COMPLETE": (
+                "Encargo cumplido: <b>{mission_name}</b>\n\n"
+                "Diana ha sido notificada de su diligencia.\n\n"
+                "Bien hecho. Supongo."
+            ),
+
+            # Versiones cortas para callback.answer()
+            "CLAIM_SUCCESS_SHORT": "Reclamado exitosamente.",
+            "ACTION_COMPLETED_SHORT": "Acción completada.",
+            "SAVED_SHORT": "Guardado.",
+        }
+
+        msg = messages.get(message_key, "")
+        return msg.format(**kwargs) if kwargs else msg
+
+    # =========================================================================
+    # 7. TIENDA/GABINETE
     # =========================================================================
 
     @staticmethod
@@ -1034,6 +1107,7 @@ def get_lucien_message(category: str, message_key: str, **kwargs) -> str:
         "levels": LucienMessages.levels,
         "archetypes": LucienMessages.archetypes,
         "errors": LucienMessages.errors,
+        "confirm": LucienMessages.confirm,
         "shop": LucienMessages.shop,
         "missions": LucienMessages.missions,
         "retention": LucienMessages.retention,
