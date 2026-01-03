@@ -136,10 +136,10 @@
 - [x] /start muestra mensajes de Lucien
 - [x] Flujos diferenciados funcionan
 - [x] Menú principal tiene botones correctos
-- [ ] Perfil muestra información con voz de Lucien
-- [ ] Gabinete tiene descripciones narrativas
-- [ ] Encargos usan terminología correcta
-- [ ] Balance de besitos tiene comentarios contextuales
+- [x] Perfil muestra información con voz de Lucien
+- [x] Gabinete tiene descripciones narrativas
+- [x] Encargos usan terminología correcta
+- [x] Balance de besitos tiene comentarios contextuales
 
 ### Consistencia de Voz
 - [x] /start usa "usted" (no "tú")
