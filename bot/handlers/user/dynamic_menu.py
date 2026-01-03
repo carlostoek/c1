@@ -43,11 +43,17 @@ async def callback_dynamic_menu_item(
     Agrega botón "🔙 Volver" para regresar al menú anterior.
     Usa mensajes de Lucien para respuestas y errores.
 
+    FASE 3: Agrega tracking de comportamiento para detección de arquetipos.
+
     Args:
         callback: CallbackQuery del usuario
         session: Sesión de BD (inyectada por middleware)
     """
     item_key = callback.data.replace("menu:", "")
+
+    # FASE 3: Calcular tiempo desde que se mostró el mensaje
+    # (usando timestamp del callback como aproximación)
+    time_to_click = 0.0  # No tenemos el tiempo exacto de cuándo se mostró el botón
 
     container = ServiceContainer(session, callback.bot)
     item = await container.menu.get_menu_item(item_key)
@@ -68,6 +74,17 @@ async def callback_dynamic_menu_item(
             show_alert=True
         )
         return
+
+    # FASE 3: Tracking del click en botón
+    await _track_button_click(
+        session=session,
+        user_id=callback.from_user.id,
+        button_id=callback.data,
+        context="dynamic_menu",
+        time_to_click=time_to_click,
+        is_exploration=True,  # Menú dinámico es exploratorio
+        is_direct_action=False
+    )
 
     # Procesar según el tipo de acción
     if item.action_type == "info":
@@ -197,3 +214,47 @@ async def callback_back_to_start_menu(callback: CallbackQuery, session: AsyncSes
             LucienMessages.errors("ERROR_SHORT"),
             show_alert=True
         )
+
+
+# =============================================================================
+# FASE 3: TRACKING DE COMPORTAMIENTO
+# =============================================================================
+
+async def _track_button_click(
+    session: AsyncSession,
+    user_id: int,
+    button_id: str,
+    context: str,
+    time_to_click: float,
+    is_exploration: bool,
+    is_direct_action: bool
+):
+    """
+    Registra click en botón para tracking de comportamiento (FASE 3).
+
+    Args:
+        session: Sesión de BD
+        user_id: ID del usuario
+        button_id: ID del botón clickeado
+        context: Contexto dónde estaba el botón
+        time_to_click: Segundos desde que se mostró
+        is_exploration: Si es navegación exploratoria
+        is_direct_action: Si es acción directa al objetivo
+    """
+    try:
+        from bot.gamification.services.behavior_tracking import BehaviorTrackingService
+
+        tracking = BehaviorTrackingService(session)
+        await tracking.track_button_click(
+            user_id=user_id,
+            button_id=button_id,
+            context=context,
+            time_to_click=time_to_click,
+            is_exploration=is_exploration,
+            is_direct_action=is_direct_action
+        )
+        logger.debug(f"📊 Tracking: Usuario {user_id} click en {button_id}")
+
+    except Exception as e:
+        # No fallar el flujo principal por errores de tracking
+        logger.warning(f"⚠️ Error en tracking de botón: {e}")

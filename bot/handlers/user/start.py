@@ -189,6 +189,109 @@ async def cmd_start(message: Message, session: AsyncSession):
             session=session
         )
 
+    # FASE 3: Tracking de sesión después de manejar la solicitud
+    await _track_session_start(
+        session=session,
+        user_id=user_id,
+        user=user,
+        container=container
+    )
+
+    # FASE 3: Verificar detección de arquetipo (no bloqueante)
+    await _check_archetype_detection(
+        session=session,
+        user_id=user_id,
+        bot=message.bot
+    )
+
+
+# =============================================================================
+# FASE 3: TRACKING DE COMPORTAMIENTO
+# =============================================================================
+
+async def _track_session_start(
+    session: AsyncSession,
+    user_id: int,
+    user,
+    container: ServiceContainer
+):
+    """
+    Registra el inicio de sesión para tracking de comportamiento (FASE 3).
+
+    Detecta si es un retorno después de inactividad y registra la sesión.
+    """
+    try:
+        from bot.gamification.services.behavior_tracking import BehaviorTrackingService
+
+        tracking = BehaviorTrackingService(session)
+
+        # Detectar tipo de usuario
+        user_type = await _detect_user_type(user, container)
+        last_activity = await _get_user_last_activity(container, user_id)
+
+        # Determinar si es retorno después de inactividad
+        is_return = user_type in ['inactive', 'long_inactive']
+
+        # Registrar sesión
+        await tracking.track_session(
+            user_id=user_id,
+            session_type="start",
+            is_return=is_return
+        )
+
+        # Si es retorno después de inactividad, registrar específicamente
+        if is_return and last_activity:
+            from datetime import datetime, timezone
+
+            if last_activity.tzinfo is None:
+                last_activity = last_activity.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            days_away = (now - last_activity).days
+
+            if days_away >= 7:
+                await tracking.track_session(
+                    user_id=user_id,
+                    session_type="return",
+                    is_return=True
+                )
+                logger.debug(f"📊 Tracking: Usuario {user_id} retorno después de {days_away} días")
+
+    except Exception as e:
+        # No fallar el flujo principal por errores de tracking
+        logger.warning(f"⚠️ Error en tracking de sesión: {e}")
+
+
+async def _check_archetype_detection(
+    session: AsyncSession,
+    user_id: int,
+    bot
+):
+    """
+    Verifica si se debe detectar/notificar arquetipo y lo hace si corresponde (FASE 3).
+
+    Esta función se ejecuta después del tracking de sesión para activar
+    la detección de arquetipos cuando corresponde.
+
+    Args:
+        session: Sesión de BD
+        user_id: ID del usuario
+        bot: Instancia del bot de Telegram
+    """
+    try:
+        from bot.gamification.services.container import GamificationContainer
+
+        gamification = GamificationContainer(session, bot)
+
+        # Verificar y notificar arquetipo si corresponde
+        detected = await gamification.notifications.check_and_notify_archetype(user_id)
+
+        if detected:
+            logger.info(f"🎭 Arquetipo detectado y notificado para usuario {user_id}")
+
+    except Exception as e:
+        # No fallar el flujo principal por errores de detección de arquetipo
+        logger.warning(f"⚠️ Error en detección de arquetipo: {e}")
+
 
 async def _send_lucien_welcome(
     message: Message,
