@@ -13,7 +13,7 @@ La Fase 0 consiste en 4 entregables que establecen los fundamentos para la expan
 | Entregable | Estado | Descripción |
 |------------|--------|-------------|
 | F0.1 | ✅ Completado | Biblioteca de Mensajes de Lucien V1 |
-| F0.2 | ⏳ Pendiente | Mapeo de Arquetipos Expandido |
+| F0.2 | ✅ Completado | Mapeo de Arquetipos Expandido |
 | F0.3 | ⏳ Pendiente | Inventario del Gabinete (Tienda) |
 | F0.4 | ⏳ Pendiente | Estructura de Contenido Narrativo |
 
@@ -47,18 +47,18 @@ La Fase 0 consiste en 4 entregables que establecen los fundamentos para la expan
 
 ---
 
-## 🎯 F0.2: MAPEO DE ARQUETIPOS EXPANDIDO
+## 🎯 F0.2: MAPEO DE ARQUETIPOS EXPANDIDO ✅
 
 **Archivo:** `bot/gamification/config/archetypes.py`
 
 **Tareas:**
-- [ ] Crear enum ExpandedArchetype (6 arquetipos)
-- [ ] Crear clase ArchetypeDetectionRules con reglas para cada arquetipo
-- [ ] Documentar mapeo de compatibilidad con arquetipos antiguos
-- [ ] Implementar clase ArchetypeScorer con calculate_archetype_scores()
-- [ ] Crear diccionario ARCHETYPE_TRAITS con características narrativas
+- [x] Crear enum ExpandedArchetype (6 arquetipos)
+- [x] Crear clase ArchetypeDetectionRules con reglas para cada arquetipo
+- [x] Documentar mapeo de compatibilidad con arquetipos antiguos
+- [x] Implementar clase ArchetypeScorer con calculate_archetype_scores()
+- [x] Crear diccionario ARCHETYPE_TRAITS con características narrativas
 
-**Arquetipos a definir:**
+**Arquetipos implementados:**
 1. EXPLORER - Busca cada detalle
 2. DIRECT - Respuestas concisas
 3. ROMANTIC - Conexión emocional
@@ -66,7 +66,15 @@ La Fase 0 consiste en 4 entregables que establecen los fundamentos para la expan
 5. PERSISTENT - No se rinde
 6. PATIENT - Procesa profundamente
 
-**Nota:** El sistema narrativo ya tiene `Archetype` (IMPULSIVE, CONTEMPLATIVE, SILENT). Este es una EXPANSIÓN de 3 → 6 arquetipos. NO modificar enums existentes aún.
+**Estadísticas:**
+- ~700 líneas de código
+- 6 arquetipos con 4 reglas cada uno (24 reglas totales)
+- Sistema de scoring 0-100 para detección
+- Mapeo de compatibilidad con sistema antiguo
+- 6 características narrativas por arquetipo
+- 100% type hints y documentación
+
+**Nota:** El sistema narrativo ya tiene `Archetype` (IMPULSIVE, CONTEMPLATIVE, SILENT). Este es una EXPANSIÓN de 3 → 6 arquetipos. NO modifica enums existentes aún.
 
 ---
 
@@ -117,9 +125,9 @@ La Fase 0 consiste en 4 entregables que establecen los fundamentos para la expan
 ## 📊 PROGRESO GENERAL
 
 ```
-Progreso: 1/4 entregables (25%)
+Progreso: 2/4 entregables (50%)
 
-███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  25%
+█████████░░░░░░░░░░░░░░░░░░░░░░░░░░░  50%
 ```
 
 ---
@@ -147,7 +155,7 @@ Progreso: 1/4 entregables (25%)
 Antes de pasar a Fase 1, se debe completar:
 
 - [x] lucien_messages.py existe con todas las categorías (BESITOS, no Favores)
-- [ ] archetypes.py existe con los 6 arquetipos
+- [x] archetypes.py existe con los 6 arquetipos
 - [ ] initial_inventory.py existe con 9 items definidos (precios en besitos)
 - [ ] story_content.py existe con Nivel 1 completo
 - [x] Ningún archivo existente fue modificado
