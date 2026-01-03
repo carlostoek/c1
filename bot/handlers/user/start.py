@@ -59,13 +59,12 @@ async def _get_user_last_activity(
     Returns:
         Datetime de última actividad o None si no existe
     """
-    from bot.gamification.services.container import GamificationContainer
+    from bot.gamification.database.models import UserGamification
 
-    gamification = GamificationContainer(container.session, container.bot)
-    user_gamification = await gamification.user_gamification.get_user_profile(user_id)
+    user_gamif = await container.session.get(UserGamification, user_id)
 
-    if user_gamification:
-        return user_gamification.updated_at
+    if user_gamif:
+        return user_gamif.updated_at
     return None
 
 
