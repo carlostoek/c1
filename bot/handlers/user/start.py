@@ -414,7 +414,7 @@ async def _activate_token_from_deeplink(
         if not is_valid:
             await message.answer(
                 "❌ <b>Token Inválido</b>\n\n"
-                "El token que intentas usar no es válido.\n\n"
+                "El token que intenta usar no es válido.\n\n"
                 "Posibles causas:\n"
                 "• Token incorrecto\n"
                 "• Token ya usado\n"
@@ -489,33 +489,31 @@ async def _activate_token_from_deeplink(
 
             price_str = format_currency(plan.price, symbol=plan.currency)
 
-            success_text = f"""🎉✨ <b>¡BIENVENIDO AL CLUB VIP!</b> ✨🎉
-
-<b>Suscripción Activada Exitosamente</b>
+            success_text = f"""<b>🎉 Suscripción VIP Activada</b>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
-<b>📊 Detalles de Tu Plan:</b>
+<b>📊 Detalles de Su Plan:</b>
 <b>Plan:</b> {plan.name}
 <b>Precio:</b> {price_str}
 <b>Duración:</b> {plan.duration_days} días
 <b>Válido hasta:</b> {days_remaining} días
 
-{user.role.emoji} <b>Tu rol:</b> <code>{user.role.display_name}</code>
+{user.role.emoji} <b>Su rol:</b> <code>{user.role.display_name}</code>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 <b>🔐 Siguiente Paso:</b>
 
-Haz click en el botón para acceder al canal VIP exclusivo con contenido premium.
+Haga clic en el botón para acceder al canal VIP exclusivo con contenido premium.
 
 <b>⏰ Válido por:</b> 5 horas desde ahora
 
-<b>💡 Recuerda:</b>
-✅ El acceso es solo para ti
-✅ No compartas el link
-✅ Tendrás acceso a todo el contenido exclusivo
-✅ Si pierdes el link, contacta al soporte
+<b>💡 Importante:</b>
+• El acceso es personal
+• No comparta el link
+• Tendrá acceso a todo el contenido exclusivo
+• Si pierde el link, contacte al soporte
 
-¡Que disfrutes de tu experiencia VIP! 🚀"""
+Disfrute de su experiencia VIP."""
 
             await message.answer(
                 text=success_text,
@@ -533,7 +531,7 @@ Haz click en el botón para acceder al canal VIP exclusivo con contenido premium
                 f"<b>Plan:</b> {plan.name}\n"
                 f"<b>Duración:</b> {plan.duration_days} días\n\n"
                 "⚠️ Ocurrió un problema al crear el link de invitación.\n\n"
-                "Tu suscripción está activa, pero por favor contacta al administrador para obtener acceso al canal VIP.",
+                "Su suscripción está activa, pero por favor contacte al administrador para obtener acceso al canal VIP.",
                 parse_mode="HTML"
             )
 
@@ -542,8 +540,8 @@ Haz click en el botón para acceder al canal VIP exclusivo con contenido premium
 
         await message.answer(
             "❌ <b>Error al Activar Token</b>\n\n"
-            "Ocurrió un error al procesar tu suscripción.\n"
-            "Contacta al administrador.",
+            "Ocurrió un error al procesar su suscripción.\n"
+            "Contacte al administrador.",
             parse_mode="HTML"
         )
 

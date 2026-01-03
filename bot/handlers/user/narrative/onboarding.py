@@ -71,10 +71,10 @@ async def send_onboarding_welcome(
             chat_id=user_id,
             text=(
                 "🎉 <b>¡Bienvenido al Canal Free!</b>\n\n"
-                "Tu solicitud ha sido aprobada y ya tienes acceso al contenido.\n\n"
-                f"Como regalo de bienvenida, te otorgamos <b>30 besitos 💋</b>.\n\n"
-                "Antes de explorar la narrativa completa, necesitas completar "
-                "un breve tutorial que te enseñará las mecánicas del sistema.\n\n"
+                "Su solicitud ha sido aprobada y ya tiene acceso al contenido.\n\n"
+                f"Como regalo de bienvenida, le otorgamos <b>30 besitos 💋</b>.\n\n"
+                "Antes de explorar la narrativa completa, necesita completar "
+                "un breve tutorial que le enseñará las mecánicas del sistema.\n\n"
                 "<i>Duración: ~4 minutos</i>"
             ),
             parse_mode="HTML",
@@ -307,9 +307,9 @@ async def _complete_onboarding(
     # Mensaje final
     text = (
         "✅ <b>¡Tutorial Completado!</b>\n\n"
-        f"Tu arquetipo detectado: <b>{archetype_name}</b>\n\n"
-        "Ahora puedes explorar la historia completa de Diana y Lucien.\n\n"
-        "<i>Recuerda: cada decisión cuenta, cada camino es único.</i>"
+        f"Su arquetipo detectado: <b>{archetype_name}</b>\n\n"
+        "Ahora puede explorar la historia completa de Diana y Lucien.\n\n"
+        "<i>Recuerde: cada decisión cuenta, cada camino es único.</i>"
     )
 
     await callback.message.edit_text(

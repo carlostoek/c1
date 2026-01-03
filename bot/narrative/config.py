@@ -101,24 +101,24 @@ class NarrativeConfig:
     # Mensajes de cooldown (aleatorios)
     COOLDOWN_MESSAGES: Dict[str, list] = {
         "decision": [
-            "Diana necesita un momento para procesar lo que acabas de decir...",
-            "Tómate un respiro antes de continuar...",
+            "Diana necesita un momento para procesar lo que acaba de decir...",
+            "Tome un respiro antes de continuar...",
             "Las mejores decisiones se toman con calma...",
         ],
         "fragment": [
             "Este momento necesita tiempo para asimilarse...",
-            "Deja que la historia repose un poco...",
+            "Deje que la historia repose un poco...",
             "A veces pausar es parte del viaje...",
         ],
         "chapter": [
-            "Has completado un capítulo importante. Descansa antes de continuar...",
-            "Lo que viene requiere que estés preparado/a...",
-            "El siguiente capítulo te espera, pero no hay prisa...",
+            "Ha completado un capítulo importante. Descanse antes de continuar...",
+            "Lo que viene requiere que esté preparado...",
+            "El siguiente capítulo le espera, pero no hay prisa...",
         ],
         "challenge": [
-            "Piensa un poco más antes de intentar de nuevo...",
-            "La respuesta vendrá si le das tiempo...",
-            "Cada intento te acerca más a la solución...",
+            "Piense un poco más antes de intentar de nuevo...",
+            "La respuesta vendrá si le da tiempo...",
+            "Cada intento le acerca más a la solución...",
         ],
     }
 

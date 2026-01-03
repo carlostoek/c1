@@ -91,7 +91,7 @@ async def callback_process_decision(
             {"text": "🔙 Volver", "callback_data": "narr:start"}
         ]])
         await callback.message.edit_text(
-            f"❌ <b>No puedes tomar esta decisión</b>\n\n{message}",
+            f"❌ <b>No puede tomar esta decisión</b>\n\n{message}",
             parse_mode="HTML",
             reply_markup=keyboard
         )

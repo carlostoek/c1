@@ -56,12 +56,12 @@ async def callback_redeem_token(
     try:
         await callback.message.edit_text(
             "🎟️ <b>Canjear Token VIP</b>\n\n"
-            "Por favor, envía tu token de invitación.\n\n"
+            "Por favor, envíe su token de invitación.\n\n"
             "El token tiene este formato:\n"
             "<code>A1b2C3d4E5f6G7h8</code>\n\n"
             "⏰ <b>Nota:</b> El token expira en 24 horas desde su creación.\n\n"
-            "👉 Copia y pega tu token aquí:\n"
-            "⏳ Esperando tu token...",
+            "👉 Copie y pegue su token aquí:\n"
+            "⏳ Esperando su token...",
             reply_markup=create_inline_keyboard([
                 [{"text": "❌ Cancelar", "callback_data": "user:cancel"}]
             ]),
@@ -181,16 +181,16 @@ async def process_token_input(
 
         await message.answer(
             f"🎉 <b>¡Token Canjeado Exitosamente!</b>\n\n"
-            f"✅ Tu acceso VIP está ahora <b>ACTIVO</b>\n"
+            f"✅ Su acceso VIP está ahora <b>ACTIVO</b>\n"
             f"⏱️ Duración: <b>{days_remaining} días</b> de acceso exclusivo\n\n"
-            f"👇 Haz click para unirte al canal VIP:\n"
+            f"👇 Haga clic para unirse al canal VIP:\n"
             f"{invite_link.invite_link}\n\n"
             f"<b>⚡ Detalles Importantes:</b>\n"
             f"• ⏳ El link expira en 1 hora\n"
-            f"• 🔐 Solo puedes usarlo 1 vez\n"
-            f"• 🚫 No compartas el link con otros\n"
-            f"• 📲 Si no puedes hacer click, cópialo y abre en tu navegador\n\n"
-            f"🎯 Disfruta del contenido exclusivo! 🚀",
+            f"• 🔐 Solo puede usarlo 1 vez\n"
+            f"• 🚫 No comparta el link con otros\n"
+            f"• 📲 Si no puede hacer clic, cópielo y ábralo en su navegador\n\n"
+            f"🎯 Disfrute del contenido exclusivo!",
             parse_mode="HTML"
         )
 
@@ -205,9 +205,9 @@ async def process_token_input(
         await message.answer(
             "✅ <b>Token Canjeado Correctamente</b>\n\n"
             "⚠️ Sin embargo, ocurrió un problema técnico al crear el link de invitación.\n\n"
-            "Tu suscripción VIP está activa y tu token ha sido registrado.\n\n"
-            "⏱️ Por favor, contacta al administrador para obtener acceso al canal VIP.\n"
-            "Tu solicitud será procesada manualmente.",
+            "Su suscripción VIP está activa y su token ha sido registrado.\n\n"
+            "⏱️ Por favor, contacte al administrador para obtener acceso al canal VIP.\n"
+            "Su solicitud será procesada manualmente.",
             parse_mode="HTML"
         )
         await state.clear()

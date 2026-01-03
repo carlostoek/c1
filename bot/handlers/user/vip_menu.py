@@ -41,7 +41,7 @@ async def callback_vip_access(
     # Verificar que es VIP activo
     if not await container.subscription.is_vip_active(user_id):
         await callback.answer(
-            "❌ No tienes acceso VIP activo.",
+            "❌ No tiene acceso VIP activo.",
             show_alert=True
         )
         return
@@ -66,11 +66,11 @@ async def callback_vip_access(
 
         await callback.message.edit_text(
             "📺 <b>Acceso al Canal VIP</b>\n\n"
-            "Haz click en el botón de abajo para unirte al canal VIP.\n\n"
+            "Haga clic en el botón de abajo para unirse al canal VIP.\n\n"
             "⚠️ <b>Importante:</b>\n"
             "• El link expira en 5 horas\n"
-            "• Solo puedes usarlo 1 vez\n"
-            "• No lo compartas con otros",
+            "• Solo puede usarlo 1 vez\n"
+            "• No lo comparta con otros",
             reply_markup=create_inline_keyboard([
                 [{"text": "⭐ Unirse al Canal VIP", "url": invite_link.invite_link}],
                 [{"text": "🔙 Volver al Menú", "callback_data": "user:vip_menu"}]
@@ -113,7 +113,7 @@ async def callback_vip_status(
 
     if not subscriber:
         await callback.answer(
-            "❌ No tienes suscripción VIP activa.",
+            "❌ No tiene suscripción VIP activa.",
             show_alert=True
         )
         return
@@ -198,8 +198,8 @@ async def callback_vip_renew(
         # No hay planes configurados
         await callback.message.edit_text(
             "🎁 <b>Renovar Suscripción VIP</b>\n\n"
-            "Contacta al administrador para obtener un nuevo token VIP.\n\n"
-            "Te proporcionará un deep link para activar tu renovación automáticamente.",
+            "Contacte al administrador para obtener un nuevo token VIP.\n\n"
+            "Le proporcionará un deep link para activar su renovación automáticamente.",
             reply_markup=create_inline_keyboard([
                 [{"text": "🔙 Volver al Menú", "callback_data": "user:vip_menu"}]
             ]),
@@ -223,11 +223,11 @@ async def callback_vip_renew(
         f"<b>Planes Disponibles:</b>{plans_text}\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"<b>¿Cómo renovar?</b>\n\n"
-        f"1. Contacta al administrador\n"
-        f"2. Selecciona el plan que deseas\n"
-        f"3. Recibirás un deep link de activación\n"
-        f"4. Haz click y tu suscripción se extenderá automáticamente\n\n"
-        f"💡 Los días restantes de tu suscripción actual se <b>sumarán</b> a la nueva.",
+        f"1. Contacte al administrador\n"
+        f"2. Seleccione el plan que desea\n"
+        f"3. Recibirá un deep link de activación\n"
+        f"4. Haga clic y su suscripción se extenderá automáticamente\n\n"
+        f"💡 Los días restantes de su suscripción actual se <b>sumarán</b> a la nueva.",
         reply_markup=create_inline_keyboard([
             [{"text": "🔙 Volver al Menú", "callback_data": "user:vip_menu"}]
         ]),
