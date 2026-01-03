@@ -40,13 +40,13 @@
 ---
 
 ### F1.2 - Reescribir menú dinámico
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Importar LucienMessages
-- [ ] Actualizar callback "dynmenu:back"
-- [ ] Reemplazar mensajes de error
-- [ ] Actualizar respuestas a items de menú
-- [ ] Agregar mensajes de transición en navegación
+- [x] Importar LucienMessages
+- [x] Actualizar callback "dynmenu:back"
+- [x] Reemplazar mensajes de error
+- [x] Actualizar respuestas a items de menú
+- [x] Agregar mensajes de transición en navegación
 
 ---
 

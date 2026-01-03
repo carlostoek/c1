@@ -379,6 +379,13 @@ class LucienMessages:
                 "Lo que busca aquí seguirá aquí. Espero.\n\n"
                 "O quizás no. La incertidumbre es parte del encanto."
             ),
+
+            # Versiones cortas para callback.answer() (limite 200 chars)
+            "ERROR_SHORT": "Algo ha fallado. Intente de nuevo.",
+            "NOT_FOUND_SHORT": "No existe. O ya no existe.",
+            "PERMISSION_SHORT": "No tiene autorización.",
+            "INACTIVE_SHORT": "No disponible. Intente más tarde.",
+            "RATE_LIMIT_SHORT": "Demasiado rápido. Espere.",
         }
 
         msg = messages.get(message_key, "")
@@ -711,6 +718,54 @@ class LucienMessages:
         msg = messages.get(message_key, "")
         return msg.format(**kwargs) if kwargs else msg
 
+    # =========================================================================
+    # 11. MENÚ DINÁMICO (Navegación)
+    # =========================================================================
+
+    @staticmethod
+    def menu(message_key: str, **kwargs) -> str:
+        """
+        Mensajes para navegación de menús dinámicos.
+
+        Mensajes disponibles:
+        - BACK_TO_START: Al regresar al menú principal
+        - ITEM_NOT_AVAILABLE: Item no encontrado o inactivo
+        - ITEM_INFO: Mensaje introductorio para items tipo info
+        - ITEM_CONTACT: Mensaje introductorio para items tipo contact
+        """
+        messages = {
+            "BACK_TO_START": (
+                "Ha decidido volver. Prudente.\n\n"
+                "O regresar a lo conocido es sabiduría... "
+                "o simplemente miedo de explorar. No juzgaré.\n\n"
+                "Por ahora, aquí está su menú."
+            ),
+
+            "ITEM_NOT_AVAILABLE": (
+                "Lo que busca no existe. O ya no existe.\n\n"
+                "El Diván tiene sus misterios."
+            ),
+
+            "ITEM_INACTIVE": (
+                "Esta opción no está disponible actualmente.\n\n"
+                "Diana cambia de opinión con frecuencia. "
+                "Intente más tarde."
+            ),
+
+            "ITEM_INFO_HEADER": (
+                "Aquí tiene la información que solicita.\n\n"
+                "Léala con cuidado. Diana no repite las cosas."
+            ),
+
+            "ITEM_CONTACT_HEADER": (
+                "Información de contacto.\n\n"
+                "Úsela sabiamente. No todos merecen acceso directo."
+            ),
+        }
+
+        msg = messages.get(message_key, "")
+        return msg.format(**kwargs) if kwargs else msg
+
 
 # =============================================================================
 # FUNCIONES HELPER PARA USO CONVENIENTE
@@ -722,7 +777,7 @@ def get_lucien_message(category: str, message_key: str, **kwargs) -> str:
 
     Args:
         category: Categoría del mensaje
-            (onboarding, besitos, levels, archetypes, errors, shop, missions, retention, conversion)
+            (onboarding, besitos, levels, archetypes, errors, shop, missions, retention, conversion, start, menu)
         message_key: Clave del mensaje específico
         **kwargs: Parámetros para formatear el mensaje
 
@@ -744,6 +799,7 @@ def get_lucien_message(category: str, message_key: str, **kwargs) -> str:
         "retention": LucienMessages.retention,
         "conversion": LucienMessages.conversion,
         "start": LucienMessages.start,
+        "menu": LucienMessages.menu,
     }
 
     method = category_methods.get(category)
