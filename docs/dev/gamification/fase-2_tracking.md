@@ -150,6 +150,38 @@
 **Documentación:**
 - `docs/dev/gamification/fase-2_tracking.md` - Este archivo
 
+---
+
+## ISSUES Y CORRECCIONES
+
+### Issue I2.4.1 - AttributeError: LucienMessages.streak() [RESUELTO]
+**Estado:** ✅ RESUELTO (2026-01-03)
+
+**Descripción:**
+El servicio de notificaciones llamaba a `LucienMessages.streak()` en líneas 151 y 176, pero el método no existía en la clase, causando un `AttributeError` en runtime al disparar notificaciones de hitos de racha.
+
+**Archivos afectados:**
+- `bot/gamification/services/notifications.py:151, 176` - Llamaba a método inexistente
+- `bot/utils/lucien_messages.py` - Faltaba método `streak()`
+
+**Corrección aplicada:**
+1. Agregado método `streak()` a clase `LucienMessages` con todos los mensajes requeridos:
+   - STREAK_MILESTONE_7, 14, 30, 60, 100 (con parámetro `bonus`)
+   - LOST (con parámetro `days`)
+   - CONTINUE (con parámetro `current`)
+
+2. Actualizada función helper `get_lucien_message()` para soportar categoría "streak"
+
+3. Todos los mensajes escritos con voz de Lucien (formal, evaluador, irónico)
+
+**Verificación:**
+- ✅ Método `LucienMessages.streak()` importable y funcional
+- ✅ Helper `get_lucien_message('streak', ...)` funcional
+- ✅ NotificationService puede llamar sin errores
+- ✅ Todos los message_keys implementados (7 mensajes)
+
+---
+
 ### Características Implementadas
 
 1. **EconomyConfig**: Configuración centralizada de toda la economía

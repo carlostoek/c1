@@ -1079,6 +1079,88 @@ class LucienMessages:
         msg = messages.get(message_key, "")
         return msg.format(**kwargs) if kwargs else msg
 
+    # =========================================================================
+    # 13. RACHAS (Streak Milestones)
+    # =========================================================================
+
+    @staticmethod
+    def streak(message_key: str, **kwargs) -> str:
+        """
+        Mensajes de rachas de actividad.
+
+        Mensajes disponibles:
+        - STREAK_MILESTONE_7: 7 días consecutivos (requiere bonus)
+        - STREAK_MILESTONE_14: 14 días consecutivos (requiere bonus)
+        - STREAK_MILESTONE_30: 30 días consecutivos (requiere bonus)
+        - STREAK_MILESTONE_60: 60 días consecutivos (requiere bonus)
+        - STREAK_MILESTONE_100: 100 días consecutivos (requiere bonus)
+        - LOST: Racha perdida (requiere days)
+        - CONTINUE: Continuar racha (requiere current)
+        """
+        messages = {
+            "STREAK_MILESTONE_7": (
+                "Siete días consecutivos.\n\n"
+                "Una semana de dedicación. Diana ha sido notificada. "
+                "Ha ganado <b>{bonus} Besitos</b> adicionales.\n\n"
+                "La constancia es... admirable. Continue."
+            ),
+
+            "STREAK_MILESTONE_14": (
+                "Dos semanas sin fallar.\n\n"
+                "Su constancia es... notable. "
+                "<b>+{bonus} Besitos</b>.\n\n"
+                "Diana aprecia la dedicación sostenida. "
+                "No muchos llegan aquí."
+            ),
+
+            "STREAK_MILESTONE_30": (
+                "Un mes. Treinta días consecutivos.\n\n"
+                "Debo admitir que estoy impresionado. Muy pocos llegan aquí. "
+                "Diana tiene algo especial para usted. "
+                "<b>+{bonus} Besitos</b>.\n\n"
+                "Extraordinario. Realmente."
+            ),
+
+            "STREAK_MILESTONE_60": (
+                "Sesenta días.\n\n"
+                "Su dedicación es... admirable. "
+                "Diana está genuinamente impresionada. "
+                "<b>+{bonus} Besitos</b>.\n\n"
+                "No hay muchas palabras para esto. "
+                "Solo... respeto."
+            ),
+
+            "STREAK_MILESTONE_100": (
+                "Cien días consecutivos.\n\n"
+                "Extraordinario. Esto es... sin precedentes. "
+                "Diana le otorga un reconocimiento especial. "
+                "<b>+{bonus} Besitos</b>.\n\n"
+                "Ha alcanzado un nivel de persistencia que "
+                "raya en lo legendario.\n\n"
+                "Bien hecho. No tengo más palabras."
+            ),
+
+            "LOST": (
+                "Su racha de <b>{days} días</b> ha terminado.\n\n"
+                "El tiempo no espera. La vida interrumpe. "
+                "Es comprensible.\n\n"
+                "Pero puede comenzar de nuevo. "
+                "Diana no castiga los errores. "
+                "Solo los... nota.\n\n"
+                "Regrese mañana. Empiece otra vez."
+            ),
+
+            "CONTINUE": (
+                "Día <b>{current}</b> de su racha.\n\n"
+                "La consistencia tiene recompensas. Continúe.\n\n"
+                "Diana observa. Yo también. "
+                "Cada día cuenta."
+            ),
+        }
+
+        msg = messages.get(message_key, "")
+        return msg.format(**kwargs) if kwargs else msg
+
 
 # =============================================================================
 # FUNCIONES HELPER PARA USO CONVENIENTE
@@ -1090,7 +1172,7 @@ def get_lucien_message(category: str, message_key: str, **kwargs) -> str:
 
     Args:
         category: Categoría del mensaje
-            (onboarding, besitos, levels, archetypes, errors, shop, missions, retention, conversion, start, menu, profile)
+            (onboarding, besitos, levels, archetypes, errors, shop, missions, retention, conversion, start, menu, profile, streak)
         message_key: Clave del mensaje específico
         **kwargs: Parámetros para formatear el mensaje
 
@@ -1100,6 +1182,7 @@ def get_lucien_message(category: str, message_key: str, **kwargs) -> str:
     Example:
         msg = get_lucien_message("onboarding", "WELCOME_FIRST")
         msg = get_lucien_message("besitos", "BESITO_EARNED", amount=5)
+        msg = get_lucien_message("streak", "STREAK_MILESTONE_7", bonus=2.0)
     """
     category_methods = {
         "onboarding": LucienMessages.onboarding,
@@ -1115,6 +1198,7 @@ def get_lucien_message(category: str, message_key: str, **kwargs) -> str:
         "start": LucienMessages.start,
         "menu": LucienMessages.menu,
         "profile": LucienMessages.profile,
+        "streak": LucienMessages.streak,
     }
 
     method = category_methods.get(category)
