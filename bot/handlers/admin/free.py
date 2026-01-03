@@ -16,6 +16,7 @@ from bot.handlers.admin.main import admin_router
 from bot.states.admin import ChannelSetupStates, WaitTimeSetupStates, FreeMessageSetupStates
 from bot.services.container import ServiceContainer
 from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.lucien_messages import LucienMessages
 
 logger = logging.getLogger(__name__)
 
@@ -291,9 +292,9 @@ async def process_wait_time_input(
         await container.config.set_wait_time(minutes)
 
         await message.answer(
-            f"✅ <b>Tiempo de Espera Actualizado</b>\n\n"
-            f"Nuevo tiempo: <b>{minutes} minutos</b>\n\n"
-            f"Las nuevas solicitudes esperarán {minutes} minutos antes de procesarse.",
+            f"{LucienMessages.confirm('SAVED')}\n\n"
+            f"Nuevo tiempo de espera: <b>{minutes} minutos</b>\n\n"
+            f"Las solicitudes Free aguardarán este período antes de procesarse.",
             parse_mode="HTML",
             reply_markup=free_menu_keyboard(True)
         )
@@ -304,8 +305,7 @@ async def process_wait_time_input(
     except Exception as e:
         logger.error(f"Error actualizando wait time: {e}", exc_info=True)
         await message.answer(
-            "❌ Error al actualizar el tiempo de espera.\n\n"
-            "Intenta nuevamente.",
+            LucienMessages.errors("ERROR_PROCESSING"),
             parse_mode="HTML"
         )
 
@@ -382,10 +382,10 @@ async def process_welcome_message_input(
         await state.clear()
 
         await message.answer(
-            f"✅ <b>Mensaje Actualizado</b>\n\n"
-            f"El mensaje de bienvenida Free ha sido configurado:\n\n"
+            f"{LucienMessages.confirm('SAVED')}\n\n"
+            f"Mensaje de bienvenida Free configurado:\n\n"
             f"<code>{new_message}</code>\n\n"
-            f"Los usuarios recibirán este mensaje cuando soliciten acceso al canal.",
+            f"Este mensaje será enviado a los usuarios que soliciten acceso al canal.",
             parse_mode="HTML",
             reply_markup=free_menu_keyboard(True)
         )

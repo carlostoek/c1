@@ -22,6 +22,7 @@ from bot.services.container import ServiceContainer
 from bot.states.admin import PricingSetupStates
 from bot.utils.formatters import format_currency
 from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.lucien_messages import LucienMessages
 
 logger = logging.getLogger(__name__)
 
@@ -299,11 +300,11 @@ async def process_pricing_price(
         price_str = format_currency(price)
 
         await message.answer(
-            f"✅ <b>Tarifa Creada Exitosamente</b>\n\n"
+            f"{LucienMessages.confirm('ACTION_COMPLETED')}\n\n"
             f"<b>Nombre:</b> {plan.name}\n"
             f"<b>Duración:</b> {plan.duration_days} días\n"
             f"<b>Precio:</b> {price_str}\n\n"
-            f"Ahora puedes generar tokens usando esta tarifa.",
+            f"Puede generar tokens usando esta tarifa.",
             reply_markup=create_inline_keyboard([
                 [{"text": "💰 Ver Tarifas", "callback_data": "admin:pricing"}],
                 [{"text": "🔙 Volver", "callback_data": "admin:config"}]

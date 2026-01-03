@@ -23,6 +23,7 @@ from bot.narrative.services.container import NarrativeContainer
 from bot.narrative.database.onboarding_models import OnboardingFragment
 from bot.narrative.database.enums import ArchetypeType
 from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.lucien_messages import LucienMessages
 
 logger = logging.getLogger(__name__)
 
@@ -117,9 +118,9 @@ async def callback_start_onboarding(
     # Verificar si ya completó
     if await narrative.onboarding.has_completed_onboarding(user_id):
         await callback.message.edit_text(
-            "✅ <b>Tutorial Completado</b>\n\n"
-            "Ya completaste el tutorial de introducción.\n"
-            "Puedes explorar la narrativa completa.",
+            f"{LucienMessages.confirm('ACTION_COMPLETED')}\n\n"
+            "Ya completó el tutorial de introducción.\n"
+            "Puede explorar la narrativa completa.",
             parse_mode="HTML",
             reply_markup=_build_completed_keyboard()
         )
@@ -306,7 +307,7 @@ async def _complete_onboarding(
 
     # Mensaje final
     text = (
-        "✅ <b>¡Tutorial Completado!</b>\n\n"
+        f"{LucienMessages.confirm('ACTION_COMPLETED')}\n\n"
         f"Su arquetipo detectado: <b>{archetype_name}</b>\n\n"
         "Ahora puede explorar la historia completa de Diana y Lucien.\n\n"
         "<i>Recuerde: cada decisión cuenta, cada camino es único.</i>"

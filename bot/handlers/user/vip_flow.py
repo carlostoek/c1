@@ -180,17 +180,17 @@ async def process_token_input(
             days_remaining = 0
 
         await message.answer(
-            f"🎉 <b>¡Token Canjeado Exitosamente!</b>\n\n"
-            f"✅ Su acceso VIP está ahora <b>ACTIVO</b>\n"
-            f"⏱️ Duración: <b>{days_remaining} días</b> de acceso exclusivo\n\n"
-            f"👇 Haga clic para unirse al canal VIP:\n"
+            f"<b>Token Validado</b>\n\n"
+            f"Su acceso VIP está <b>activo</b>.\n"
+            f"Duración: <b>{days_remaining} días</b>\n\n"
+            f"Haga clic para acceder al canal VIP:\n"
             f"{invite_link.invite_link}\n\n"
-            f"<b>⚡ Detalles Importantes:</b>\n"
-            f"• ⏳ El link expira en 1 hora\n"
-            f"• 🔐 Solo puede usarlo 1 vez\n"
-            f"• 🚫 No comparta el link con otros\n"
-            f"• 📲 Si no puede hacer clic, cópielo y ábralo en su navegador\n\n"
-            f"🎯 Disfrute del contenido exclusivo!",
+            f"<b>Condiciones:</b>\n"
+            f"• El link expira en 1 hora\n"
+            f"• Solo puede usarlo una vez\n"
+            f"• No comparta el link\n"
+            f"• Si no funciona el clic, copie y abra en su navegador\n\n"
+            f"Diana le espera.",
             parse_mode="HTML"
         )
 

@@ -22,6 +22,7 @@ from bot.handlers.admin.main import admin_router
 from bot.services.container import ServiceContainer
 from bot.background.tasks import get_scheduler_status
 from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.lucien_messages import LucienMessages
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +74,7 @@ async def callback_admin_dashboard(
         logger.error(f"❌ Error generando dashboard: {e}", exc_info=True)
 
         await callback.message.edit_text(
-            "❌ <b>Error al Cargar Dashboard</b>\n\n"
-            "No se pudo generar el dashboard completo.\n"
-            "Intenta nuevamente.",
+            LucienMessages.errors("ERROR_LOADING"),
             reply_markup=create_inline_keyboard([
                 [{"text": "🔄 Reintentar", "callback_data": "admin:dashboard"}],
                 [{"text": "🔙 Volver", "callback_data": "admin:main"}]

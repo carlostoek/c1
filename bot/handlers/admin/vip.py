@@ -19,6 +19,7 @@ from bot.services.container import ServiceContainer
 from bot.states.admin import ChannelSetupStates
 from bot.utils.formatters import format_currency, format_datetime
 from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.lucien_messages import LucienMessages
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -302,7 +303,7 @@ async def callback_generate_token_select_plan(
     except Exception as e:
         logger.error(f"❌ Error mostrando planes: {e}", exc_info=True)
         await callback.answer(
-            "❌ Error al cargar tarifas. Intenta nuevamente.",
+            LucienMessages.errors("LOADING_SHORT"),
             show_alert=True
         )
 
@@ -326,7 +327,7 @@ async def callback_generate_token_with_plan(
         plan_id = int(callback.data.split(":")[3])
     except (IndexError, ValueError) as e:
         logger.error(f"❌ Error parseando plan_id: {callback.data} - {e}")
-        await callback.answer("❌ Error al generar token", show_alert=True)
+        await callback.answer(LucienMessages.errors("PROCESSING_SHORT"), show_alert=True)
         return
 
     container = ServiceContainer(session, callback.bot)
@@ -407,8 +408,7 @@ async def callback_generate_token_with_plan(
         logger.error(f"❌ Error generando token: {e}", exc_info=True)
 
         await callback.message.edit_text(
-            "❌ <b>Error al Generar Token</b>\n\n"
-            "Ocurrió un error inesperado. Intenta nuevamente.",
+            LucienMessages.errors("ERROR_PROCESSING"),
             reply_markup=create_inline_keyboard([
                 [{"text": "🔄 Reintentar", "callback_data": "vip:generate_token"}],
                 [{"text": "🔙 Volver", "callback_data": "admin:vip"}]

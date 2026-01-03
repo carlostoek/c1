@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.handlers.admin.main import admin_router
 from bot.services.container import ServiceContainer
 from bot.utils.keyboards import stats_menu_keyboard, back_to_main_menu_keyboard
+from bot.utils.lucien_messages import LucienMessages
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +103,7 @@ async def callback_stats_general(callback: CallbackQuery, session: AsyncSession)
             logger.error(f"❌ Error Telegram: {e}")
             try:
                 await callback.message.edit_text(
-                    "❌ <b>Error al Calcular Estadísticas</b>\n\n"
-                    "Hubo un problema al obtener las métricas.\n"
-                    "Intenta nuevamente en unos momentos.",
+                    LucienMessages.errors("ERROR_LOADING"),
                     reply_markup=back_to_main_menu_keyboard(),
                     parse_mode="HTML"
                 )
@@ -116,9 +115,7 @@ async def callback_stats_general(callback: CallbackQuery, session: AsyncSession)
 
         try:
             await callback.message.edit_text(
-                "❌ <b>Error al Calcular Estadísticas</b>\n\n"
-                "Hubo un problema al obtener las métricas.\n"
-                "Intenta nuevamente en unos momentos.",
+                LucienMessages.errors("ERROR_LOADING"),
                 reply_markup=back_to_main_menu_keyboard(),
                 parse_mode="HTML"
             )
@@ -173,14 +170,14 @@ async def callback_stats_refresh(callback: CallbackQuery, session: AsyncSession)
         else:
             logger.error(f"❌ Error Telegram: {e}")
             try:
-                await callback.answer("❌ Error al actualizar", show_alert=True)
+                await callback.answer(LucienMessages.errors("LOADING_SHORT"), show_alert=True)
             except Exception:
                 pass
 
     except Exception as e:
         logger.error(f"❌ Error refrescando stats: {e}", exc_info=True)
         try:
-            await callback.answer("❌ Error al actualizar", show_alert=True)
+            await callback.answer(LucienMessages.errors("LOADING_SHORT"), show_alert=True)
         except Exception:
             pass
 
@@ -232,9 +229,7 @@ async def callback_stats_vip(callback: CallbackQuery, session: AsyncSession):
             logger.error(f"❌ Error Telegram: {e}")
             try:
                 await callback.message.edit_text(
-                    "❌ <b>Error al Calcular Estadísticas VIP</b>\n\n"
-                    "Hubo un problema al obtener las métricas.\n"
-                    "Intenta nuevamente en unos momentos.",
+                    LucienMessages.errors("ERROR_LOADING"),
                     reply_markup=stats_menu_keyboard(),
                     parse_mode="HTML"
                 )
@@ -246,9 +241,7 @@ async def callback_stats_vip(callback: CallbackQuery, session: AsyncSession):
 
         try:
             await callback.message.edit_text(
-                "❌ <b>Error al Calcular Estadísticas VIP</b>\n\n"
-                "Hubo un problema al obtener las métricas.\n"
-                "Intenta nuevamente en unos momentos.",
+                LucienMessages.errors("ERROR_LOADING"),
                 reply_markup=stats_menu_keyboard(),
                 parse_mode="HTML"
             )
@@ -304,9 +297,7 @@ async def callback_stats_free(callback: CallbackQuery, session: AsyncSession):
             logger.error(f"❌ Error Telegram: {e}")
             try:
                 await callback.message.edit_text(
-                    "❌ <b>Error al Calcular Estadísticas Free</b>\n\n"
-                    "Hubo un problema al obtener las métricas.\n"
-                    "Intenta nuevamente en unos momentos.",
+                    LucienMessages.errors("ERROR_LOADING"),
                     reply_markup=stats_menu_keyboard(),
                     parse_mode="HTML"
                 )
@@ -318,9 +309,7 @@ async def callback_stats_free(callback: CallbackQuery, session: AsyncSession):
 
         try:
             await callback.message.edit_text(
-                "❌ <b>Error al Calcular Estadísticas Free</b>\n\n"
-                "Hubo un problema al obtener las métricas.\n"
-                "Intenta nuevamente en unos momentos.",
+                LucienMessages.errors("ERROR_LOADING"),
                 reply_markup=stats_menu_keyboard(),
                 parse_mode="HTML"
             )
@@ -375,9 +364,7 @@ async def callback_stats_tokens(callback: CallbackQuery, session: AsyncSession):
             logger.error(f"❌ Error Telegram: {e}")
             try:
                 await callback.message.edit_text(
-                    "❌ <b>Error al Calcular Estadísticas de Tokens</b>\n\n"
-                    "Hubo un problema al obtener las métricas.\n"
-                    "Intenta nuevamente en unos momentos.",
+                    LucienMessages.errors("ERROR_LOADING"),
                     reply_markup=stats_menu_keyboard(),
                     parse_mode="HTML"
                 )
@@ -389,9 +376,7 @@ async def callback_stats_tokens(callback: CallbackQuery, session: AsyncSession):
 
         try:
             await callback.message.edit_text(
-                "❌ <b>Error al Calcular Estadísticas de Tokens</b>\n\n"
-                "Hubo un problema al obtener las métricas.\n"
-                "Intenta nuevamente en unos momentos.",
+                LucienMessages.errors("ERROR_LOADING"),
                 reply_markup=stats_menu_keyboard(),
                 parse_mode="HTML"
             )
