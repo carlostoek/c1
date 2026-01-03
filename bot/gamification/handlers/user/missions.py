@@ -1,11 +1,11 @@
 """
-Handler para visualización y gestión de misiones del usuario.
+Handler para visualización y gestión de Encargos del usuario.
 
 Funcionalidades:
-- Ver misiones en progreso
-- Ver misiones completadas
-- Reclamar recompensas de misiones
-- Ver misiones disponibles para iniciar
+- Ver encargos en progreso
+- Ver encargos completados
+- Reclamar reconocimiento de encargos
+- Ver encargos disponibles para iniciar
 """
 
 from aiogram import Router, F
@@ -14,6 +14,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from bot.middlewares import DatabaseMiddleware
 from bot.gamification.services.container import GamificationContainer
 from bot.gamification.database.enums import MissionStatus
+from bot.utils.lucien_messages import LucienMessages
 
 router = Router()
 
@@ -24,11 +25,11 @@ router.callback_query.middleware(DatabaseMiddleware())
 @router.callback_query(F.data == "user:missions")
 async def show_missions(callback: CallbackQuery, gamification: GamificationContainer):
     """
-    Lista misiones del usuario agrupadas por estado.
+    Lista encargos del usuario agrupados por estado.
 
     Estados mostrados:
     - En progreso: con botón para ver progreso
-    - Completadas: con botón para reclamar
+    - Completados: con botón para reclamar reconocimiento
     - Disponibles: con información básica
 
     Args:
@@ -38,7 +39,7 @@ async def show_missions(callback: CallbackQuery, gamification: GamificationConta
     try:
         user_id = callback.from_user.id
 
-        # Obtener misiones del usuario
+        # Obtener encargos del usuario
         in_progress = await gamification.mission.get_user_missions(
             user_id, status=MissionStatus.IN_PROGRESS
         )
@@ -46,21 +47,22 @@ async def show_missions(callback: CallbackQuery, gamification: GamificationConta
             user_id, status=MissionStatus.COMPLETED
         )
 
-        # Obtener misiones disponibles (no iniciadas)
+        # Obtener encargos disponibles (no iniciados)
         all_missions = await gamification.mission.get_all_missions()
         user_mission_ids = {um.mission_id for um in (in_progress + completed)}
         available = [m for m in all_missions if m.id not in user_mission_ids]
 
-        text = "📋 <b>Mis Misiones</b>\n\n"
+        text = f"🎯 <b>Los Encargos</b>\n\n"
+        text += f"{LucienMessages.missions('MISSIONS_WELCOME')}\n\n"
         keyboard_buttons = []
 
-        # Misiones en progreso
+        # Encargos en progreso
         if in_progress:
-            text += "⏳ <b>En Progreso:</b>\n"
+            text += f"⏳ <b>{LucienMessages.missions('MISSIONS_IN_PROGRESS')}:</b>\n"
             for um in in_progress:
                 mission = um.mission
                 text += f"• {mission.name}\n"
-                text += f"  Recompensa: {mission.besitos_reward} besitos\n"
+                text += f"  Reconocimiento: {mission.besitos_reward} Besitos\n"
                 keyboard_buttons.append([
                     InlineKeyboardButton(
                         text=f"📊 {mission.name}",
@@ -69,12 +71,12 @@ async def show_missions(callback: CallbackQuery, gamification: GamificationConta
                 ])
             text += "\n"
 
-        # Misiones completadas
+        # Encargos completados
         if completed:
-            text += "✅ <b>Completadas (Reclamar):</b>\n"
+            text += f"✅ <b>{LucienMessages.missions('MISSIONS_COMPLETED')}:</b>\n"
             for um in completed:
                 mission = um.mission
-                text += f"• {mission.name} - {mission.besitos_reward} besitos\n"
+                text += f"• {mission.name} - {mission.besitos_reward} Besitos\n"
                 keyboard_buttons.append([
                     InlineKeyboardButton(
                         text=f"🎁 Reclamar: {mission.name}",
@@ -83,14 +85,14 @@ async def show_missions(callback: CallbackQuery, gamification: GamificationConta
                 ])
             text += "\n"
 
-        # Misiones disponibles
+        # Encargos disponibles
         if available:
-            text += "🆕 <b>Disponibles:</b>\n"
+            text += f"🆕 <b>{LucienMessages.missions('MISSIONS_AVAILABLE')}:</b>\n"
             for mission in available[:5]:  # Máximo 5
-                text += f"• {mission.name} - {mission.besitos_reward} besitos\n"
+                text += f"• {mission.name} - {mission.besitos_reward} Besitos\n"
 
         if not (in_progress or completed or available):
-            text += "No hay misiones disponibles en este momento."
+            text += LucienMessages.missions('MISSIONS_EMPTY')
 
         keyboard_buttons.append([
             InlineKeyboardButton(text="🔙 Perfil", callback_data="user:profile")
@@ -101,72 +103,85 @@ async def show_missions(callback: CallbackQuery, gamification: GamificationConta
         await callback.answer()
 
     except Exception as e:
-        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
+        await callback.answer(
+            LucienMessages.errors("ERROR_SHORT"),
+            show_alert=True
+        )
 
 
 @router.callback_query(F.data.startswith("user:mission:claim:"))
 async def claim_mission_reward(callback: CallbackQuery, gamification: GamificationContainer):
     """
-    Reclama recompensa de una misión completada.
+    Reclama reconocimiento de un encargo cumplido.
 
     Flujo:
-    1. Valida que la misión esté completada
+    1. Valida que el encargo esté cumplido
     2. Otorga besitos al usuario
-    3. Marca como reclamada
+    3. Marca como reclamado
     4. Actualiza UI
 
     Args:
-        callback: Callback query con ID de misión
+        callback: Callback query con ID de encargo
         gamification: Container de servicios de gamificación
     """
     try:
         mission_id = int(callback.data.split(":")[-1])
         user_id = callback.from_user.id
 
-        # Intentar reclamar recompensa
+        # Intentar reclamar reconocimiento
         success, message, rewards_info = await gamification.mission.claim_reward(
             user_id, mission_id
         )
 
         if success:
-            await callback.answer(f"🎉 {message}", show_alert=True)
-            # Recargar lista de misiones
+            await callback.answer(
+                LucienMessages.missions('MISSION_CLAIM_SUCCESS'),
+                show_alert=True
+            )
+            # Recargar lista de encargos
             await show_missions(callback, gamification)
         else:
-            await callback.answer(f"❌ {message}", show_alert=True)
+            await callback.answer(message, show_alert=True)
 
     except Exception as e:
-        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
+        await callback.answer(
+            LucienMessages.errors("ERROR_SHORT"),
+            show_alert=True
+        )
 
 
 @router.callback_query(F.data.startswith("user:mission:view:"))
 async def view_mission_progress(callback: CallbackQuery, gamification: GamificationContainer):
     """
-    Muestra progreso detallado de una misión en progreso.
+    Muestra progreso detallado de un encargo en curso.
 
     Muestra:
     - Nombre y descripción
     - Progreso actual vs requerido
-    - Recompensa al completar
+    - Reconocimiento al cumplir
+    - Comentario de Lucien según progreso
 
     Args:
-        callback: Callback query con ID de misión
+        callback: Callback query con ID de encargo
         gamification: Container de servicios de gamificación
     """
     try:
         mission_id = int(callback.data.split(":")[-1])
         user_id = callback.from_user.id
 
-        # Obtener misión y progreso
+        # Obtener encargo y progreso
         mission = await gamification.mission.get_mission(mission_id)
         user_mission = await gamification.mission.get_user_mission(user_id, mission_id)
 
         if not mission or not user_mission:
-            await callback.answer("❌ Misión no encontrada", show_alert=True)
+            await callback.answer(
+                LucienMessages.errors("NOT_FOUND_SHORT"),
+                show_alert=True
+            )
             return
 
         # Construir mensaje de progreso
-        text = f"📋 <b>{mission.name}</b>\n\n"
+        text = f"🎯 <b>{mission.name}</b>\n\n"
         text += f"{mission.description}\n\n"
 
         # Mostrar progreso según tipo
@@ -176,20 +191,48 @@ async def view_mission_progress(callback: CallbackQuery, gamification: Gamificat
         if criteria.get('type') == 'streak':
             current_days = progress.get('current_streak', 0)
             required_days = criteria.get('days', 0)
-            text += f"📊 Progreso: {current_days}/{required_days} días\n"
+            percentage = int((current_days / required_days * 100)) if required_days > 0 else 0
+            text += f"📊 Progreso: {current_days}/{required_days} días ({percentage}%)\n\n"
+
+            # Comentario de Lucien según progreso
+            if percentage < 25:
+                comment = LucienMessages.missions('MISSION_PROGRESS_LOW')
+            elif percentage < 50:
+                comment = LucienMessages.missions('MISSION_PROGRESS_MID')
+            elif percentage < 75:
+                comment = LucienMessages.missions('MISSION_PROGRESS_HIGH')
+            else:
+                comment = LucienMessages.missions('MISSION_PROGRESS_NEARLY')
+            text += f"{comment}\n"
+
         elif criteria.get('type') in ['daily', 'weekly', 'one_time']:
             current_count = progress.get('count', 0)
             required_count = criteria.get('count', 0)
-            text += f"📊 Progreso: {current_count}/{required_count} reacciones\n"
+            percentage = int((current_count / required_count * 100)) if required_count > 0 else 0
+            text += f"📊 Progreso: {current_count}/{required_count} reacciones ({percentage}%)\n\n"
 
-        text += f"\n🎁 Recompensa: {mission.besitos_reward} besitos"
+            # Comentario de Lucien según progreso
+            if percentage < 25:
+                comment = LucienMessages.missions('MISSION_PROGRESS_LOW')
+            elif percentage < 50:
+                comment = LucienMessages.missions('MISSION_PROGRESS_MID')
+            elif percentage < 75:
+                comment = LucienMessages.missions('MISSION_PROGRESS_HIGH')
+            else:
+                comment = LucienMessages.missions('MISSION_PROGRESS_NEARLY')
+            text += f"{comment}\n"
+
+        text += f"\n🎁 Reconocimiento: {mission.besitos_reward} Besitos"
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Misiones", callback_data="user:missions")]
+            [InlineKeyboardButton(text="🔙 Encargos", callback_data="user:missions")]
         ])
 
         await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
         await callback.answer()
 
     except Exception as e:
-        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
+        await callback.answer(
+            LucienMessages.errors("ERROR_SHORT"),
+            show_alert=True
+        )

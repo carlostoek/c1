@@ -76,17 +76,17 @@
 ---
 
 ### F1.5 - Reescribir misiones/Encargos
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Renombrar "Misiones" → "Encargos"
-- [ ] Renombrar "Completar" → "Cumplir"
-- [ ] Renombrar "Recompensa" → "Reconocimiento"
-- [ ] Mensaje de bienvenida a Encargos
-- [ ] Estructura de lista agrupada por tipo
-- [ ] Mensajes de progreso
-- [ ] Mensaje de encargo completado
-- [ ] Mensaje sin encargos disponibles
-- [ ] Actualizar botones
+- [x] Renombrar "Misiones" → "Encargos"
+- [x] Renombrar "Completar" → "Cumplir"
+- [x] Renombrar "Recompensa" → "Reconocimiento"
+- [x] Mensaje de bienvenida a Encargos
+- [x] Estructura de lista agrupada por tipo
+- [x] Mensajes de progreso
+- [x] Mensaje de encargo completado
+- [x] Mensaje sin encargos disponibles
+- [x] Actualizar botones
 
 ---
 
