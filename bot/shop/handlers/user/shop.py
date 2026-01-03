@@ -1,10 +1,10 @@
 """
-Handlers de usuario para la Tienda.
+Handlers de usuario para el Gabinete (Tienda).
 
 Permite a los usuarios:
-- Ver catálogo de productos
-- Ver detalles de productos
-- Comprar productos
+- Ver catálogo de artículos del Gabinete
+- Ver detalles de artículos
+- Adquirir artículos con voz de Lucien
 """
 
 import logging
@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.shop.services.container import ShopContainer
 from bot.shop.database.enums import ItemType, ItemRarity
+from bot.utils.lucien_messages import LucienMessages
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +30,8 @@ shop_user_router.message.middleware(DatabaseMiddleware())
 shop_user_router.callback_query.middleware(DatabaseMiddleware())
 
 
-def _build_shop_main_keyboard() -> InlineKeyboardMarkup:
-    """Construye teclado principal de la tienda."""
+def _build_cabinet_main_keyboard() -> InlineKeyboardMarkup:
+    """Construye teclado principal del Gabinete."""
     buttons = [
         [InlineKeyboardButton(text="📜 Artefactos Narrativos", callback_data="shop:cat:artefactos-narrativos")],
         [InlineKeyboardButton(text="💾 Contenido Digital", callback_data="shop:cat:contenido-digital")],
@@ -49,7 +50,7 @@ def _build_category_keyboard(
     page: int = 0,
     items_per_page: int = 5
 ) -> InlineKeyboardMarkup:
-    """Construye teclado de productos de una categoría."""
+    """Construye teclado de artículos de una categoría."""
     buttons = []
 
     # Paginación
@@ -81,7 +82,7 @@ def _build_category_keyboard(
         buttons.append(nav_buttons)
 
     # Volver
-    buttons.append([InlineKeyboardButton(text="🔙 Volver a Tienda", callback_data="shop:main")])
+    buttons.append([InlineKeyboardButton(text="🔙 Volver al Gabinete", callback_data="shop:main")])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -91,12 +92,12 @@ def _build_item_detail_keyboard(
     can_purchase: bool,
     reason: str = ""
 ) -> InlineKeyboardMarkup:
-    """Construye teclado de detalle de producto."""
+    """Construye teclado de detalle de artículo."""
     buttons = []
 
     if can_purchase:
         buttons.append([
-            InlineKeyboardButton(text="🛒 Comprar", callback_data=f"shop:buy:{item_id}")
+            InlineKeyboardButton(text="💎 Adquirir", callback_data=f"shop:buy:{item_id}")
         ])
     else:
         buttons.append([
@@ -108,9 +109,9 @@ def _build_item_detail_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-@shop_user_router.message(Command("tienda", "shop", "store"))
+@shop_user_router.message(Command("tienda", "shop", "store", "gabinete"))
 async def cmd_shop(message: Message, session: AsyncSession):
-    """Handler para /tienda - Muestra la tienda principal."""
+    """Handler para /tienda - Muestra el Gabinete principal."""
     container = ShopContainer(session)
 
     # Obtener resumen
@@ -125,23 +126,24 @@ async def cmd_shop(message: Message, session: AsyncSession):
         user_besitos = 0
 
     text = (
-        "🏪 <b>Tienda de Artefactos</b>\n\n"
-        f"💋 Tu saldo: <b>{user_besitos}</b> besitos\n\n"
-        f"📦 {summary['total_items']} productos disponibles\n"
+        f"🏛️ <b>El Gabinete</b>\n\n"
+        f"{LucienMessages.shop('SHOP_MAIN_HEADER')}\n\n"
+        f"{LucienMessages.shop('SHOP_SALDO_HEADER')} <b>{user_besitos}</b> Besitos\n\n"
+        f"📦 {summary['total_items']} artículos disponibles\n"
         f"📁 {summary['total_categories']} categorías\n\n"
-        "Selecciona una categoría para explorar:"
+        "Seleccione una categoría para explorar:"
     )
 
     await message.answer(
         text,
-        reply_markup=_build_shop_main_keyboard(),
+        reply_markup=_build_cabinet_main_keyboard(),
         parse_mode="HTML"
     )
 
 
 @shop_user_router.callback_query(F.data == "shop:main")
 async def callback_shop_main(callback: CallbackQuery, session: AsyncSession):
-    """Callback para volver al menú principal de tienda."""
+    """Callback para volver al menú principal del Gabinete."""
     container = ShopContainer(session)
 
     summary = await container.shop.get_shop_summary()
@@ -154,16 +156,17 @@ async def callback_shop_main(callback: CallbackQuery, session: AsyncSession):
         user_besitos = 0
 
     text = (
-        "🏪 <b>Tienda de Artefactos</b>\n\n"
-        f"💋 Tu saldo: <b>{user_besitos}</b> besitos\n\n"
-        f"📦 {summary['total_items']} productos disponibles\n"
+        f"🏛️ <b>El Gabinete</b>\n\n"
+        f"{LucienMessages.shop('SHOP_MAIN_HEADER')}\n\n"
+        f"{LucienMessages.shop('SHOP_SALDO_HEADER')} <b>{user_besitos}</b> Besitos\n\n"
+        f"📦 {summary['total_items']} artículos disponibles\n"
         f"📁 {summary['total_categories']} categorías\n\n"
-        "Selecciona una categoría para explorar:"
+        "Seleccione una categoría para explorar:"
     )
 
     await callback.message.edit_text(
         text,
-        reply_markup=_build_shop_main_keyboard(),
+        reply_markup=_build_cabinet_main_keyboard(),
         parse_mode="HTML"
     )
     await callback.answer()
@@ -171,7 +174,7 @@ async def callback_shop_main(callback: CallbackQuery, session: AsyncSession):
 
 @shop_user_router.callback_query(F.data.startswith("shop:cat:"))
 async def callback_shop_category(callback: CallbackQuery, session: AsyncSession):
-    """Callback para ver productos de una categoría."""
+    """Callback para ver artículos de una categoría."""
     container = ShopContainer(session)
 
     parts = callback.data.split(":")
@@ -181,7 +184,10 @@ async def callback_shop_category(callback: CallbackQuery, session: AsyncSession)
     # Obtener categoría
     category = await container.shop.get_category_by_slug(category_slug)
     if not category:
-        await callback.answer("Categoría no encontrada", show_alert=True)
+        await callback.answer(
+            LucienMessages.errors("NOT_FOUND_SHORT"),
+            show_alert=True
+        )
         return
 
     # Obtener items
@@ -190,7 +196,7 @@ async def callback_shop_category(callback: CallbackQuery, session: AsyncSession)
     if not items:
         text = (
             f"{category.emoji} <b>{category.name}</b>\n\n"
-            "No hay productos disponibles en esta categoría."
+            f"{LucienMessages.shop('SHOP_CATEGORY_EMPTY')}"
         )
         buttons = [[InlineKeyboardButton(text="🔙 Volver", callback_data="shop:main")]]
         await callback.message.edit_text(
@@ -204,7 +210,7 @@ async def callback_shop_category(callback: CallbackQuery, session: AsyncSession)
     text = (
         f"{category.emoji} <b>{category.name}</b>\n\n"
         f"{category.description or ''}\n\n"
-        f"📦 {len(items)} productos disponibles"
+        f"📦 {len(items)} artículos disponibles"
     )
 
     await callback.message.edit_text(
@@ -217,15 +223,15 @@ async def callback_shop_category(callback: CallbackQuery, session: AsyncSession)
 
 @shop_user_router.callback_query(F.data == "shop:featured")
 async def callback_shop_featured(callback: CallbackQuery, session: AsyncSession):
-    """Callback para ver productos destacados."""
+    """Callback para ver artículos destacados."""
     container = ShopContainer(session)
 
     items = await container.shop.get_featured_items(limit=10)
 
     if not items:
         text = (
-            "⭐ <b>Productos Destacados</b>\n\n"
-            "No hay productos destacados en este momento."
+            "⭐ <b>Artículos Destacados</b>\n\n"
+            f"{LucienMessages.shop('SHOP_CATEGORY_EMPTY')}"
         )
         buttons = [[InlineKeyboardButton(text="🔙 Volver", callback_data="shop:main")]]
         await callback.message.edit_text(
@@ -237,8 +243,8 @@ async def callback_shop_featured(callback: CallbackQuery, session: AsyncSession)
         return
 
     text = (
-        "⭐ <b>Productos Destacados</b>\n\n"
-        "Los mejores artículos de nuestra tienda:"
+        "⭐ <b>Artículos Destacados</b>\n\n"
+        f"{LucienMessages.shop('SHOP_FEATURED_HEADER')}"
     )
 
     buttons = []
@@ -262,7 +268,7 @@ async def callback_shop_featured(callback: CallbackQuery, session: AsyncSession)
 
 @shop_user_router.callback_query(F.data.startswith("shop:item:"))
 async def callback_shop_item_detail(callback: CallbackQuery, session: AsyncSession):
-    """Callback para ver detalle de un producto."""
+    """Callback para ver detalle de un artículo."""
     container = ShopContainer(session)
     user_id = callback.from_user.id
 
@@ -270,10 +276,13 @@ async def callback_shop_item_detail(callback: CallbackQuery, session: AsyncSessi
     item = await container.shop.get_item(item_id)
 
     if not item:
-        await callback.answer("Producto no encontrado", show_alert=True)
+        await callback.answer(
+            LucienMessages.errors("NOT_FOUND_SHORT"),
+            show_alert=True
+        )
         return
 
-    # Verificar si puede comprar
+    # Verificar si puede adquirir
     can_buy, reason = await container.shop.can_purchase(user_id, item_id)
 
     # Obtener besitos del usuario
@@ -298,12 +307,12 @@ async def callback_shop_item_detail(callback: CallbackQuery, session: AsyncSessi
         text += f"\n{item.long_description}\n"
 
     text += (
-        f"\n💋 <b>Precio:</b> {item.price_besitos} besitos\n"
-        f"💰 <b>Tu saldo:</b> {user_besitos} besitos\n"
+        f"\n💋 <b>Precio:</b> {item.price_besitos} Besitos\n"
+        f"💰 <b>Su saldo:</b> {user_besitos} Besitos\n"
     )
 
     if item.stock is not None:
-        text += f"📦 <b>Stock:</b> {item.stock} disponibles\n"
+        text += f"📦 <b>Disponibles:</b> {item.stock}\n"
 
     if item.requires_vip:
         text += "⭐ <b>Requiere:</b> Suscripción VIP\n"
@@ -311,7 +320,7 @@ async def callback_shop_item_detail(callback: CallbackQuery, session: AsyncSessi
     # Verificar si ya lo tiene
     has_item = await container.inventory.has_item(user_id, item_id)
     if has_item:
-        text += "\n✅ <i>Ya tienes este producto en tu mochila</i>"
+        text += f"\n{LucienMessages.shop('SHOP_ALREADY_OWNED')}"
 
     await callback.message.edit_text(
         text,
@@ -323,28 +332,40 @@ async def callback_shop_item_detail(callback: CallbackQuery, session: AsyncSessi
 
 @shop_user_router.callback_query(F.data.startswith("shop:buy:"))
 async def callback_shop_buy(callback: CallbackQuery, session: AsyncSession):
-    """Callback para comprar un producto."""
+    """Callback para adquirir un artículo."""
     container = ShopContainer(session)
     user_id = callback.from_user.id
 
     item_id = int(callback.data.split(":")[2])
 
-    # Intentar comprar
+    # Intentar adquirir
     success, message, purchase = await container.shop.purchase_item(user_id, item_id)
 
     if success:
         item = await container.shop.get_item(item_id)
         text = (
-            f"🎉 <b>¡Compra exitosa!</b>\n\n"
-            f"{item.icon} {item.name} ha sido agregado a tu mochila.\n\n"
-            f"💋 Pagaste: {purchase.price_paid} besitos"
+            f"🎉 <b>Adquisición Exitosa</b>\n\n"
+            f"{LucienMessages.shop('SHOP_PURCHASE_SUCCESS', item_name=item.name)}\n\n"
+            f"💋 Pagó: {purchase.price_paid} Besitos"
         )
         buttons = [
             [InlineKeyboardButton(text="🎒 Ver Mochila", callback_data="backpack:main")],
-            [InlineKeyboardButton(text="🏪 Seguir Comprando", callback_data="shop:main")],
+            [InlineKeyboardButton(text="🏛️ Seguir Explorando", callback_data="shop:main")],
         ]
     else:
-        text = f"❌ <b>No se pudo completar la compra</b>\n\n{message}"
+        # Usar mensaje de Lucien según el error
+        if "insufficiente" in message.lower() or "besitos" in message.lower():
+            error_msg = LucienMessages.shop("SHOP_INSUFFICIENT_FUNDS")
+        elif "vip" in message.lower():
+            error_msg = LucienMessages.shop("SHOP_REQUIRES_VIP")
+        elif "stock" in message.lower():
+            error_msg = LucienMessages.shop("SHOP_NO_STOCK")
+        elif "ya tiene" in message.lower() or "owned" in message.lower():
+            error_msg = LucienMessages.shop("SHOP_ALREADY_OWNED")
+        else:
+            error_msg = message
+
+        text = f"❌ <b>Adquisición No Completada</b>\n\n{error_msg}"
         buttons = [[InlineKeyboardButton(text="🔙 Volver", callback_data="shop:main")]]
 
     await callback.message.edit_text(
@@ -357,5 +378,8 @@ async def callback_shop_buy(callback: CallbackQuery, session: AsyncSession):
 
 @shop_user_router.callback_query(F.data == "shop:cannot_buy")
 async def callback_cannot_buy(callback: CallbackQuery):
-    """Callback cuando no se puede comprar."""
-    await callback.answer("No puedes comprar este producto en este momento", show_alert=True)
+    """Callback cuando no se puede adquirir."""
+    await callback.answer(
+        "No puede adquirir este artículo en este momento",
+        show_alert=True
+    )

@@ -444,6 +444,55 @@ class LucienMessages:
                 "No todo está disponible para su nivel actual.\n\n"
                 "Continúe avanzando si quiere ver más."
             ),
+
+            "SHOP_MAIN_HEADER": "El Gabinete de Diana.",
+
+            "SHOP_CATEGORY_EMPTY": (
+                "Esta sección está vacía.\n\n"
+                "Diana no ha encontrado nada digno de exhibir aquí aún. "
+                "O simplemente no quiere que usted tenga acceso.\n\n"
+                "La diferencia es irrelevante. El resultado es el mismo."
+            ),
+
+            "SHOP_CONFIRM_PURCHASE": (
+                "¿Desea adquirir <b>{item_name}</b> por {price} Besitos?\n\n"
+                "Una vez hecho, no hay devoluciones. "
+                "Diana no admite arrepentimientos."
+            ),
+
+            "SHOP_INSUFFICIENT_FUNDS": (
+                "Sus Besitos son insuficientes.\n\n"
+                "Necesita {required} y tiene {current}. "
+                "Diana no otorga crédito. Vuelva cuando tenga los medios."
+            ),
+
+            "SHOP_PURCHASE_SUCCESS": (
+                "Adquirido: <b>{item_name}</b>\n\n"
+                "Diana ha sido notificada de su adquisición. "
+                "Úselo sabiamente... o no. La elección es suya."
+            ),
+
+            "SHOP_ALREADY_OWNED": (
+                "Ya posee este artículo.\n\n"
+                "Diana no permite duplicados. "
+                "Una vez es suficiente, ¿no cree?"
+            ),
+
+            "SHOP_REQUIRES_VIP": (
+                "Este artículo requiere acceso VIP.\n\n"
+                "El círculo íntimo tiene sus privilegios... "
+                "y sus restricciones para quienes están fuera."
+            ),
+
+            "SHOP_NO_STOCK": (
+                "Agotado.\n\n"
+                "Diana solo autoriza una cantidad limitada de ciertos artículos. "
+                "Este ya no está disponible."
+            ),
+
+            "SHOP_FEATURED_HEADER": "Artículos que Diana considera dignos de mención.",
+
+            "SHOP_SALDO_HEADER": "Su saldo actual de Besitos:",
         }
 
         msg = messages.get(message_key, "")

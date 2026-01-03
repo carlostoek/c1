@@ -62,16 +62,16 @@
 ---
 
 ### F1.4 - Reescribir tienda/Gabinete
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Renombrar "Tienda" → "El Gabinete" en UI
-- [ ] Renombrar "Comprar" → "Adquirir" u "Obtener"
-- [ ] Renombrar "Productos" → "Artículos" u "Objetos"
-- [ ] Mensaje de bienvenida al Gabinete
-- [ ] Categorías con descripciones de Lucien
-- [ ] Vista de item con description_lucien
-- [ ] Flujo de compra (confirmación, éxito, sin fondos)
-- [ ] Actualizar botones
+- [x] Renombrar "Tienda" → "El Gabinete" en UI
+- [x] Renombrar "Comprar" → "Adquirir" u "Obtener"
+- [x] Renombrar "Productos" → "Artículos" u "Objetos"
+- [x] Mensaje de bienvenida al Gabinete
+- [x] Categorías con descripciones de Lucien
+- [x] Vista de item con description_lucien
+- [x] Flujo de compra (confirmación, éxito, sin fondos)
+- [x] Actualizar botones
 
 ---
 
