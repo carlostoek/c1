@@ -206,12 +206,44 @@ class DailyGiftService:
             f"+{granted} besitos, streak={new_streak}, total_claims={claim.total_claims}"
         )
 
-        # 7. Retornar resultado exitoso
+        # 7. Verificar hitos de racha (milestones)
+        milestone_bonus = 0
+        milestone_reached = None
+
+        if new_streak in EconomyConfig.STREAK_MILESTONES:
+            milestone_info = EconomyConfig.STREAK_MILESTONES[new_streak]
+            milestone_bonus = int(milestone_info["bonus"])
+
+            # Otorgar bonus de hito
+            try:
+                bonus_granted = await besito_service.grant_besitos(
+                    user_id=user_id,
+                    amount=milestone_bonus,
+                    transaction_type=TransactionType.STREAK_BONUS,
+                    description=f"Hito de racha: {new_streak} días",
+                    reference_id=user_id
+                )
+                milestone_reached = new_streak
+
+                logger.info(
+                    f"User {user_id} reached streak milestone {new_streak}, "
+                    f"granted bonus of {bonus_granted} besitos"
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"Error granting milestone bonus for user {user_id}: {e}",
+                    exc_info=True
+                )
+
+        # 8. Retornar resultado exitoso
         details = {
             'besitos_earned': granted,
             'current_streak': new_streak,
             'longest_streak': claim.longest_streak,
-            'total_claims': claim.total_claims
+            'total_claims': claim.total_claims,
+            'milestone_reached': milestone_reached,
+            'milestone_bonus': milestone_bonus
         }
 
         streak_emoji = "🔥" if new_streak > 1 else "🎁"
@@ -220,6 +252,11 @@ class DailyGiftService:
             f"💋 +{granted} besitos\n"
             f"{streak_emoji} Racha: {new_streak} día{'s' if new_streak != 1 else ''}"
         )
+
+        if milestone_reached:
+            message += f"\n\n🎊 ¡HITO DE RACHA ALCANZADO!\n"
+            message += f"🏅 {new_streak} días consecutivos\n"
+            message += f"💋 +{milestone_bonus} besitos de bonificación"
 
         if new_streak == claim.longest_streak and new_streak > 1:
             message += f"\n🏆 ¡Nuevo récord personal!"

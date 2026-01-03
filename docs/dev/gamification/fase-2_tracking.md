@@ -52,13 +52,13 @@
 ---
 
 ### F2.3 - Sistema de Rachas Mejorado
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Crear/actualizar streak service
-- [ ] Definir hitos de racha en economy.py
-- [ ] Mensajes de Lucien para rachas (hitos, perdida, continuidad)
-- [ ] Integrar con daily gift
-- [ ] Mostrar racha en perfil
+- [x] Crear/actualizar streak service (ya existe en DailyGiftService)
+- [x] Definir hitos de racha en economy.py (STREAK_MILESTONES)
+- [x] Mensajes de Lucien para rachas (hitos, perdida, continuidad)
+- [x] Integrar hitos con daily gift
+- [x] Mostrar racha en perfil (ya implementado en F1.3)
 
 ---
 
