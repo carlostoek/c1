@@ -142,6 +142,24 @@ class BesitoService:
                 exc_info=True
             )
 
+        # Verificar y notificar milestone de besitos totales
+        try:
+            from bot.gamification.config.economy import EconomyConfig
+            if EconomyConfig.is_milestone(user_gamif.total_besitos):
+                try:
+                    from bot.gamification.services.container import get_container
+                    container = get_container()
+                    await container.notifications.notify_besitos_milestone(
+                        user_id, int(user_gamif.total_besitos)
+                    )
+                except RuntimeError:
+                    # Container no inicializado (ej: en tests)
+                    logger.warning("Container not available for besitos milestone notification")
+                except Exception as e:
+                    logger.error(f"Could not send besitos milestone notification: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error checking besitos milestone for user {user_id}: {e}", exc_info=True)
+
         return amount
 
     async def deduct_besitos(

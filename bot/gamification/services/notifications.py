@@ -7,6 +7,7 @@ Este servicio gestiona el envío de notificaciones push a usuarios sobre:
 - Recompensas desbloqueadas
 - Milestones de rachas
 - Rachas perdidas
+- Milestones de besitos totales
 """
 
 from aiogram import Bot
@@ -14,43 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
 from bot.gamification.database.models import Mission, Reward, Level, GamificationConfig
+from bot.gamification.config.economy import EconomyConfig
+from bot.utils.lucien_messages import LucienMessages
 
 logger = logging.getLogger(__name__)
-
-
-NOTIFICATION_TEMPLATES = {
-    'level_up': (
-        "🎉 <b>¡Subiste de nivel!</b>\n\n"
-        "{old_level} → <b>{new_level}</b>\n\n"
-        "Mínimo de besitos: {min_besitos}"
-    ),
-
-    'mission_completed': (
-        "✅ <b>Misión Completada</b>\n\n"
-        "<b>{mission_name}</b>\n"
-        "Recompensa: {besitos} besitos\n\n"
-        "Usa /profile para reclamarla"
-    ),
-
-    'reward_unlocked': (
-        "🎁 <b>Nueva Recompensa Disponible</b>\n\n"
-        "<b>{reward_name}</b>\n"
-        "{description}\n\n"
-        "Visita /profile para verla"
-    ),
-
-    'streak_milestone': (
-        "🔥 <b>¡Racha Épica!</b>\n\n"
-        "Has reaccionado {days} días consecutivos\n\n"
-        "¡Sigue así!"
-    ),
-
-    'streak_lost': (
-        "💔 <b>Racha Perdida</b>\n\n"
-        "Tu racha de {days} días expiró\n\n"
-        "Reacciona hoy para empezar una nueva"
-    )
-}
 
 
 class NotificationService:
@@ -62,6 +30,7 @@ class NotificationService:
     - Respetar configuración de notificaciones habilitadas
     - Implementar lógica de milestones inteligentes (evitar spam)
     - Manejar errores de envío (usuarios que bloquearon bot)
+    - Usar voz de Lucien para todas las notificaciones
     """
 
     def __init__(self, bot: Bot, session: AsyncSession):
@@ -81,7 +50,7 @@ class NotificationService:
 
         Args:
             user_id: ID del usuario a notificar
-            message: Mensaje formateado en HTML
+            message: Mensaje formateado en HTML o texto plano
         """
         config = await self.session.get(GamificationConfig, 1)
         if not config or not config.notifications_enabled:
@@ -108,11 +77,10 @@ class NotificationService:
             old_level: Nivel anterior
             new_level: Nuevo nivel alcanzado
         """
-        message = NOTIFICATION_TEMPLATES['level_up'].format(
-            old_level=old_level.name,
-            new_level=new_level.name,
-            min_besitos=new_level.min_besitos
-        )
+        # Buscar mensaje específico del nivel si existe
+        level_key = f"LEVEL_UP_{new_level.order}"
+        message = LucienMessages.profile(level_key, new_level=new_level.name)
+
         await self._send_notification(user_id, message)
 
     async def notify_mission_completed(
@@ -127,9 +95,10 @@ class NotificationService:
             user_id: ID del usuario
             mission: Misión completada
         """
-        message = NOTIFICATION_TEMPLATES['mission_completed'].format(
+        message = LucienMessages.missions(
+            "MISSION_COMPLETED",
             mission_name=mission.name,
-            besitos=mission.besitos_reward
+            reward=mission.besitos_reward
         )
         await self._send_notification(user_id, message)
 
@@ -145,33 +114,44 @@ class NotificationService:
             user_id: ID del usuario
             reward: Recompensa desbloqueada
         """
-        message = NOTIFICATION_TEMPLATES['reward_unlocked'].format(
-            reward_name=reward.name,
-            description=reward.description
+        # Usar mensaje de besitos para notificar recompensa desbloqueada
+        message = (
+            f"<b>Nueva Recompensa Disponible</b>\n\n"
+            f"{reward.name}\n"
+            f"{reward.description}\n\n"
+            f"Visite su perfil para reclamarla."
         )
         await self._send_notification(user_id, message)
 
     async def notify_streak_milestone(
         self,
         user_id: int,
-        days: int
+        days: int,
+        bonus: float
     ) -> None:
         """
         Notifica milestone de racha (solo en hitos específicos).
 
-        Solo notifica en: 7, 14, 30, 60, 100 días para evitar spam.
+        Solo notifica en milestones definidos en EconomyConfig.STREAK_MILESTONES.
 
         Args:
             user_id: ID del usuario
             days: Número de días de racha actual
+            bonus: Cantidad de besitos de bonificación
         """
         # Solo notificar en milestones específicos
-        milestones = [7, 14, 30, 60, 100]
-        if days not in milestones:
+        if days not in EconomyConfig.STREAK_MILESTONES:
             logger.debug(f"Streak {days} days is not a milestone, skipping notification")
             return
 
-        message = NOTIFICATION_TEMPLATES['streak_milestone'].format(days=days)
+        # Obtener message_key desde config
+        milestone_info = EconomyConfig.STREAK_MILESTONES[days]
+        message_key = milestone_info.get("message_key", f"MILESTONE_{days}")
+
+        message = LucienMessages.streak(
+            message_key,
+            bonus=bonus
+        )
         await self._send_notification(user_id, message)
 
     async def notify_streak_lost(
@@ -193,5 +173,38 @@ class NotificationService:
             logger.debug(f"Streak {days} days too short, skipping lost notification")
             return
 
-        message = NOTIFICATION_TEMPLATES['streak_lost'].format(days=days)
+        message = LucienMessages.streak("LOST", days=days)
         await self._send_notification(user_id, message)
+
+    async def notify_besitos_milestone(
+        self,
+        user_id: int,
+        total_besitos: int
+    ) -> None:
+        """
+        Notifica milestone de besitos totales.
+
+        Solo notifica si el total está en BESITOS_MILESTONES.
+
+        Args:
+            user_id: ID del usuario
+            total_besitos: Total actual de besitos del usuario
+        """
+        # Verificar si es un milestone
+        if not EconomyConfig.is_milestone(total_besitos):
+            logger.debug(
+                f"Besitos {total_besitos} is not a milestone, "
+                f"skipping notification for user {user_id}"
+            )
+            return
+
+        message = LucienMessages.besitos(
+            "BESITO_EARNED_MILESTONE",
+            amount=total_besitos
+        )
+        await self._send_notification(user_id, message)
+
+        logger.info(
+            f"Besitos milestone notification sent to user {user_id} "
+            f"for {total_besitos} besitos"
+        )

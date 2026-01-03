@@ -63,13 +63,13 @@
 ---
 
 ### F2.4 - Notificaciones Contextuales de Besitos
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Crear/actualizar notification service
-- [ ] Mensajes según contexto (reacción, misión, regalo, racha)
-- [ ] Mensajes de milestones de totales
-- [ ] Integrar en besito service
-- [ ] Reglas de no-spam
+- [x] Crear/actualizar notification service (actualizado con voz de Lucien)
+- [x] Mensajes según contexto (reacción, misión, regalo, racha)
+- [x] Mensajes de milestones de totales
+- [x] Integrar en besito service
+- [x] Reglas de no-spam (solo milestones específicos)
 
 ---
 
