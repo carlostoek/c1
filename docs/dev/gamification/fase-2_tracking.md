@@ -40,13 +40,14 @@
 ---
 
 ### F2.2 - Sistema de Niveles del Protocolo de Acceso
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Verificar que economy.py tiene LEVELS completo
-- [ ] Crear/actualizar nivel service si es necesario
-- [ ] Script de seed para crear niveles en BD
-- [ ] Verificar integración level-up en besito service
-- [ ] Notificación de level-up con voz de Lucien
+- [x] Verificar que economy.py tiene LEVELS completo (7 niveles)
+- [x] Level service ya existe con check_and_apply_level_up()
+- [x] Integrar level-up en besito service (grant_besitos)
+- [x] Crear scripts/seed_levels.py con upsert
+- [x] Notificación de level-up a través de container.notifications
+- [x] Niveles ya creados en BD (11 niveles totales)
 
 ---
 

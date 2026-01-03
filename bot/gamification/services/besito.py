@@ -76,6 +76,34 @@ class BesitoService:
             f"({transaction_type.value}). New balance: {user_gamif.total_besitos}"
         )
 
+        # Verificar y aplicar level-up automático
+        try:
+            from bot.gamification.services.level import LevelService
+            level_service = LevelService(self.session)
+            changed, old_level, new_level = await level_service.check_and_apply_level_up(user_id)
+
+            if changed:
+                logger.info(
+                    f"✨ Auto level-up triggered: User {user_id} "
+                    f"{old_level.name if old_level else 'None'} → {new_level.name}"
+                )
+
+                # Notificar level-up
+                try:
+                    from bot.gamification.services.container import get_container
+                    container = get_container()
+                    await container.notifications.notify_level_up(
+                        user_id, old_level, new_level
+                    )
+                except RuntimeError:
+                    # Container no inicializado (ej: en tests)
+                    logger.warning("Container not available for level-up notification")
+                except Exception as e:
+                    logger.error(f"Could not send level-up notification: {e}", exc_info=True)
+
+        except Exception as e:
+            logger.error(f"Error checking level-up for user {user_id}: {e}", exc_info=True)
+
         # Verificar y otorgar recompensas automáticas desbloqueadas
         try:
             from bot.gamification.services.reward import RewardService
