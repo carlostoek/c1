@@ -473,7 +473,7 @@ class LucienMessages:
             "ERROR_CLAIM": (
                 "No se pudo completar la acción.\n\n"
                 "Intente nuevamente. "
-                "Si persiste el problema,可能是 un "
+                "Si persiste el problema, podría ser un "
                 "asunto temporal. O permanente.\n\n"
                 "Solo el tiempo lo dirá."
             ),
