@@ -3,6 +3,7 @@
 from bot.gamification.handlers.user import (
     profile,
     missions,
+    besitos,
     rewards,
     leaderboard,
     reactions,
@@ -12,6 +13,7 @@ from bot.gamification.handlers.user import (
 __all__ = [
     "profile",
     "missions",
+    "besitos",
     "rewards",
     "leaderboard",
     "reactions",

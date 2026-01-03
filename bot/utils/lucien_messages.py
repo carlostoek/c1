@@ -108,6 +108,14 @@ class LucienMessages:
         - BESITO_BALANCE: Mostrar balance actual (requiere balance, level_name)
         - BESITO_INSUFFICIENT: No tiene suficientes (requiere needed, current)
         - BESITO_SPENT: Confirmación de gasto (requiere amount, item_name)
+        - VIEW_HEADER: Cabecera de vista de besitos
+        - COMMENT_LOW: Comentario para balance bajo (< 50)
+        - COMMENT_GROWING: Comentario para balance creciendo (50-199)
+        - COMMENT_GOOD: Comentario para balance bueno (200-499)
+        - COMMENT_HIGH: Comentario para balance alto (500-999)
+        - COMMENT_HOARDER: Comentario para acumulador (1000+)
+        - EMPTY_STATE: Sin transacciones recientes
+        - HISTORY_HEADER: Cabecera de historial
         """
         messages = {
             "BESITO_EARNED": (
@@ -144,6 +152,67 @@ class LucienMessages:
                 "Espero que valga la pena. "
                 "Diana tiene buen gusto. O eso dice ella.\n\n"
                 "Disfrútelo. O lamento su compra. Las dos opciones son válidas."
+            ),
+
+            # Vista de besitos (F1.6)
+            "VIEW_HEADER": (
+                "💋 <b>Sus Besitos</b>\n\n"
+                "{comment}\n\n"
+                "Balance: <b>{balance}</b> Besitos"
+            ),
+
+            "COMMENT_LOW": (
+                "Una cantidad modesta. "
+                "Todos comienzan desde algún lugar.\n\n"
+                "Diana no juzga los comienzos. "
+                "Solo la persistencia."
+            ),
+
+            "COMMENT_GROWING": (
+                "Ha comenzado a acumular. "
+                "Interesante.\n\n"
+                "La constancia atrae atención. "
+                "Diana nota este tipo de cosas."
+            ),
+
+            "COMMENT_GOOD": (
+                "Una cantidad respetable. "
+                "Supongo.\n\n"
+                "Demuestra que ha estado... presente. "
+                "Activo. Persistente.\n\n"
+                "No es un logro extraordinario, pero cuenta."
+            ),
+
+            "COMMENT_HIGH": (
+                "Impresionante. "
+                "Para los estándares comunes.\n\n"
+                "Ha demostrado una dedicación notable. "
+                "Diana aprecia la... consistencia.\n\n"
+                "Aunque nunca se lo admitiría directamente."
+            ),
+
+            "COMMENT_HOARDER": (
+                "Esta cantidad... es inusual.\n\n"
+                "La mayoría gasta. Acumula. "
+                "Continúa hacia adelante.\n\n"
+                "Usted retiene. "
+                "Es un rasgo curioso. "
+                "Diana encontraría esto... intrigante.\n\n"
+                "O inquietante. Depende del día."
+            ),
+
+            "EMPTY_STATE": "Sin transacciones recientes. Nada que reportar.",
+
+            "HISTORY_HEADER": (
+                "Movimientos recientes.\n\n"
+                "Todo queda registrado. "
+                "Olvidé su privacidad."
+            ),
+
+            # Versión corta para callbacks
+            "VIEW_HEADER_SHORT": (
+                "💋 Sus Besitos\n\n"
+                "{balance} Besitos"
             ),
         }
 
@@ -547,6 +616,38 @@ class LucienMessages:
                 "Intente nuevamente más tarde. "
                 "O acepte su derrota. Ambas son opciones válidas."
             ),
+
+            # Mensajes adicionales para F1.5
+            "MISSIONS_HEADER": "Los Encargos del Diván.",
+
+            "MISSIONS_WELCOME": (
+                "Los Encargos del Diván.\n\n"
+                "Tareas que Diana considera dignas de reconocimiento. "
+                "Cumpla con ellas y será recompensado. Ignórelas... y lo notaré."
+            ),
+
+            "MISSIONS_IN_PROGRESS": "En curso",
+
+            "MISSIONS_COMPLETED": "Cumplidos (para reclamar)",
+
+            "MISSIONS_AVAILABLE": "Disponibles",
+
+            "MISSIONS_EMPTY": (
+                "No hay encargos pendientes en este momento.\n\n"
+                "Diana preparará nuevas tareas pronto. "
+                "Mientras tanto, explore el Diván."
+            ),
+
+            "MISSION_CLAIM_SUCCESS": (
+                "Reconocimiento reclamado.\n\n"
+                "Diana ha sido notificada de su diligencia. "
+                "Los Besitos han sido añadidos a su saldo."
+            ),
+
+            "MISSION_PROGRESS_LOW": "Apenas ha comenzado.",
+            "MISSION_PROGRESS_MID": "Va por buen camino.",
+            "MISSION_PROGRESS_HIGH": "Más de la mitad. No se detenga ahora.",
+            "MISSION_PROGRESS_NEARLY": "Casi lo logra. Un último esfuerzo.",
         }
 
         msg = messages.get(message_key, "")

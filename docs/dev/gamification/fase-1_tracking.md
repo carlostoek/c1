@@ -91,15 +91,15 @@
 ---
 
 ### F1.6 - Comando /besitos
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Buscar handler existente o crear `bot/handlers/user/besitos.py`
-- [ ] Vista de balance con comentarios contextuales
-- [ ] Comentarios según cantidad (low, growing, good, high, hoarder)
-- [ ] Notificación al ganar besitos
-- [ ] Notificación al alcanzar hitos
-- [ ] Historial reciente (opcional)
-- [ ] Botones de navegación
+- [x] Buscar handler existente o crear `bot/gamification/handlers/user/besitos.py`
+- [x] Vista de balance con comentarios contextuales
+- [x] Comentarios según cantidad (low, growing, good, high, hoarder)
+- [x] Notificación al ganar besitos (ya existía en lucien_messages.py)
+- [x] Notificación al alcanzar hitos (ya existía en lucien_messages.py)
+- [x] Historial reciente (preparado en mensajes, implementación futura)
+- [x] Botones de navegación
 
 ---
 
