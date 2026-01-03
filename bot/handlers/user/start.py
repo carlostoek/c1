@@ -27,7 +27,7 @@ from bot.middlewares import DatabaseMiddleware
 from bot.services.container import ServiceContainer
 from bot.utils.formatters import format_currency
 from bot.utils.keyboards import create_inline_keyboard
-from bot.utils.menu_helpers import build_start_menu, build_profile_menu
+from bot.utils.menu_helpers import build_start_menu, build_profile_menu_lucien
 from bot.utils.lucien_messages import LucienMessages
 from config import Config
 
@@ -564,11 +564,12 @@ async def callback_show_profile(callback: CallbackQuery, session: AsyncSession):
         session: Sesión de BD
     """
     try:
-        # Usar helper para construir el perfil
-        summary, keyboard = await build_profile_menu(
+        # Usar helper para construir el perfil con voz de Lucien
+        summary, keyboard = await build_profile_menu_lucien(
             session=session,
             bot=callback.bot,
-            user_id=callback.from_user.id
+            user_id=callback.from_user.id,
+            show_back_button=True
         )
 
         # Editar mensaje existente

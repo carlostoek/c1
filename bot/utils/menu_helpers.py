@@ -145,3 +145,123 @@ async def build_profile_menu(
     keyboard = create_inline_keyboard(keyboard_buttons)
 
     return summary, keyboard
+
+
+async def build_profile_menu_lucien(
+    session: AsyncSession,
+    bot,
+    user_id: int,
+    show_back_button: bool = True
+) -> Tuple[str, InlineKeyboardMarkup]:
+    """
+    Construye el menú de perfil con voz de Lucien.
+
+    Versión mejorada de build_profile_menu que usa la voz de Lucien
+    con comentarios contextuales según el nivel del usuario.
+
+    Args:
+        session: Sesión de BD
+        bot: Bot de Telegram
+        user_id: ID del usuario de Telegram
+        show_back_button: Si True, incluye botón de volver (default: True)
+
+    Returns:
+        Tuple de (summary_text, keyboard) con voz de Lucien
+    """
+    from bot.gamification.services.container import GamificationContainer
+    from bot.utils.lucien_messages import LucienMessages
+    from bot.utils.keyboards import create_inline_keyboard
+
+    container = ServiceContainer(session, bot)
+    gamification = GamificationContainer(session, bot)
+
+    # Obtener datos del perfil
+    profile = await gamification.user_gamification.get_user_profile(user_id)
+
+    # Extraer datos
+    level_obj = profile['level']['current']
+    level_name = level_obj.name if level_obj else 'Sin nivel'
+    level_order = level_obj.order if level_obj else 0
+    progress = profile['level']['progress_percentage']
+    besitos = profile['besitos']['total']
+    streak_current = profile['streak']['current']
+    streak_longest = profile['streak']['longest']
+    missions_in_progress = len(profile['missions']['in_progress'])
+    missions_completed = len(profile['missions']['completed'])
+    badges = profile['rewards']['displayed_badges']
+
+    # Determinar comentario de Lucien según nivel
+    if level_order <= 2:
+        level_comment = LucienMessages.profile("LEVEL_LOW")
+    elif level_order <= 4:
+        level_comment = LucienMessages.profile("LEVEL_MID")
+    elif level_order <= 6:
+        level_comment = LucienMessages.profile("LEVEL_HIGH")
+    else:
+        level_comment = LucienMessages.profile("LEVEL_MAX")
+
+    # Construir barra de progreso visual
+    filled = int(progress / 10)
+    empty = 10 - filled
+    progress_bar = "▓" * filled + "░" * empty
+
+    # Construir summary con voz de Lucien
+    summary = f"""{level_comment}
+
+📊 <b>Su Expediente</b>
+
+Nivel: <b>{level_name}</b> ({level_order}/7)
+{progress_bar} {progress:.0f}%
+
+Besitos: <b>{besitos:,}</b>
+
+Racha: <b>{streak_current}</b> días (récord: {streak_longest})
+
+Encargos: {missions_in_progress} activos, {missions_completed} cumplidos"""
+
+    # Agregar badges si tiene
+    if badges:
+        summary += f"\n\n{LucienMessages.profile('HAS_BADGES')}\n"
+        from bot.gamification.database.models import Reward
+        for badge in badges:
+            reward = await session.get(Reward, badge.id)
+            reward_name = reward.name if reward else "Badge"
+            summary += f"{badge.icon} {reward_name}  "
+    else:
+        summary += f"\n\n{LucienMessages.profile('NO_BADGES')}"
+
+    # Verificar estado del regalo diario
+    daily_gift_status = await gamification.daily_gift.get_daily_gift_status(user_id)
+
+    # Texto del botón de regalo diario
+    if daily_gift_status['can_claim'] and daily_gift_status['system_enabled']:
+        daily_gift_text = "🎁 Regalo Diario ⭐"
+    else:
+        daily_gift_text = "🎁 Regalo Diario ✅"
+
+    # Construir keyboard con botones de gamificación
+    keyboard_buttons = [
+        [{"text": daily_gift_text, "callback_data": "user:daily_gift"}],
+        [
+            {"text": "🎯 Encargos", "callback_data": "user:missions"},
+            {"text": "🎁 Recompensas", "callback_data": "user:rewards"}
+        ],
+        [{"text": "🏆 Leaderboard", "callback_data": "user:leaderboard"}],
+        [
+            {"text": "🎒 Mi Mochila", "callback_data": "backpack:main"},
+            {"text": "📔 Diario", "callback_data": "journal:main"}
+        ]
+    ]
+
+    # Obtener botones dinámicos configurados para "profile"
+    profile_buttons = await container.menu.build_keyboard_for_role("profile")
+    if profile_buttons:
+        keyboard_buttons.extend(profile_buttons)
+
+    # Agregar botón de volver al menú (opcional)
+    if show_back_button:
+        keyboard_buttons.append([{"text": "🔙 Volver al Menú", "callback_data": "profile:back"}])
+
+    keyboard = create_inline_keyboard(keyboard_buttons)
+
+    return summary, keyboard

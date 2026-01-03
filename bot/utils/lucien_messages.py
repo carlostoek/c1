@@ -766,6 +766,55 @@ class LucienMessages:
         msg = messages.get(message_key, "")
         return msg.format(**kwargs) if kwargs else msg
 
+    # =========================================================================
+    # 12. PERFIL (Expediente del usuario)
+    # =========================================================================
+
+    @staticmethod
+    def profile(message_key: str, **kwargs) -> str:
+        """
+        Mensajes para el perfil de usuario.
+
+        Mensajes disponibles:
+        - HEADER: Cabecera del expediente
+        - LEVEL_LOW: Comentario para niveles bajos (1-2)
+        - LEVEL_MID: Comentario para niveles medios (3-4)
+        - LEVEL_HIGH: Comentario para niveles altos (5-6)
+        - LEVEL_MAX: Comentario para nivel máximo (7)
+        - NO_BADGES: Sin badges aún
+        - HAS_BADGES: Con badges
+        """
+        messages = {
+            "HEADER": "Su expediente en el Diván. Todo queda registrado.",
+
+            "LEVEL_LOW": (
+                "Aún está en observación. No se lo tome personal... "
+                "todos comienzan así."
+            ),
+
+            "LEVEL_MID": (
+                "Ha demostrado cierta... persistencia. Diana comienza "
+                "a notar su presencia."
+            ),
+
+            "LEVEL_HIGH": (
+                "Debo admitir que ha superado mis expectativas iniciales. "
+                "Diana habla de usted ocasionalmente."
+            ),
+
+            "LEVEL_MAX": (
+                "Guardián de Secretos. El círculo más íntimo. "
+                "Ya no necesita mi evaluación... pero la tendrá de todos modos."
+            ),
+
+            "NO_BADGES": "Aún sin distintivos. Diana solo premia lo memorable.",
+
+            "HAS_BADGES": "Distintivos que ha ganado. Úselos con orgullo o discreción.",
+        }
+
+        msg = messages.get(message_key, "")
+        return msg.format(**kwargs) if kwargs else msg
+
 
 # =============================================================================
 # FUNCIONES HELPER PARA USO CONVENIENTE
@@ -777,7 +826,7 @@ def get_lucien_message(category: str, message_key: str, **kwargs) -> str:
 
     Args:
         category: Categoría del mensaje
-            (onboarding, besitos, levels, archetypes, errors, shop, missions, retention, conversion, start, menu)
+            (onboarding, besitos, levels, archetypes, errors, shop, missions, retention, conversion, start, menu, profile)
         message_key: Clave del mensaje específico
         **kwargs: Parámetros para formatear el mensaje
 
@@ -800,6 +849,7 @@ def get_lucien_message(category: str, message_key: str, **kwargs) -> str:
         "conversion": LucienMessages.conversion,
         "start": LucienMessages.start,
         "menu": LucienMessages.menu,
+        "profile": LucienMessages.profile,
     }
 
     method = category_methods.get(category)

@@ -51,13 +51,13 @@
 ---
 
 ### F1.3 - Reescribir mensajes de perfil
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Importar LucienMessages y EconomyConfig
-- [ ] Mostrar estructura de expediente
-- [ ] Implementar barra de progreso visual
-- [ ] Agregar comentarios de Lucien según nivel
-- [ ] Verificar/arreglar mensajes faltantes en lucien_messages.py
+- [x] Importar LucienMessages y EconomyConfig
+- [x] Mostrar estructura de expediente
+- [x] Implementar barra de progreso visual
+- [x] Agregar comentarios de Lucien según nivel
+- [x] Verificar/arreglar mensajes faltantes en lucien_messages.py
 
 ---
 
