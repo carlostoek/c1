@@ -12,6 +12,7 @@ Responsabilidades:
 
 import logging
 from datetime import datetime
+from typing import Optional
 
 from aiogram import F
 from aiogram.types import CallbackQuery

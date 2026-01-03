@@ -8,6 +8,8 @@ Funcionalidades:
 - Ver encargos disponibles para iniciar
 """
 
+from typing import Optional
+
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
