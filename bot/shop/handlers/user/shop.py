@@ -99,13 +99,13 @@ async def _track_shop_action(
 def _build_cabinet_main_keyboard() -> InlineKeyboardMarkup:
     """Construye teclado principal del Gabinete con categorías FASE 4."""
     buttons = [
-        [InlineKeyboardButton(text="⚡ Efímeros", callback_data="shop:cat:consumible")],
-        [InlineKeyboardButton(text="🎖️ Distintivos", callback_data="shop:cat:cosmetic")],
-        [InlineKeyboardButton(text="🔑 Llaves", callback_data="shop:cat:narrative")],
-        [InlineKeyboardButton(text="💎 Reliquias", callback_data="shop:cat:digital")],
+        [InlineKeyboardButton(text="⚡ Efímeros", callback_data="shop:cat:efimeros")],
+        [InlineKeyboardButton(text="🎖️ Distintivos", callback_data="shop:cat:distintivos")],
+        [InlineKeyboardButton(text="🔑 Llaves", callback_data="shop:cat:llaves")],
+        [InlineKeyboardButton(text="💎 Reliquias", callback_data="shop:cat:reliquias")],
         [InlineKeyboardButton(text="⭐ Destacados", callback_data="shop:featured")],
         [InlineKeyboardButton(text="🎒 Mi Mochila", callback_data="backpack:main")],
-        [InlineKeyboardButton(text="🔙 Volver", callback_data="menu:main")],
+        [InlineKeyboardButton(text="🔙 Volver", callback_data="profile:back")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

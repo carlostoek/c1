@@ -91,7 +91,7 @@ def _build_backpack_main_keyboard(clues_count: int = 0, rewards_count: int = 0) 
         [InlineKeyboardButton(text="📊 Historial", callback_data="backpack:history")],
         [
             InlineKeyboardButton(text="🏪 Tienda", callback_data="shop:main"),
-            InlineKeyboardButton(text="🔙 Volver", callback_data="menu:main"),
+            InlineKeyboardButton(text="🔙 Volver", callback_data="profile:back"),
         ],
     ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)

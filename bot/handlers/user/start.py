@@ -319,7 +319,7 @@ async def _send_lucien_welcome(
     gamification = GamificationContainer(session, message.bot)
 
     # Crear o actualizar perfil de gamificación (esto actualiza updated_at)
-    await gamification.user_gamification.get_or_create_user_profile(user_id)
+    await gamification.user_gamification.ensure_user_exists(user_id)
 
     if user_type == 'new':
         # Usuario nuevo - Mensaje en 2 partes
