@@ -42,10 +42,11 @@ async def gamification_menu(message: Message):
             InlineKeyboardButton(text="💰 Transacciones", callback_data="gamif:admin:transactions")
         ],
         [
-            InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config"),
-            InlineKeyboardButton(text="🎨 Wizard Creación", callback_data="unified:wizard:menu")
+            InlineKeyboardButton(text="🎭 Arquetipos", callback_data="gamif:admin:archetypes"),
+            InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config")
         ],
         [
+            InlineKeyboardButton(text="🎨 Wizard Creación", callback_data="unified:wizard:menu"),
             InlineKeyboardButton(text="📊 Panel Central", callback_data="config_panel:main")
         ]
     ])
@@ -79,11 +80,14 @@ async def show_main_menu(callback: CallbackQuery):
             InlineKeyboardButton(text="💰 Transacciones", callback_data="gamif:admin:transactions")
         ],
         [
-            InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config"),
-            InlineKeyboardButton(text="🎨 Wizard Creación", callback_data="unified:wizard:menu")
+            InlineKeyboardButton(text="🎭 Arquetipos", callback_data="gamif:admin:archetypes"),
+            InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config")
         ],
         [
-            InlineKeyboardButton(text="📊 Panel Central", callback_data="config_panel:main"),
+            InlineKeyboardButton(text="🎨 Wizard Creación", callback_data="unified:wizard:menu"),
+            InlineKeyboardButton(text="📊 Panel Central", callback_data="config_panel:main")
+        ],
+        [
             InlineKeyboardButton(text="🔙 Volver al Menú Principal", callback_data="admin:main")
         ]
     ])
