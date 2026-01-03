@@ -19,6 +19,7 @@ from bot.gamification.database.models import (
     GamificationConfig
 )
 from bot.gamification.database.enums import TransactionType
+from bot.gamification.config.economy import EconomyConfig
 
 logger = logging.getLogger(__name__)
 
@@ -312,15 +313,16 @@ class DailyGiftService:
 
         if not config:
             # Crear configuración por defecto si no existe
+            # Usar EconomyConfig como fuente de valores
             config = GamificationConfig(
                 id=1,
                 daily_gift_enabled=True,
-                daily_gift_besitos=10
+                daily_gift_besitos=int(EconomyConfig.DAILY_GIFT_BASE)
             )
             self.session.add(config)
             await self.session.commit()
             await self.session.refresh(config)
-            logger.info("Created default GamificationConfig")
+            logger.info("Created default GamificationConfig with EconomyConfig values")
 
         return config
 

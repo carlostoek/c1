@@ -21,6 +21,7 @@ from bot.gamification.database.models import (
     UserGamification
 )
 from bot.gamification.database.enums import TransactionType
+from bot.gamification.config.economy import EconomyConfig
 
 logger = logging.getLogger(__name__)
 
@@ -39,18 +40,22 @@ class ReactionService:
         self,
         emoji: str,
         name: str,
-        besitos_value: int = 1
+        besitos_value: Optional[int] = None
     ) -> Reaction:
         """Crea nueva reacción en catálogo.
 
         Args:
             emoji: Emoji de la reacción
             name: Nombre descriptivo de la reacción
-            besitos_value: Besitos que otorga
+            besitos_value: Besitos que otorga (usa EconomyConfig si no se especifica)
 
         Returns:
             Reacción creada
         """
+        # Usar EconomyConfig si no se especifica valor
+        if besitos_value is None:
+            besitos_value = int(EconomyConfig.REACTION_REWARD)
+
         reaction = Reaction(
             emoji=emoji,
             name=name,

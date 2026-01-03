@@ -12,6 +12,7 @@ from bot.gamification.config.archetypes import (
     ARCHETYPE_TRAITS,
     LEGACY_ARCHETYPE_MAPPING,
 )
+from bot.gamification.config.economy import EconomyConfig
 
 __all__ = [
     "ExpandedArchetype",
@@ -19,4 +20,5 @@ __all__ = [
     "ArchetypeScorer",
     "ARCHETYPE_TRAITS",
     "LEGACY_ARCHETYPE_MAPPING",
+    "EconomyConfig",
 ]
