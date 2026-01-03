@@ -56,6 +56,28 @@ class ServiceContainer:
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
+    # ===== PROPIEDADES PÚBLICAS PARA DEPENDENCIAS =====
+
+    @property
+    def session(self) -> AsyncSession:
+        """
+        Sesión de base de datos.
+
+        Returns:
+            AsyncSession: Sesión actual de BD
+        """
+        return self._session
+
+    @property
+    def bot(self) -> Bot:
+        """
+        Instancia del bot de Telegram.
+
+        Returns:
+            Bot: Instancia del bot
+        """
+        return self._bot
+
     # ===== SUBSCRIPTION SERVICE =====
 
     @property
