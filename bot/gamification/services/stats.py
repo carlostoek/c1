@@ -358,3 +358,62 @@ class StatsService:
         logger.info(f"Retrieved top {len(top_broadcasts)} performing broadcasts")
 
         return top_broadcasts
+
+    async def get_top_users_by_besitos(
+        self,
+        limit: int = 10
+    ) -> List[Dict]:
+        """
+        Top usuarios con más besitos.
+
+        Args:
+            limit: Cantidad máxima de resultados (default: 10)
+
+        Returns:
+            [
+                {
+                    "user_id": 123,
+                    "username": "usuario",
+                    "total_besitos": 150,
+                    "besitos_earned": 200,
+                    "besitos_spent": 50,
+                    "level": "Admitido"
+                },
+                ...
+            ]
+        """
+        from bot.gamification.database.models import Level
+
+        # Query: UserGamification ordenados por total_besitos DESC
+        stmt = (
+            select(UserGamification, Level)
+            .join(Level, UserGamification.level_id == Level.id, isouter=True)
+            .order_by(UserGamification.total_besitos.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        rows = result.all()
+
+        # Obtener usernames
+        user_ids = [ug.user_id for ug, _ in rows]
+        users_stmt = select(User).where(User.id.in_(user_ids))
+        users_result = await self.session.execute(users_stmt)
+        users = {u.id: u for u in users_result.scalars()}
+
+        # Formatear resultados
+        top_users = []
+        for user_gamif, level in rows:
+            user = users.get(user_gamif.user_id)
+            top_users.append({
+                "user_id": user_gamif.user_id,
+                "username": user.username if user and user.username else f"User_{user_gamif.user_id}",
+                "total_besitos": user_gamif.total_besitos,
+                "besitos_earned": user_gamif.besitos_earned,
+                "besitos_spent": user_gamif.besitos_spent,
+                "level": level.name if level else "Visitante",
+                "level_order": level.order if level else 1
+            })
+
+        logger.info(f"Retrieved top {len(top_users)} users by besitos")
+
+        return top_users

@@ -3,11 +3,12 @@ Handler de estadísticas del sistema de gamificación.
 """
 
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from bot.filters.admin import IsAdmin
 from bot.middlewares import DatabaseMiddleware
 from bot.gamification.services.container import GamificationContainer
+from bot.utils.keyboards import create_inline_keyboard
 
 router = Router()
 router.callback_query.filter(IsAdmin())
@@ -51,4 +52,57 @@ async def show_stats(callback: CallbackQuery, gamification: GamificationContaine
 """
 
     await callback.message.edit_text(text, parse_mode="HTML")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "gamif:admin:economy")
+async def show_economy_panel(callback: CallbackQuery, gamification: GamificationContainer):
+    """Muestra panel de economía con top usuarios."""
+
+    # Obtener top usuarios
+    top_users = await gamification.stats.get_top_users_by_besitos(limit=10)
+
+    # Obtener overview de economía
+    overview = await gamification.stats.get_system_overview()
+
+    text = f"""💰 <b>Panel de Economía</b>
+
+<b>📊 Estadísticas Generales</b>
+• Besitos totales distribuidos: {overview['total_besitos_distributed']:,}
+• Usuarios en sistema: {overview['total_users']:,}
+
+<b>🏆 Top 10 Usuarios por Besitos</b>
+━━━━━━━━━━━━━━━━
+"""
+
+    if not top_users:
+        text += "<i>No hay usuarios con besitos aún.</i>"
+    else:
+        for i, user in enumerate(top_users, 1):
+            medal = ""
+            if i == 1:
+                medal = "🥇"
+            elif i == 2:
+                medal = "🥈"
+            elif i == 3:
+                medal = "🥉"
+
+            username = user['username']
+            besitos = user['total_besitos']
+            level = user['level']
+
+            text += f"{medal} #{i}. <code>{username}</code>\n"
+            text += f"   💰 {besitos:,} besitos • {level}\n\n"
+
+    # Teclado con opciones
+    keyboard = [
+        [{"text": "🔄 Actualizar", "callback_data": "gamif:admin:economy"}],
+        [{"text": "🔙 Volver", "callback_data": "gamif:menu"}]
+    ]
+
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=create_inline_keyboard(keyboard),
+        parse_mode="HTML"
+    )
     await callback.answer()

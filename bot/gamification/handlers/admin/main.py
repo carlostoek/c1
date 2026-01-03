@@ -38,11 +38,14 @@ async def gamification_menu(message: Message):
             InlineKeyboardButton(text="📊 Estadísticas", callback_data="gamif:admin:stats")
         ],
         [
-            InlineKeyboardButton(text="💰 Transacciones", callback_data="gamif:admin:transactions"),
-            InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config")
+            InlineKeyboardButton(text="💰 Economía", callback_data="gamif:admin:economy"),
+            InlineKeyboardButton(text="💰 Transacciones", callback_data="gamif:admin:transactions")
         ],
         [
-            InlineKeyboardButton(text="🎨 Wizard Creación", callback_data="unified:wizard:menu"),
+            InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config"),
+            InlineKeyboardButton(text="🎨 Wizard Creación", callback_data="unified:wizard:menu")
+        ],
+        [
             InlineKeyboardButton(text="📊 Panel Central", callback_data="config_panel:main")
         ]
     ])
@@ -72,14 +75,15 @@ async def show_main_menu(callback: CallbackQuery):
             InlineKeyboardButton(text="📊 Estadísticas", callback_data="gamif:admin:stats")
         ],
         [
-            InlineKeyboardButton(text="💰 Transacciones", callback_data="gamif:admin:transactions"),
-            InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config")
+            InlineKeyboardButton(text="💰 Economía", callback_data="gamif:admin:economy"),
+            InlineKeyboardButton(text="💰 Transacciones", callback_data="gamif:admin:transactions")
         ],
         [
-            InlineKeyboardButton(text="🎨 Wizard Creación", callback_data="unified:wizard:menu"),
-            InlineKeyboardButton(text="📊 Panel Central", callback_data="config_panel:main")
+            InlineKeyboardButton(text="🔧 Configuración", callback_data="gamif:admin:config"),
+            InlineKeyboardButton(text="🎨 Wizard Creación", callback_data="unified:wizard:menu")
         ],
         [
+            InlineKeyboardButton(text="📊 Panel Central", callback_data="config_panel:main"),
             InlineKeyboardButton(text="🔙 Volver al Menú Principal", callback_data="admin:main")
         ]
     ])

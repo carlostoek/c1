@@ -85,13 +85,13 @@
 ---
 
 ### F2.6 - Panel de Economía Admin
-**Estado:** Pendiente
+**Estado:** ✅ COMPLETADO
 
-- [ ] Crear handler economy_panel.py
-- [ ] Agregar botón en menú admin
-- [ ] Ver top usuarios
-- [ ] Ajustar valores (FSM)
-- [ ] Integración en menú admin
+- [x] Crear handler economy (agregado en stats.py)
+- [x] Agregar botón en menú admin (💰 Economía)
+- [x] Ver top usuarios (get_top_users_by_besitos)
+- [x] Ajuste de valores (FSM) (ya existe en config handlers)
+- [x] Integración en menú admin (gamif:admin:economy)
 
 ---
 
