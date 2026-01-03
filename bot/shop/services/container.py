@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from bot.shop.services.inventory import InventoryService
     from bot.shop.services.discounts import DiscountService
     from bot.shop.services.recommendations import RecommendationService
+    from bot.shop.services.notifications import NotificationService
 
 
 # Instancia global del container
@@ -48,6 +49,7 @@ class ShopContainer:
         self._inventory: Optional["InventoryService"] = None
         self._discounts: Optional["DiscountService"] = None
         self._recommendations: Optional["RecommendationService"] = None
+        self._notifications: Optional["NotificationService"] = None
 
     @property
     def shop(self) -> "ShopService":
@@ -81,6 +83,14 @@ class ShopContainer:
             self._recommendations = RecommendationService(self._session)
         return self._recommendations
 
+    @property
+    def notifications(self) -> "NotificationService":
+        """Obtiene el servicio de notificaciones (lazy loading)."""
+        if self._notifications is None:
+            from bot.shop.services.notifications import NotificationService
+            self._notifications = NotificationService(self._session, self._bot)
+        return self._notifications
+
     def get_loaded_services(self) -> list:
         """Retorna lista de servicios actualmente cargados."""
         loaded = []
@@ -92,6 +102,8 @@ class ShopContainer:
             loaded.append("discounts")
         if self._recommendations is not None:
             loaded.append("recommendations")
+        if self._notifications is not None:
+            loaded.append("notifications")
         return loaded
 
 
@@ -128,6 +140,7 @@ def get_shop_container(
         _shop_container._inventory = None
         _shop_container._discounts = None
         _shop_container._recommendations = None
+        _shop_container._notifications = None
 
     return _shop_container
 
