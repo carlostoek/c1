@@ -164,11 +164,13 @@ class UserGamificationService:
         # Obtener nivel actual
         current_level = await self.session.get(Level, user_gamif.current_level_id)
 
-        # Obtener siguiente nivel
+        # Obtener siguiente nivel (limit 1 para evitar MultipleResultsFound)
         stmt = (
             select(Level)
             .where(Level.active == True)
             .where(Level.order == current_level.order + 1)
+            .order_by(Level.id.asc())
+            .limit(1)
         )
         result = await self.session.execute(stmt)
         next_level = result.scalar_one_or_none()
