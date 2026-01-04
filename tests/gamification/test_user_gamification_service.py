@@ -80,7 +80,7 @@ async def test_get_user_profile_complete(db_session, sample_user):
     db_session.add(streak)
 
     # Crear reacción primero
-    reaction_def = Reaction(emoji="❤️", besitos_value=10, active=True)
+    reaction_def = Reaction(emoji="❤️", name="Corazón", besitos_value=10, active=True)
     db_session.add(reaction_def)
     await db_session.commit()
 
@@ -259,8 +259,8 @@ async def test_get_user_stats_reactions(db_session, sample_user):
     service = UserGamificationService(db_session)
 
     # Crear definiciones de reacciones
-    r1 = Reaction(emoji="❤️", besitos_value=10, active=True)
-    r2 = Reaction(emoji="🔥", besitos_value=10, active=True)
+    r1 = Reaction(emoji="❤️", name="Corazón", besitos_value=10, active=True)
+    r2 = Reaction(emoji="🔥", name="Fuego", besitos_value=10, active=True)
     db_session.add_all([r1, r2])
     await db_session.commit()
 
@@ -352,7 +352,7 @@ async def test_get_user_stats_activity(db_session, sample_user):
     service = UserGamificationService(db_session)
 
     # Crear definición de reacción
-    reaction_def = Reaction(emoji="❤️", besitos_value=10, active=True)
+    reaction_def = Reaction(emoji="❤️", name="Corazón", besitos_value=10, active=True)
     db_session.add(reaction_def)
     await db_session.commit()
 

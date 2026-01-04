@@ -53,7 +53,7 @@ async def test_user_gamification_with_level(db_session, sample_level):
 @pytest.mark.asyncio
 async def test_create_reaction_with_defaults(db_session):
     """Debe crear reacción con valores por defecto."""
-    reaction = Reaction(emoji="🔥")
+    reaction = Reaction(emoji="🔥", name="Reacción Fuego")
     db_session.add(reaction)
     await db_session.commit()
 
@@ -66,8 +66,8 @@ async def test_create_reaction_with_defaults(db_session):
 @pytest.mark.asyncio
 async def test_reaction_emoji_unique_constraint(db_session):
     """No debe permitir emojis duplicados."""
-    reaction1 = Reaction(emoji="👍")
-    reaction2 = Reaction(emoji="👍")
+    reaction1 = Reaction(emoji="👍", name="Pulgar arriba")
+    reaction2 = Reaction(emoji="👍", name="Pulgar arriba duplicado")
 
     db_session.add(reaction1)
     await db_session.commit()
@@ -102,7 +102,7 @@ async def test_create_user_reaction(db_session, sample_user, sample_reaction):
 @pytest.mark.asyncio
 async def test_user_reaction_cascade_delete(db_session, sample_user):
     """Al eliminar usuario, sus reacciones se borran."""
-    reaction = Reaction(emoji="💯")
+    reaction = Reaction(emoji="💯", name="Cien puntos")
     db_session.add(reaction)
     await db_session.commit()
 

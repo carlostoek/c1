@@ -46,7 +46,7 @@ async def sample_user(db_session):
 @pytest_asyncio.fixture
 async def sample_reaction(db_session):
     """Reacción de prueba."""
-    reaction = Reaction(emoji="❤️", besitos_value=1, active=True)
+    reaction = Reaction(emoji="❤️", name="Corazón", besitos_value=1, active=True)
     db_session.add(reaction)
     await db_session.commit()
     return reaction

@@ -67,9 +67,62 @@ class CooldownType(str, Enum):
 
 
 class ArchetypeType(str, Enum):
-    """Arquetipos de usuario detectados por comportamiento."""
+    """Arquetipos de usuario detectados por comportamiento.
 
-    UNKNOWN = "unknown"              # No determinado aún
-    IMPULSIVE = "impulsive"          # Reacciona rápido (< 5 segundos)
-    CONTEMPLATIVE = "contemplative"  # Toma su tiempo (> 30 segundos)
-    SILENT = "silent"                # No reacciona (timeout)
+    SISTEMA EXPANDIDO (6 arquetipos):
+    - EXPLORER: Busca cada detalle, encuentra contenido oculto
+    - DIRECT: Respuestas concisas, decide rápido
+    - ROMANTIC: Poético, busca conexión emocional
+    - ANALYTICAL: Reflexivo, comprensión intelectual
+    - PERSISTENT: No se rinde, múltiples intentos
+    - PATIENT: Procesa profundamente, toma tiempo
+
+    SISTEMA LEGACY (mantenido para compatibilidad):
+    - IMPULSIVE: Reacciona rápido (< 5 segundos) → mapea a DIRECT o EXPLORER
+    - CONTEMPLATIVE: Toma su tiempo (> 30 segundos) → mapea a ANALYTICAL o PATIENT
+    - SILENT: No reacciona (timeout) → requiere más datos
+    """
+
+    # ========================================
+    # SISTEMA EXPANDIDO (6 arquetipos nuevos)
+    # ========================================
+    EXPLORER = "explorer"        # El que busca cada detalle
+    DIRECT = "direct"            # Respuestas concisas, al punto
+    ROMANTIC = "romantic"        # Poético, busca conexión emocional
+    ANALYTICAL = "analytical"    # Reflexivo, comprensión intelectual
+    PERSISTENT = "persistent"    # No se rinde, múltiples intentos
+    PATIENT = "patient"          # Procesa profundamente, toma tiempo
+
+    # ========================================
+    # SISTEMA LEGACY (mantenido para compatibilidad)
+    # ========================================
+    UNKNOWN = "unknown"          # No determinado aún
+    IMPULSIVE = "impulsive"      # Reacciona rápido (< 5 segundos) [LEGACY]
+    CONTEMPLATIVE = "contemplative"  # Toma su tiempo (> 30 segundos) [LEGACY]
+    SILENT = "silent"            # No reacciona (timeout) [LEGACY]
+
+    @property
+    def is_expanded(self) -> bool:
+        """True si es parte del sistema expandido de 6 arquetipos."""
+        return self.value in [
+            "explorer", "direct", "romantic",
+            "analytical", "persistent", "patient"
+        ]
+
+    @property
+    def is_legacy(self) -> bool:
+        """True si es parte del sistema legacy de 3 arquetipos."""
+        return self.value in ["impulsive", "contemplative", "silent"]
+
+    @classmethod
+    def get_expanded_archetypes(cls) -> list:
+        """Retorna los 6 arquetipos del sistema expandido."""
+        return [
+            cls.EXPLORER, cls.DIRECT, cls.ROMANTIC,
+            cls.ANALYTICAL, cls.PERSISTENT, cls.PATIENT
+        ]
+
+    @classmethod
+    def get_legacy_archetypes(cls) -> list:
+        """Retorna los 3 arquetipos del sistema legacy."""
+        return [cls.IMPULSIVE, cls.CONTEMPLATIVE, cls.SILENT]

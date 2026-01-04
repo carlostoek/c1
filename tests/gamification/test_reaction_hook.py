@@ -41,7 +41,7 @@ async def reaction_data(db_session):
     db_session.add(config)
 
     # Crear reacción activa
-    reaction = Reaction(emoji="❤️", besitos_value=5, active=True)
+    reaction = Reaction(emoji="❤️", name="Corazón", besitos_value=5, active=True)
     db_session.add(reaction)
 
     # Crear niveles
