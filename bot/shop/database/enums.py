@@ -100,6 +100,23 @@ class NarrativeItemMetadata(TypedDict):
     unlocks_chapter_slug: Optional[str]   # Chapter slug que desbloquea
     lore_text: Optional[str]              # Texto de lore del artefacto
 
+    # --- Campos de pista (is_clue=True) ---
+    is_clue: bool                         # True = es una pista narrativa
+    clue_category: Optional[str]          # "map", "secret", "password", "key"
+    clue_hint: Optional[str]              # Pista de cómo encontrarla
+    source_fragment_key: Optional[str]    # Fragmento donde se obtiene
+    required_for_fragments: list          # Fragment keys que la requieren
+    clue_icon: Optional[str]              # Emoji específico de la pista
+
+
+class ObtainedVia(str, Enum):
+    """Modos de obtención de items en el inventario."""
+
+    PURCHASE = "purchase"       # Comprado en tienda
+    GIFT = "gift"              # Regalado por otro usuario
+    REWARD = "reward"          # Recompensa de misión/sistema
+    ADMIN_GRANT = "admin_grant" # Otorgado por admin
+    DISCOVERY = "discovery"    # Descubierto en narrativa (pistas)
 
 class DigitalItemMetadata(TypedDict):
     """Metadata para items digitales."""

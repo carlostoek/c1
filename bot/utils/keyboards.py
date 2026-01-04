@@ -215,7 +215,3 @@ def gamification_menu_keyboard() -> InlineKeyboardMarkup:
             {"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}
         ]
     ])
-
-
-
-

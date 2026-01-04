@@ -45,6 +45,13 @@ class NarrativeContainer:
         self._import_service = None
         self._validation_service = None
 
+        # Servicios inmersivos (lazy loaded)
+        self._engagement_service = None
+        self._clue_service = None
+        self._variant_service = None
+        self._cooldown_service = None
+        self._challenge_service = None
+        self._journal_service = None
     # ========================================
     # PROPERTIES (LAZY LOADING)
     # ========================================
@@ -121,6 +128,58 @@ class NarrativeContainer:
         return self._validation_service
 
     # ========================================
+    # SERVICIOS INMERSIVOS (LAZY LOADING)
+    # ========================================
+
+    @property
+    def engagement(self):
+        """Servicio de tracking de engagement."""
+        if self._engagement_service is None:
+            from bot.narrative.services.engagement import EngagementService
+            self._engagement_service = EngagementService(self._session)
+        return self._engagement_service
+
+    @property
+    def clue(self):
+        """Servicio de gestión de pistas."""
+        if self._clue_service is None:
+            from bot.narrative.services.clue import ClueService
+            self._clue_service = ClueService(self._session)
+        return self._clue_service
+
+    @property
+    def variant(self):
+        """Servicio de variantes de fragmentos."""
+        if self._variant_service is None:
+            from bot.narrative.services.variant import VariantService
+            self._variant_service = VariantService(self._session)
+        return self._variant_service
+
+    @property
+    def cooldown(self):
+        """Servicio de cooldowns narrativos."""
+        if self._cooldown_service is None:
+            from bot.narrative.services.cooldown import CooldownService
+            self._cooldown_service = CooldownService(self._session)
+        return self._cooldown_service
+
+    @property
+    def challenge(self):
+        """Servicio de desafíos interactivos."""
+        if self._challenge_service is None:
+            from bot.narrative.services.challenge import ChallengeService
+            self._challenge_service = ChallengeService(self._session)
+        return self._challenge_service
+
+    @property
+    def journal(self):
+        """Servicio del diario de viaje."""
+        if self._journal_service is None:
+            from bot.narrative.services.journal import JournalService
+            self._journal_service = JournalService(self._session)
+        return self._journal_service
+
+    # ========================================
     # UTILIDADES
     # ========================================
 
@@ -148,6 +207,19 @@ class NarrativeContainer:
             loaded.append('import')
         if self._validation_service is not None:
             loaded.append('validation')
+        # Servicios inmersivos
+        if self._engagement_service is not None:
+            loaded.append('engagement')
+        if self._clue_service is not None:
+            loaded.append('clue')
+        if self._variant_service is not None:
+            loaded.append('variant')
+        if self._cooldown_service is not None:
+            loaded.append('cooldown')
+        if self._challenge_service is not None:
+            loaded.append('challenge')
+        if self._journal_service is not None:
+            loaded.append('journal')
         return loaded
 
     def clear_cache(self):
@@ -160,6 +232,13 @@ class NarrativeContainer:
         self._requirements_service = None
         self._import_service = None
         self._validation_service = None
+        # Servicios inmersivos
+        self._engagement_service = None
+        self._clue_service = None
+        self._variant_service = None
+        self._cooldown_service = None
+        self._challenge_service = None
+        self._journal_service = None
 
 
 # ========================================
