@@ -256,6 +256,10 @@ async def process_besitos_input(
         message: Mensaje del usuario
         state: FSM context
     """
+    try:
+        besitos = int(message.text.strip())
+        if not (1 <= besitos <= 100):
+            raise ValueError("Fuera de rango")
     except ValueError:
         await message.answer(
             Lucien.ERROR_INVALID_INPUT,

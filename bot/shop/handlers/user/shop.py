@@ -14,7 +14,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.filters import Command
 
 from bot.shop.services.container import ShopContainer
-from bot.shop.database.enums import ItemRarity, ItemType
+from bot.shop.database.enums import ItemRarity, ItemType, PurchaseErrorCode
 from bot.middlewares import DatabaseMiddleware
 from bot.utils.lucien_messages import Lucien
 
@@ -32,7 +32,6 @@ def _build_gabinete_main_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="💾 Contenido Digital", callback_data="shop:cat:contenido-digital")],
         [InlineKeyboardButton(text="🧪 Consumibles", callback_data="shop:cat:consumibles")],
         [InlineKeyboardButton(text="✨ Cosméticos", callback_data="shop:cat:cosmeticos")],
-        [InlineKeyboardButton(text="⭐ Artículos Destacados", callback_data="shop:featured")],
         [InlineKeyboardButton(text="🎒 Mi Mochila", callback_data="backpack:main")],
         [InlineKeyboardButton(text="🔙 Salir del Gabinete", callback_data="profile:back")],
     ]
@@ -144,7 +143,7 @@ async def callback_shop_item_detail(callback: CallbackQuery, session: AsyncSessi
         await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
-    can_buy, reason = await container.shop.can_purchase(user_id, item_id)
+    can_buy, reason, error_code = await container.shop.can_purchase(user_id, item_id)
     user_besitos = await _get_user_besitos(session, user_id)
     
     description = getattr(item, 'description_lucien', item.description)
@@ -203,7 +202,7 @@ async def callback_shop_acquire(callback: CallbackQuery, session: AsyncSession):
     user_id = callback.from_user.id
     item_id = int(callback.data.split(":")[2])
 
-    success, message, _ = await container.shop.purchase_item(user_id, item_id)
+    success, reason_message, _, error_code = await container.shop.purchase_item(user_id, item_id)
     item = await container.shop.get_item(item_id) # needed for name
 
     if success:
@@ -213,12 +212,12 @@ async def callback_shop_acquire(callback: CallbackQuery, session: AsyncSession):
             [InlineKeyboardButton(text="🏛️ Volver al Gabinete", callback_data="shop:main")],
         ]
     else:
-        # Personalizar mensaje para fondos insuficientes
-        if "insuficientes" in message.lower():
+        # Usar error code en lugar de string matching
+        if error_code == PurchaseErrorCode.INSUFFICIENT_FUNDS:
             user_besitos = await _get_user_besitos(session, user_id)
             text = Lucien.CABINET_INSUFFICIENT_FUNDS.format(required=item.price_besitos, current=user_besitos)
         else:
-            text = f"{Lucien.ERROR_GENERIC}\n\n<i>Motivo: {message}</i>"
+            text = f"{Lucien.ERROR_GENERIC}\n\n<i>Motivo: {reason_message}</i>"
         buttons = [[InlineKeyboardButton(text="🔙 Volver al Gabinete", callback_data="shop:main")]]
 
     await callback.message.edit_text(

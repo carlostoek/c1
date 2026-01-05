@@ -21,8 +21,19 @@ from bot.gamification.database.models import (
     UserGamification
 )
 from bot.gamification.database.enums import TransactionType
+from bot.gamification.services.container import get_container
+from bot.gamification.services.besito import BesitoService
+from bot.gamification.services.notifications import NotificationService
 
 logger = logging.getLogger(__name__)
+
+STREAK_MILESTONES = {
+    7: {"bonus": 2.0, "message_key": "STREAK_MILESTONE_7"},
+    14: {"bonus": 4.0, "message_key": "STREAK_MILESTONE_14"},
+    30: {"bonus": 10.0, "message_key": "STREAK_MILESTONE_30"},
+    60: {"bonus": 20.0, "message_key": "STREAK_MILESTONE_60"},
+    100: {"bonus": 50.0, "message_key": "STREAK_MILESTONE_100"}
+}
 
 
 class ReactionService:
@@ -344,6 +355,33 @@ class ReactionService:
         streak.last_reaction_date = datetime.now(UTC)
         await self.session.commit()
         await self.session.refresh(streak)
+
+        # Check for streak milestones and grant bonus
+        if streak.current_streak in STREAK_MILESTONES:
+            milestone_info = STREAK_MILESTONES[streak.current_streak]
+            bonus_amount = milestone_info["bonus"]
+
+            try:
+                container = get_container()
+                besito_service = container.besito # Corrected to use container.besito
+                notifications_service = container.notifications_service()
+
+                # Grant bonus besitos
+                await besito_service.grant_besitos(
+                    user_id=user_id,
+                    amount=bonus_amount,
+                    transaction_type=TransactionType.STREAK_BONUS,
+                    description=f"Bonus por racha de {streak.current_streak} días"
+                )
+                logger.info(f"User {user_id} received {bonus_amount} besitos for {streak.current_streak}-day streak milestone.")
+
+                # Send notification
+                await notifications_service.notify_streak_milestone(user_id, streak.current_streak)
+
+            except RuntimeError as e:
+                logger.warning(f"Container not available for streak bonus or notifications: {e}")
+            except Exception as e:
+                logger.error(f"Error granting streak bonus or sending notification for user {user_id}: {e}", exc_info=True)
 
         return streak
 

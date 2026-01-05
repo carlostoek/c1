@@ -39,12 +39,25 @@ NOTIFICATION_TEMPLATES = {
         "Visita /profile para verla"
     ),
 
-    'streak_milestone': (
+    'streak_milestone': ( # Generic fallback/placeholder if specific not found
         "🔥 <b>¡Racha Épica!</b>\n\n"
-        "Has reaccionado {days} días consecutivos\n\n"
+        "Has reaccionado {days} días consecutivos.\n\n"
         "¡Sigue así!"
     ),
-
+    'streak_milestone_7': (
+        "Siete días consecutivos.\n\n"
+        "Una semana de dedicación. Diana ha sido notificada. "
+        "Ha ganado {bonus} Besitos adicionales."
+    ),
+    'streak_milestone_14': (
+        "Dos semanas sin fallar.\n\n"
+        "Su constancia es... notable. +{bonus} Besitos."
+    ),
+    'streak_milestone_30': (
+        "Un mes. Treinta días consecutivos.\n\n"
+        "Debo admitir que estoy impresionado. Muy pocos llegan aquí. "
+        "Diana tiene algo especial para usted. +{bonus} Besitos."
+    ),
     'streak_lost': (
         "💔 <b>Racha Perdida</b>\n\n"
         "Tu racha de {days} días expiró\n\n"
@@ -154,7 +167,8 @@ class NotificationService:
     async def notify_streak_milestone(
         self,
         user_id: int,
-        days: int
+        days: int,
+        bonus: Optional[float] = None
     ) -> None:
         """
         Notifica milestone de racha (solo en hitos específicos).
@@ -164,14 +178,21 @@ class NotificationService:
         Args:
             user_id: ID del usuario
             days: Número de días de racha actual
+            bonus: Cantidad de besitos del bonus (opcional, para templates específicos)
         """
         # Solo notificar en milestones específicos
-        milestones = [7, 14, 30, 60, 100]
-        if days not in milestones:
-            logger.debug(f"Streak {days} days is not a milestone, skipping notification")
+        template_key = f"streak_milestone_{days}"
+        if template_key in NOTIFICATION_TEMPLATES:
+            template = NOTIFICATION_TEMPLATES[template_key]
+            # Format with bonus if available, otherwise just days
+            message = template.format(days=days, bonus=bonus) if bonus is not None else template.format(days=days)
+        elif days in [7, 14, 30, 60, 100]: # Fallback to generic if specific template not defined, but still a milestone
+            template = NOTIFICATION_TEMPLATES['streak_milestone']
+            message = template.format(days=days)
+        else:
+            logger.debug(f"Streak {days} days is not a defined milestone for notifications, skipping.")
             return
 
-        message = NOTIFICATION_TEMPLATES['streak_milestone'].format(days=days)
         await self._send_notification(user_id, message)
 
     async def notify_streak_lost(

@@ -15,6 +15,9 @@ import logging
 
 from bot.gamification.database.models import UserGamification, BesitoTransaction
 from bot.gamification.database.enums import TransactionType
+from bot.gamification.services.container import get_container
+from bot.gamification.services.level import LevelService
+from bot.gamification.services.notifications import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +78,26 @@ class BesitoService:
             f"Granted {amount} besitos to user {user_id} "
             f"({transaction_type.value}). New balance: {user_gamif.total_besitos}"
         )
+
+        # Check for level up after granting besitos
+        try:
+            container = get_container()
+            level_service = container.level_service()
+            notifications_service = container.notifications_service()
+
+            level_changed, old_level, new_level = await level_service.check_and_apply_level_up(user_id)
+
+            if level_changed:
+                logger.info(f"User {user_id} leveled up from {old_level.name if old_level else 'N/A'} to {new_level.name}")
+                await notifications_service.notify_level_up(user_id, old_level, new_level)
+            else:
+                logger.debug(f"User {user_id} did not level up.")
+
+        except RuntimeError as e:
+            logger.warning(f"Container not available for level-up checks or notifications: {e}")
+        except Exception as e:
+            logger.error(f"Error during level-up check or notification for user {user_id}: {e}", exc_info=True)
+
 
         # Verificar y otorgar recompensas automáticas desbloqueadas
         try:

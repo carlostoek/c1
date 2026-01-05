@@ -88,6 +88,21 @@ class PurchaseStatus(str, Enum):
         return self.value
 
 
+class PurchaseErrorCode(str, Enum):
+    """Códigos de error para compras."""
+
+    ITEM_NOT_FOUND = "item_not_found"
+    ITEM_UNAVAILABLE = "item_unavailable"
+    INSUFFICIENT_STOCK = "insufficient_stock"
+    MAX_PER_USER_REACHED = "max_per_user_reached"
+    REQUIRES_VIP = "requires_vip"
+    INSUFFICIENT_FUNDS = "insufficient_funds"
+    UNKNOWN_ERROR = "unknown_error"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 # ============================================================
 # TYPEDDICTS PARA METADATA
 # ============================================================

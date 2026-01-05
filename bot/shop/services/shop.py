@@ -29,6 +29,7 @@ from bot.shop.database.enums import (
     ItemType,
     ItemRarity,
     PurchaseStatus,
+    PurchaseErrorCode,
 )
 
 logger = logging.getLogger(__name__)
@@ -417,7 +418,7 @@ class ShopService:
         user_id: int,
         item_id: int,
         quantity: int = 1
-    ) -> Tuple[bool, str]:
+    ) -> Tuple[bool, str, Optional[PurchaseErrorCode]]:
         """
         Verifica si un usuario puede comprar un item.
 
@@ -427,45 +428,45 @@ class ShopService:
             quantity: Cantidad a comprar
 
         Returns:
-            (can_purchase, reason)
+            (can_purchase, reason, error_code)
         """
         item = await self.get_item(item_id)
         if not item:
-            return False, "Producto no encontrado"
+            return False, "Producto no encontrado", PurchaseErrorCode.ITEM_NOT_FOUND
 
         if not item.is_active:
-            return False, "Producto no disponible"
+            return False, "Producto no disponible", PurchaseErrorCode.ITEM_UNAVAILABLE
 
         # Verificar stock
         if item.stock is not None and item.stock < quantity:
-            return False, f"Stock insuficiente (disponible: {item.stock})"
+            return False, f"Stock insuficiente (disponible: {item.stock})", PurchaseErrorCode.INSUFFICIENT_STOCK
 
         # Verificar máximo por usuario
         if item.max_per_user is not None:
             owned = await self._get_user_item_quantity(user_id, item_id)
             if owned + quantity > item.max_per_user:
-                return False, f"Máximo {item.max_per_user} por usuario (tienes {owned})"
+                return False, f"Máximo {item.max_per_user} por usuario (tienes {owned})", PurchaseErrorCode.MAX_PER_USER_REACHED
 
         # Verificar VIP si es requerido
         if item.requires_vip:
             is_vip = await self._check_vip_status(user_id)
             if not is_vip:
-                return False, "Este producto requiere ser VIP"
+                return False, "Este producto requiere ser VIP", PurchaseErrorCode.REQUIRES_VIP
 
         # Verificar besitos
         user_besitos = await self._get_user_besitos(user_id)
         total_price = item.price_besitos * quantity
         if user_besitos < total_price:
-            return False, f"Besitos insuficientes (necesitas {total_price}, tienes {user_besitos})"
+            return False, f"Besitos insuficientes (necesitas {total_price}, tienes {user_besitos})", PurchaseErrorCode.INSUFFICIENT_FUNDS
 
-        return True, "OK"
+        return True, "OK", None
 
     async def purchase_item(
         self,
         user_id: int,
         item_id: int,
         quantity: int = 1
-    ) -> Tuple[bool, str, Optional[ItemPurchase]]:
+    ) -> Tuple[bool, str, Optional[ItemPurchase], Optional[PurchaseErrorCode]]:
         """
         Procesa la compra de un item.
 
@@ -475,12 +476,12 @@ class ShopService:
             quantity: Cantidad a comprar
 
         Returns:
-            (success, message, purchase)
+            (success, message, purchase, error_code)
         """
         # Verificar si puede comprar
-        can_buy, reason = await self.can_purchase(user_id, item_id, quantity)
+        can_buy, reason, error_code = await self.can_purchase(user_id, item_id, quantity)
         if not can_buy:
-            return False, reason, None
+            return False, reason, None, error_code
 
         item = await self.get_item(item_id)
         total_price = item.price_besitos * quantity
@@ -498,7 +499,7 @@ class ShopService:
         )
 
         if not success:
-            return False, msg, None
+            return False, msg, None, PurchaseErrorCode.INSUFFICIENT_FUNDS
 
         # Decrementar stock
         if item.stock is not None:
@@ -524,7 +525,7 @@ class ShopService:
             f"User {user_id} purchased {item.name} x{quantity} for {total_price} besitos"
         )
 
-        return True, f"¡Compraste {item.name}!", purchase
+        return True, f"¡Compraste {item.name}!", purchase, None
 
     async def refund_purchase(
         self,
