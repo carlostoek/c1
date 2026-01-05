@@ -12,6 +12,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 
 from bot.middlewares import DatabaseMiddleware
 from bot.gamification.services.container import GamificationContainer
+from bot.utils.lucien_messages import Lucien
 
 router = Router()
 
@@ -77,4 +78,4 @@ async def show_leaderboard(callback: CallbackQuery, gamification: GamificationCo
         await callback.answer()
 
     except Exception as e:
-        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
+        await callback.answer(Lucien.ERROR_GENERIC, show_alert=True)

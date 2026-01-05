@@ -17,6 +17,7 @@ from bot.middlewares import DatabaseMiddleware
 from bot.filters.admin import IsAdmin
 from bot.gamification.states.admin import DailyGiftConfigStates
 from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.lucien_messages import Lucien
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ async def enable_daily_gift(
         logger.info(f"✅ Regalo diario activado por usuario {callback.from_user.id}")
         await callback.answer("✅ Sistema de regalo diario activado", show_alert=True)
     else:
-        await callback.answer("❌ Error: Configuración no encontrada", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
 
     # Refrescar menú
     await show_daily_gift_config(callback, session)
@@ -128,7 +129,7 @@ async def disable_daily_gift(
         logger.info(f"❌ Regalo diario desactivado por usuario {callback.from_user.id}")
         await callback.answer("❌ Sistema de regalo diario desactivado", show_alert=True)
     else:
-        await callback.answer("❌ Error: Configuración no encontrada", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
 
     # Refrescar menú
     await show_daily_gift_config(callback, session)
@@ -189,7 +190,7 @@ async def process_daily_gift_besitos(
         # Validar rango
         if besitos < 1 or besitos > 100:
             await message.answer(
-                "❌ La cantidad debe estar entre 1 y 100 besitos. Intenta nuevamente:",
+                Lucien.ERROR_INVALID_INPUT,
                 parse_mode="HTML"
             )
             return
@@ -227,13 +228,13 @@ Esta configuración se aplicará a partir del próximo regalo reclamado."""
 
         else:
             await message.answer(
-                "❌ Error: No se pudo actualizar la configuración.",
+                Lucien.ERROR_GENERIC,
                 parse_mode="HTML"
             )
 
     except ValueError:
         await message.answer(
-            "❌ Valor inválido. Debes enviar un número entero (ej: 10).\n\nIntenta nuevamente:",
+            Lucien.ERROR_INVALID_INPUT,
             parse_mode="HTML"
         )
 
@@ -252,7 +253,7 @@ async def cancel_daily_gift_config(
         session: Sesión de BD
     """
     await state.clear()
-    await callback.answer("❌ Operación cancelada")
+    await callback.answer(Lucien.ERROR_GENERIC, show_alert=True)
 
     # Volver al menú de configuración de regalo diario
     await show_daily_gift_config(callback, session)

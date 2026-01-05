@@ -20,6 +20,7 @@ from bot.middlewares import DatabaseMiddleware
 from bot.gamification.services.container import GamificationContainer
 from bot.gamification.states.admin import LevelConfigStates
 from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.lucien_messages import Lucien
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +142,7 @@ async def view_level_details(callback: CallbackQuery, session: AsyncSession):
     level = await container.level.get_level_by_id(level_id)
 
     if not level:
-        await callback.answer("❌ Nivel no encontrado", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     # Obtener usuarios en este nivel
@@ -286,7 +287,7 @@ async def process_field_edit(
     level = await container.level.get_level_by_id(level_id)
 
     if not level:
-        await message.answer("❌ Nivel no encontrado")
+        await message.answer(Lucien.ERROR_NOT_FOUND, parse_mode="HTML")
         await state.clear()
         return
 
@@ -336,8 +337,7 @@ async def process_field_edit(
 
     except ValueError as e:
         await message.answer(
-            f"❌ Error de validación:\n\n{str(e)}\n\n"
-            "Por favor, envía un valor válido.",
+            f"{Lucien.ERROR_INVALID_INPUT}\n\n<i>Detalles: {str(e)}</i>",
             parse_mode="HTML"
         )
         return
@@ -345,8 +345,8 @@ async def process_field_edit(
     except Exception as e:
         logger.error(f"Error actualizando nivel: {e}", exc_info=True)
         await message.answer(
-            f"❌ Error al actualizar:\n\n{str(e)}\n\n"
-            "Verifica el formato e intenta nuevamente."
+            f"{Lucien.ERROR_GENERIC}\n\n<i>Detalles: {str(e)}</i>",
+            parse_mode="HTML"
         )
         return
 
@@ -372,7 +372,7 @@ async def toggle_level(callback: CallbackQuery, session: AsyncSession):
     level = await container.level.get_level_by_id(level_id)
 
     if not level:
-        await callback.answer("❌ Nivel no encontrado", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     # Toggle
@@ -382,7 +382,7 @@ async def toggle_level(callback: CallbackQuery, session: AsyncSession):
     status_text = "activado" if new_state else "desactivado"
     logger.info(f"🔄 Nivel {level_id} ({level.name}) {status_text}")
 
-    await callback.answer(f"✅ Nivel {status_text}")
+    await callback.answer(Lucien.CONFIRM_ACTION)
 
     # Refrescar vista
     await view_level_details(callback, session)
@@ -406,7 +406,7 @@ async def confirm_delete_level(callback: CallbackQuery, session: AsyncSession):
     level = await container.level.get_level_by_id(level_id)
 
     if not level:
-        await callback.answer("❌ Nivel no encontrado", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     # Verificar si hay usuarios en este nivel
@@ -485,7 +485,7 @@ async def reassign_and_delete(callback: CallbackQuery, session: AsyncSession):
     to_level = await container.level.get_level_by_id(to_level_id)
 
     if not from_level or not to_level:
-        await callback.answer("❌ Niveles no encontrados", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     # Reasignar usuarios
@@ -538,7 +538,7 @@ async def delete_level(callback: CallbackQuery, session: AsyncSession):
     level = await container.level.get_level_by_id(level_id)
 
     if not level:
-        await callback.answer("❌ Nivel no encontrado", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     await container.level.delete_level(level_id)
@@ -577,14 +577,15 @@ async def cancel_edit(callback: CallbackQuery, state: FSMContext):
     await state.clear()
 
     if level_id:
-        text = "❌ Edición cancelada."
+        text = Lucien.CONFIRM_ACTION
         keyboard = [[{"text": "👁️ Volver al Nivel", "callback_data": f"gamif:level:view:{level_id}"}]]
     else:
-        text = "❌ Edición cancelada."
+        text = Lucien.CONFIRM_ACTION
         keyboard = [[{"text": "📋 Ver Niveles", "callback_data": "gamif:admin:levels"}]]
 
     await callback.message.edit_text(
         text=text,
-        reply_markup=create_inline_keyboard(keyboard)
+        reply_markup=create_inline_keyboard(keyboard),
+        parse_mode="HTML"
     )
     await callback.answer()

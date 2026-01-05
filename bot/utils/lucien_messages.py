@@ -228,6 +228,18 @@ class LucienMessages:
 
     CONFIRM_ACTION = "Hecho."
     CONFIRM_SAVED = "Registrado en los archivos del Diván."
+    CONFIRM_VIP_ACTIVATION = (
+        "🎉✨ <b>¡BIENVENIDO AL CÍRCULO ÍNTIMO!</b> ✨🎉\n"
+        "<b>Acceso Activado Exitosamente</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "<b>Plan:</b> {plan_name} ({plan_duration_days} días)\n"
+        "<b>Precio:</b> {price_str}\n"
+        "<b>Válido por:</b> {days_remaining} días más\n"
+        "{user_role_emoji} <b>Su nuevo rol:</b> <code>{user_role_display_name}</code>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "<b>🔐 ACCESO AL CANAL</b>\n"
+        "Haga click en el botón inferior para unirse al canal exclusivo. El enlace es personal y expira en 5 horas.\n"
+    )
     
     # ============================================================ 
     # HELPERS

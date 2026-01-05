@@ -20,6 +20,7 @@ from bot.filters.admin import IsAdmin
 from bot.middlewares import DatabaseMiddleware
 from bot.gamification.states.admin import ConfigPanelStates
 from bot.gamification.services.container import GamificationContainer
+from bot.utils.lucien_messages import Lucien
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +136,7 @@ async def list_missions(callback: CallbackQuery, gamification: GamificationConta
     total_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE
 
     if not missions:
-        await callback.answer("No hay misiones creadas", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     # Construir texto
@@ -219,7 +220,7 @@ async def list_rewards(callback: CallbackQuery, gamification: GamificationContai
     total_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE
 
     if not rewards:
-        await callback.answer("No hay recompensas creadas", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     type_icons = {
@@ -302,7 +303,7 @@ async def list_shop_items(callback: CallbackQuery, gamification: GamificationCon
     total_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE
 
     if not items:
-        await callback.answer("No hay items de tienda", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     text = f"🛒 <b>Items de Tienda</b> (Página {page}/{total_pages})\n\n"
@@ -374,7 +375,7 @@ async def list_chapters(callback: CallbackQuery, gamification: GamificationConta
     total_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE
 
     if not chapters:
-        await callback.answer("No hay capítulos narrativos", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     text = f"📖 <b>Capítulos Narrativos</b> (Página {page}/{total_pages})\n\n"
@@ -445,7 +446,7 @@ async def toggle_mission(callback: CallbackQuery, gamification: GamificationCont
         # Refrescar lista
         await list_missions(callback, gamification)
     else:
-        await callback.answer("❌ Error al actualizar", show_alert=True)
+        await callback.answer(Lucien.ERROR_GENERIC, show_alert=True)
 
 
 @router.callback_query(F.data.startswith("config_panel:toggle:reward:"))
@@ -459,7 +460,7 @@ async def toggle_reward(callback: CallbackQuery, gamification: GamificationConta
         await callback.answer("✅ Estado actualizado")
         await list_rewards(callback, gamification)
     else:
-        await callback.answer("❌ Error al actualizar", show_alert=True)
+        await callback.answer(Lucien.ERROR_GENERIC, show_alert=True)
 
 
 @router.callback_query(F.data.startswith("config_panel:toggle:shop_item:"))
@@ -473,7 +474,7 @@ async def toggle_shop_item(callback: CallbackQuery, gamification: GamificationCo
         await callback.answer("✅ Estado actualizado")
         await list_shop_items(callback, gamification)
     else:
-        await callback.answer("❌ Error al actualizar", show_alert=True)
+        await callback.answer(Lucien.ERROR_GENERIC, show_alert=True)
 
 
 @router.callback_query(F.data.startswith("config_panel:toggle:chapter:"))
@@ -487,4 +488,4 @@ async def toggle_chapter(callback: CallbackQuery, gamification: GamificationCont
         await callback.answer("✅ Estado actualizado")
         await list_chapters(callback, gamification)
     else:
-        await callback.answer("❌ Error al actualizar", show_alert=True)
+        await callback.answer(Lucien.ERROR_GENERIC, show_alert=True)

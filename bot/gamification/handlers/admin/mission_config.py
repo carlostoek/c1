@@ -22,6 +22,7 @@ from bot.middlewares import DatabaseMiddleware
 from bot.gamification.states.admin import MissionConfigStates
 from bot.gamification.services.container import GamificationContainer
 from bot.gamification.database.enums import MissionType
+from bot.utils.lucien_messages import Lucien
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ Reduce duplicación de código entre handlers.
 """
 import logging
 from datetime import datetime, timezone
-from typing import Tuple
+from typing import Tuple, Optional
 
 from aiogram.types import InlineKeyboardMarkup
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,37 +23,55 @@ async def build_start_menu(
     user_id: int,
     user_name: str,
     container: ServiceContainer = None
-) -> Tuple[str, InlineKeyboardMarkup]:
+) -> Tuple[Optional[str], InlineKeyboardMarkup]:
     """
-    Construye el menú principal de /start para un usuario.
+    Construye el menú principal de /start para un usuario con la voz de Lucien.
 
-    Menú simplificado único para todos los usuarios.
+    El menú ahora es dinámico basado en el rol del usuario (Free vs VIP).
+    El mensaje de bienvenida ya no se genera aquí.
 
     Args:
         session: Sesión de BD
         bot: Bot de Telegram
         user_id: ID del usuario de Telegram
-        user_name: Nombre del usuario
-        container: ServiceContainer opcional (no usado)
+        user_name: Nombre del usuario (ya no se usa aquí)
+        container: ServiceContainer para acceder a servicios.
 
     Returns:
-        Tuple de (welcome_message, keyboard)
+        Tuple de (None, keyboard)
     """
-    # Mensaje de bienvenida simple
-    welcome_message = (
-        f"¡Hola <b>{user_name}</b>! 👋\n\n"
-        f"Bienvenido/a al bot. Selecciona una opción del menú:"
-    )
+    if not container:
+        container = ServiceContainer(session, bot)
 
-    # Keyboard simple y directo con botones principales
-    keyboard = create_inline_keyboard([
-        [{"text": "📺 Acceder al Canal VIP", "callback_data": "user:vip_access"}],
-        [{"text": "📢 Unirse al Canal Free", "callback_data": "user:free_access"}],
-        [{"text": "🎟️ Canjear Token VIP", "callback_data": "user:redeem_token"}],
-        [{"text": "🏪 Tienda", "callback_data": "shop:main"}],
-        [{"text": "📖 Historia", "callback_data": "narr:start"}],
-        [{"text": "🎮 Juego Kinky", "callback_data": "user:profile"}],
-    ])
+    # El mensaje de bienvenida ahora se gestiona en handlers/user/start.py
+    welcome_message = None
+
+    # Obtener el rol del usuario para construir el menú adecuado
+    user = await container.user.get_user_by_id(user_id)
+    user_role = user.role if user else UserRole.FREE
+
+    # Definir botones para el menú principal según la Fase 1
+    keyboard_buttons = [
+        [{"text": "📜 Mi Perfil", "callback_data": "user:profile"}],
+        [{"text": "🎯 Encargos", "callback_data": "user:missions"}],
+        [{"text": "🏛️ El Gabinete", "callback_data": "shop:main"}],
+        [{"text": "💋 Mis Besitos", "callback_data": "user:besitos"}],
+        [{"text": "📖 Mi Historia", "callback_data": "narrative:main"}],
+    ]
+
+    # Añadir botones específicos para roles
+    if user_role == UserRole.VIP:
+        # Insertar botones VIP en la parte superior del menú
+        vip_buttons = [
+            [{"text": "⭐ Contenido Premium", "callback_data": "premium:browse"}],
+            [{"text": "🗺️ Mapa del Deseo", "callback_data": "mapa:info"}],
+        ]
+        keyboard_buttons = vip_buttons + keyboard_buttons
+    else:
+        # Usuario FREE ve el botón de Acceso VIP
+        keyboard_buttons.append([{"text": "🔑 Acceso VIP", "callback_data": "vip:info"}])
+
+    keyboard = create_inline_keyboard(keyboard_buttons)
 
     return welcome_message, keyboard
 

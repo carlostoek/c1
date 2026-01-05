@@ -18,6 +18,7 @@ from bot.filters.admin import IsAdmin
 from bot.gamification.services.container import GamificationContainer
 from bot.gamification.states.admin import ReactionConfigStates
 from bot.utils.keyboards import create_inline_keyboard
+from bot.utils.lucien_messages import Lucien
 
 logger = logging.getLogger(__name__)
 
@@ -204,8 +205,7 @@ async def process_emoji_input(
     # Validar que sea un emoji válido
     if len(emoji) > 10 or len(emoji) == 0:
         await message.answer(
-            "❌ Por favor envía un emoji válido.\n\n"
-            "Ejemplo: ❤️ 🔥 👍",
+            Lucien.ERROR_INVALID_INPUT,
             parse_mode="HTML"
         )
         return
@@ -216,10 +216,7 @@ async def process_emoji_input(
 
     if existing:
         await message.answer(
-            f"⚠️ El emoji {emoji} ya está configurado.\n\n"
-            f"Valor actual: {existing.besitos_value} besitos\n"
-            f"Estado: {'Activo' if existing.active else 'Inactivo'}\n\n"
-            "Usa el menú para editar la reacción existente.",
+            f"El emoji {emoji} ya está configurado. Use el menú para editarlo.",
             parse_mode="HTML"
         )
         return
@@ -259,13 +256,9 @@ async def process_besitos_input(
         message: Mensaje del usuario
         state: FSM context
     """
-    try:
-        besitos = int(message.text.strip())
-        if besitos < 1 or besitos > 100:
-            raise ValueError("Fuera de rango")
     except ValueError:
         await message.answer(
-            "❌ Por favor envía un número válido entre 1 y 100.",
+            Lucien.ERROR_INVALID_INPUT,
             parse_mode="HTML"
         )
         return
@@ -358,7 +351,7 @@ Los usuarios ganarán <b>{besitos_value} besitos</b> cada vez que presionen el b
     except Exception as e:
         logger.error(f"Error creando reacción: {e}", exc_info=True)
         await callback.answer(
-            "❌ Error al crear la reacción. Intenta nuevamente.",
+            Lucien.ERROR_GENERIC,
             show_alert=True
         )
 

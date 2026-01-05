@@ -17,6 +17,7 @@ from bot.narrative.services.container import NarrativeContainer
 from bot.narrative.states.challenge import ChallengeStates
 from bot.narrative.config import NarrativeConfig
 from bot.narrative.database.enums import CooldownType
+from bot.utils.lucien_messages import Lucien
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,7 @@ async def callback_start_challenge(
     # Obtener desafío
     challenge = await container.challenge.get_challenge_by_id(challenge_id)
     if not challenge:
-        await callback.answer("Desafío no encontrado", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     # Verificar si puede intentar
@@ -225,7 +226,7 @@ async def process_challenge_answer(
 
     if not challenge_id:
         await state.clear()
-        await message.answer("❌ Error: desafío no encontrado. Intenta de nuevo.")
+        await message.answer(Lucien.ERROR_NOT_FOUND, parse_mode="HTML")
         return
 
     container = NarrativeContainer(session)
@@ -348,7 +349,7 @@ async def callback_get_hint(
     )
 
     if hint is None:
-        await callback.answer("No hay más pistas disponibles", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     # Actualizar contador de pistas usadas
@@ -393,7 +394,7 @@ async def callback_skip_challenge(
     # Obtener desafío
     challenge = await container.challenge.get_challenge_by_id(challenge_id)
     if not challenge:
-        await callback.answer("Desafío no encontrado", show_alert=True)
+        await callback.answer(Lucien.ERROR_NOT_FOUND, show_alert=True)
         return
 
     # Limpiar estado
@@ -414,7 +415,7 @@ async def callback_skip_challenge(
         )
     else:
         await callback.answer(
-            "No puedes saltar este desafío",
+            Lucien.ERROR_PERMISSION, # Use ERROR_PERMISSION for "cannot skip"
             show_alert=True
         )
 
@@ -430,8 +431,7 @@ async def callback_cancel_challenge(
     await state.clear()
 
     await callback.message.edit_text(
-        "❌ Desafío cancelado.\n\n"
-        "<i>Puedes volver a intentarlo más tarde.</i>",
+        Lucien.CONFIRM_ACTION, # Use CONFIRM_ACTION for successful cancellation
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [
