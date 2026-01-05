@@ -337,18 +337,150 @@ class LucienVoiceService:
         Returns:
             str: Mensaje personalizado
         """
-        # Prefijos por arquetipo
+        # Prefijos por arquetipo (formalidad "usted")
         prefixes = {
-            "explorer": "Observo tu curiosidad. ",
+            "explorer": "Observo su curiosidad. ",
             "direct": "",  # Sin prefijo, directo al punto
-            "romantic": "He notado tu sensibilidad. ",
-            "analytical": "Comprendo tu necesidad de claridad. ",
-            "persistent": "Tu determinación no pasa desapercibida. ",
-            "patient": "Aprecio tu paciencia. ",
+            "romantic": "He notado su sensibilidad. ",
+            "analytical": "Comprendo su necesidad de claridad. ",
+            "persistent": "Su determinación no pasa desapercibida. ",
+            "patient": "Aprecio su paciencia. ",
         }
 
         prefix = prefixes.get(archetype, "")
         return f"{prefix}{base_message}" if prefix else base_message
+
+    async def get_profile_message(
+        self, level: int, besitos: int, archetype: Optional[str] = None
+    ) -> str:
+        """
+        Obtiene mensaje de perfil con comentario según nivel.
+
+        Args:
+            level: Nivel del usuario (1-7)
+            besitos: Cantidad de besitos
+            archetype: Arquetipo detectado (opcional)
+
+        Returns:
+            str: Mensaje de perfil formateado
+        """
+        # Determinar comentario según nivel
+        if level <= 2:
+            level_comment = templates.PROFILE_MESSAGES["level_low"]
+        elif level <= 4:
+            level_comment = templates.PROFILE_MESSAGES["level_mid"]
+        elif level <= 6:
+            level_comment = templates.PROFILE_MESSAGES["level_high"]
+        else:
+            level_comment = templates.PROFILE_MESSAGES["level_max"]
+
+        message = (
+            f"{level_comment}\n\n"
+            f"📊 <b>Su Expediente</b>\n\n"
+            f"Nivel: {level}\n"
+            f"Besitos: {besitos}"
+        )
+
+        if archetype:
+            from bot.narrative.config_data.archetypes import ExpandedArchetype
+            arch = ExpandedArchetype(archetype)
+            message += f"\n\nArquetipo: {arch.display_name}\n{arch.emoji}"
+
+        return message
+
+    async def get_cabinet_message(
+        self, message_type: str, details: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Obtiene mensaje del Gabinete con voz de Lucien.
+
+        Args:
+            message_type: Tipo de mensaje (welcome, confirm_purchase, purchase_success, insufficient_funds)
+            details: Detalles para formatear (item_name, price, required, current)
+
+        Returns:
+            str: Mensaje formateado
+        """
+        details = details or {}
+        message_template = templates.CABINET_MESSAGES.get(message_type)
+
+        if not message_template:
+            logger.warning(f"Tipo de mensaje de gabinete no encontrado: {message_type}")
+            return ""
+
+        try:
+            return message_template.format(**details)
+        except KeyError as e:
+            logger.error(f"Falta parámetro en mensaje de gabinete {message_type}: {e}")
+            return message_template
+
+    async def get_encargos_message(
+        self, message_type: str, details: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Obtiene mensaje de Encargos con voz de Lucien.
+
+        Args:
+            message_type: Tipo de mensaje (welcome, progress, completed, empty)
+            details: Detalles para formatear (mission_name, current, target, reward, progress_pct)
+
+        Returns:
+            str: Mensaje formateado
+        """
+        details = details or {}
+
+        if message_type == "progress":
+            # Determinar comentario según progreso
+            progress_pct = details.get("progress_pct", 0)
+            if progress_pct <= 25:
+                comment_key = "0_25"
+            elif progress_pct <= 50:
+                comment_key = "26_50"
+            elif progress_pct <= 75:
+                comment_key = "51_75"
+            else:
+                comment_key = "76_99"
+
+            details["lucien_comment"] = templates.ENCARGOS_MESSAGES["progress_comments"][comment_key]
+
+        message_template = templates.ENCARGOS_MESSAGES.get(message_type)
+
+        if not message_template:
+            logger.warning(f"Tipo de mensaje de encargos no encontrado: {message_type}")
+            return ""
+
+        try:
+            return message_template.format(**details)
+        except KeyError as e:
+            logger.error(f"Falta parámetro en mensaje de encargos {message_type}: {e}")
+            return message_template
+
+    async def get_besitos_message(
+        self, message_type: str, details: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Obtiene mensaje de Besitos con voz de Lucien.
+
+        Args:
+            message_type: Tipo de mensaje (balance_low, balance_growing, balance_good, balance_high,
+                          balance_hoarder, earned, earned_milestone, insufficient)
+            details: Detalles para formatear (total, amount, required, current)
+
+        Returns:
+            str: Mensaje formateado
+        """
+        details = details or {}
+        message_template = templates.BESITOS_MESSAGES.get(message_type)
+
+        if not message_template:
+            logger.warning(f"Tipo de mensaje de besitos no encontrado: {message_type}")
+            return ""
+
+        try:
+            return message_template.format(**details)
+        except KeyError as e:
+            logger.error(f"Falta parámetro en mensaje de besitos {message_type}: {e}")
+            return message_template
 
     def get_voice_characteristics(self) -> Dict[str, str]:
         """

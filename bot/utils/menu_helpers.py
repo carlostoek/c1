@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.enums import UserRole
 from bot.services.container import ServiceContainer
+from bot.services.lucien_voice import LucienVoiceService
 from bot.utils.keyboards import create_inline_keyboard
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ async def build_start_menu(
     """
     Construye el menú principal de /start para un usuario.
 
-    Menú simplificado único para todos los usuarios.
+    Menú con la voz de Lucien para todos los usuarios.
 
     Args:
         session: Sesión de BD
@@ -39,20 +40,18 @@ async def build_start_menu(
     Returns:
         Tuple de (welcome_message, keyboard)
     """
-    # Mensaje de bienvenida simple
-    welcome_message = (
-        f"¡Hola <b>{user_name}</b>! 👋\n\n"
-        f"Bienvenido/a al bot. Selecciona una opción del menú:"
-    )
+    # Usar LucienVoiceService para mensaje de bienvenida
+    lucien = LucienVoiceService()
+    welcome_message = await lucien.get_welcome_message("new_user")
 
-    # Keyboard simple y directo con botones principales
+    # Keyboard con botones principales - sin emojis excesivos en el texto
     keyboard = create_inline_keyboard([
-        [{"text": "📺 Acceder al Canal VIP", "callback_data": "user:vip_access"}],
-        [{"text": "📢 Unirse al Canal Free", "callback_data": "user:free_access"}],
-        [{"text": "🎟️ Canjear Token VIP", "callback_data": "user:redeem_token"}],
-        [{"text": "🏪 Tienda", "callback_data": "shop:main"}],
-        [{"text": "📖 Historia", "callback_data": "narr:start"}],
-        [{"text": "🎮 Juego Kinky", "callback_data": "user:profile"}],
+        [{"text": "📺 Canal VIP", "callback_data": "user:vip_access"}],
+        [{"text": "📢 Canal Free", "callback_data": "user:free_access"}],
+        [{"text": "🎟️ Canjear Token", "callback_data": "user:redeem_token"}],
+        [{"text": "🏛️ El Gabinete", "callback_data": "shop:main"}],
+        [{"text": "📜 Mi Historia", "callback_data": "narr:start"}],
+        [{"text": "📊 Mi Perfil", "callback_data": "user:profile"}],
     ])
 
     return welcome_message, keyboard

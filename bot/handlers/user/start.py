@@ -196,38 +196,25 @@ async def _activate_token_from_deeplink(
 
             price_str = format_currency(plan.price, symbol=plan.currency)
 
-            success_text = f"""🎉✨ <b>¡BIENVENIDO AL CLUB VIP!</b> ✨🎉
-
-<b>Suscripción Activada Exitosamente</b>
+            success_text = f"""<b>Suscripción Activada</b>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
-<b>📊 Detalles de Tu Plan:</b>
-<b>Plan:</b> {plan.name}
+<b>Su Plan:</b> {plan.name}
 <b>Precio:</b> {price_str}
 <b>Duración:</b> {plan.duration_days} días
-<b>Válido hasta:</b> {days_remaining} días
+<b>Válido por:</b> {days_remaining} días
 
-{user.role.emoji} <b>Tu rol:</b> <code>{user.role.display_name}</code>
+{user.role.emoji} <b>Su rol:</b> <code>{user.role.display_name}</code>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
-<b>🔐 Siguiente Paso:</b>
+Diana ha autorizado su acceso al canal VIP.
 
-Haz click en el botón para acceder al canal VIP exclusivo con contenido premium.
-
-<b>⏰ Válido por:</b> 5 horas desde ahora
-
-<b>💡 Recuerda:</b>
-✅ El acceso es solo para ti
-✅ No compartas el link
-✅ Tendrás acceso a todo el contenido exclusivo
-✅ Si pierdes el link, contacta al soporte
-
-¡Que disfrutes de tu experiencia VIP! 🚀"""
+Pulse el botón para ingresar."""
 
             await message.answer(
                 text=success_text,
                 reply_markup=create_inline_keyboard([
-                    [{"text": "⭐ Entrar al Canal VIP Exclusivo ⭐", "url": invite_link.invite_link}]
+                    [{"text": "⭐ Ingresar al Canal VIP", "url": invite_link.invite_link}]
                 ]),
                 parse_mode="HTML"
             )
@@ -236,11 +223,11 @@ Haz click en el botón para acceder al canal VIP exclusivo con contenido premium
             logger.warning(f"⚠️ No se pudo crear invite link: {e}")
 
             await message.answer(
-                "✅ <b>¡Suscripción VIP Activada!</b>\n\n"
+                "<b>Suscripción VIP Activada</b>\n\n"
                 f"<b>Plan:</b> {plan.name}\n"
                 f"<b>Duración:</b> {plan.duration_days} días\n\n"
-                "⚠️ Ocurrió un problema al crear el link de invitación.\n\n"
-                "Tu suscripción está activa, pero por favor contacta al administrador para obtener acceso al canal VIP.",
+                "Ocurrió un problema al crear el link de invitación.\n\n"
+                "Su suscripción está activa. Contacte al administrador para obtener acceso al canal VIP.",
                 parse_mode="HTML"
             )
 
@@ -320,7 +307,9 @@ async def callback_back_to_start(callback: CallbackQuery, session: AsyncSession)
 
     except Exception as e:
         logger.error(f"❌ Error regresando a menú: {e}", exc_info=True)
+        lucien = LucienVoiceService()
+        error_msg = await lucien.format_error("invalid_input")
         await callback.answer(
-            "❌ Error al regresar al menú",
+            error_msg,
             show_alert=True
         )

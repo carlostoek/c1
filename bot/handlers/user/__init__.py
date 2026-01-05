@@ -8,5 +8,6 @@ from bot.handlers.user.start import user_router
 # IMPORTANTE: Estos imports ejecutan los decoradores @user_router.callback_query()
 import bot.handlers.user.vip_flow
 import bot.handlers.user.free_join_request
+import bot.handlers.user.preferences
 
 __all__ = ["user_router"]

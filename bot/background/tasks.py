@@ -21,6 +21,8 @@ from config import Config
 # Importar jobs de gamificación
 from bot.gamification.background.auto_progression_checker import check_all_users_progression
 from bot.gamification.background.streak_expiration_checker import check_expired_streaks
+# Importar jobs de lifecycle (ONDA D)
+from bot.background.lifecycle_tasks import add_lifecycle_tasks_to_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +251,9 @@ def start_background_tasks(bot: Bot):
         max_instances=1
     )
     logger.info("✅ Tarea programada: Streak expiration (cada 1 hora)")
+
+    # Tarea 6: Añadir tareas de lifecycle (ONDA D)
+    add_lifecycle_tasks_to_scheduler(_scheduler, bot)
 
     # Iniciar scheduler
     _scheduler.start()

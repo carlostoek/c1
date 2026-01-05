@@ -113,6 +113,11 @@ class User(Base):
     # Relaciones (se definen después en VIPSubscriber, FreeChannelRequest, ConversionEvent)
     conversion_events = relationship("ConversionEvent", back_populates="user", lazy="selectin")
 
+    # ONDA D Relationships
+    lifecycle = relationship("UserLifecycle", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    notification_preferences = relationship("NotificationPreferences", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    reengagement_logs = relationship("ReengagementLog", back_populates="user", cascade="all, delete-orphan", lazy="selectin")
+
     @property
     def full_name(self) -> str:
         """Retorna nombre completo del usuario."""
@@ -507,3 +512,65 @@ class LimitedStock(Base):
     def is_sold_out(self) -> bool:
         """Verifica si el stock se agotó."""
         return self.remaining_quantity <= 0
+
+
+class UserLifecycle(Base):
+    """Estado del ciclo de vida del usuario."""
+    __tablename__ = "user_lifecycle"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), primary_key=True)
+    current_state: Mapped[str] = mapped_column(String(50), default="new", index=True)  # new, active, at_risk, dormant, lost
+    last_activity: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    risk_score: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    messages_sent_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_message_sent: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    do_not_disturb: Mapped[bool] = mapped_column(Boolean, default=False)
+    state_changed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="lifecycle")
+
+    def __repr__(self):
+        return (
+            f"<UserLifecycle(user_id={self.user_id}, state='{self.current_state}', "
+            f"risk_score={self.risk_score})>"
+        )
+
+
+class NotificationPreferences(Base):
+    """Preferencias de notificación del usuario."""
+    __tablename__ = "notification_preferences"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), primary_key=True)
+    content_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+    streak_reminders: Mapped[bool] = mapped_column(Boolean, default=True)
+    offer_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+    reengagement_messages: Mapped[bool] = mapped_column(Boolean, default=True)
+    quiet_hours_start: Mapped[int] = mapped_column(Integer, default=22)
+    quiet_hours_end: Mapped[int] = mapped_column(Integer, default=8)
+    max_messages_per_day: Mapped[int] = mapped_column(Integer, default=3)
+    timezone: Mapped[str] = mapped_column(String(100), default="America/Mexico_City")
+
+    user = relationship("User", back_populates="notification_preferences")
+
+    def __repr__(self):
+        return f"<NotificationPreferences(user_id={self.user_id})>"
+
+
+class ReengagementLog(Base):
+    """Log de mensajes de re-engagement enviados."""
+    __tablename__ = "reengagement_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), index=True)
+    message_type: Mapped[str] = mapped_column(String(100))  # at_risk_1, dormant_1, etc.
+    sent_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    user_responded: Mapped[bool] = mapped_column(Boolean, default=False)
+    response_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="reengagement_logs")
+
+    def __repr__(self):
+        return (
+            f"<ReengagementLog(user_id={self.user_id}, type='{self.message_type}', "
+            f"sent_at='{self.sent_at.isoformat()}')>"
+        )

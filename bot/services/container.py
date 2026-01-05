@@ -53,6 +53,12 @@ class ServiceContainer:
         self._user_service = None
         self._broadcast_service = None
 
+        # ONDA D Services
+        self._user_lifecycle_service = None
+        self._risk_score_service = None
+        self._reengagement_service = None
+        self._notification_preferences_service = None
+
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
     # ===== SUBSCRIPTION SERVICE =====
@@ -187,6 +193,46 @@ class ServiceContainer:
             self._broadcast_service = BroadcastService(self._session, self._bot)
 
         return self._broadcast_service
+
+    # ===== ONDA D - LIFECYCLE SERVICES =====
+
+    @property
+    def user_lifecycle(self):
+        """Service for managing user lifecycle states."""
+        if self._user_lifecycle_service is None:
+            from bot.services.user_lifecycle import UserLifecycleService
+            logger.debug("🔄 Lazy loading: UserLifecycleService")
+            self._user_lifecycle_service = UserLifecycleService(self._session)
+        return self._user_lifecycle_service
+
+    @property
+    def risk_score(self):
+        """Service for calculating user churn risk."""
+        if self._risk_score_service is None:
+            from bot.services.risk_score import RiskScoreService
+            logger.debug("🔄 Lazy loading: RiskScoreService")
+            self._risk_score_service = RiskScoreService(self._session)
+        return self._risk_score_service
+
+    @property
+    def reengagement(self):
+        """Service for re-engaging inactive users."""
+        if self._reengagement_service is None:
+            from bot.services.reengagement import ReengagementService
+            logger.debug("🔄 Lazy loading: ReengagementService")
+            # ReengagementService depends on UserLifecycleService
+            self._reengagement_service = ReengagementService(self._session, self.user_lifecycle)
+        return self._reengagement_service
+
+    @property
+    def notification_preferences(self):
+        """Service for managing user notification preferences."""
+        if self._notification_preferences_service is None:
+            from bot.services.notification_preferences import NotificationPreferencesService
+            logger.debug("🔄 Lazy loading: NotificationPreferencesService")
+            self._notification_preferences_service = NotificationPreferencesService(self._session)
+        return self._notification_preferences_service
+
 
     # ===== UTILIDADES =====
 
