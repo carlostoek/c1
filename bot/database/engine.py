@@ -178,6 +178,9 @@ async def init_db() -> None:
     # Crear niveles base si no existen
     await _ensure_base_levels_exist()
 
+    # Crear fragmentos de onboarding si no existen
+    await _ensure_onboarding_fragments_exist()
+
     logger.info("✅ Base de datos inicializada correctamente")
 
 
@@ -310,6 +313,161 @@ async def _ensure_base_levels_exist() -> None:
                 logger.info(f"✅ Ya existen {level_count} niveles en el sistema")
     except ImportError:
         logger.debug("Módulo de gamificación no disponible, saltando inicialización de niveles")
+
+
+async def _ensure_onboarding_fragments_exist() -> None:
+    """
+    Crea los fragmentos de onboarding si no existen.
+
+    Fragmentos de onboarding por defecto (5 pasos):
+    1. Diana - Bienvenida al mundo narrativo
+    2. Diana - Primera decisión tutorial
+    3. Lucien - Explicación de mecánicas (besitos)
+    4. Diana - Detección de arquetipo
+    5. Diana - Entrada a historia completa
+    """
+    try:
+        from bot.narrative.database.onboarding_models import OnboardingFragment
+        from datetime import datetime, UTC
+        from sqlalchemy import select, func
+        import json
+
+        async with get_session() as session:
+            # Contar fragmentos existentes
+            stmt = select(func.count()).select_from(OnboardingFragment)
+            result = await session.execute(stmt)
+            fragment_count = result.scalar()
+
+            if fragment_count == 0:
+                # Crear 5 fragmentos de onboarding
+                onboarding_fragments = [
+                    # PASO 1: Bienvenida de Diana
+                    {
+                        "step": 1,
+                        "speaker": "diana",
+                        "title": "Bienvenida al Mundo Narrativo",
+                        "content": (
+                            "<i>Una suave luz ilumina tu pantalla. Una voz femenina, "
+                            "cálida y misteriosa, emerge de la nada.</i>\n\n"
+                            "<b>—Hola... ¿Puedes escucharme?</b>\n\n"
+                            "Mi nombre es <b>Diana</b>, y te encuentras en el umbral "
+                            "de algo extraordinario. Una historia que se teje con "
+                            "cada decisión que tomas.\n\n"
+                            "Aquí, nada es casualidad. Cada elección define tu camino, "
+                            "y cada camino revela una verdad diferente sobre ti mismo.\n\n"
+                            "<b>Antes de comenzar, necesito conocerte...</b>\n\n"
+                            "¿Cómo te sientes en este momento?"
+                        ),
+                        "decisions": json.dumps([
+                            {"text": "💨 Impaciente, quiero comenzar ya", "archetype_hint": "IMPULSIVE"},
+                            {"text": "🤔 Curioso, observo todo con calma", "archetype_hint": "CONTEMPLATIVE"}
+                        ]),
+                        "is_active": True,
+                        "created_at": datetime.now(UTC)
+                    },
+                    # PASO 2: Primera decisión de Diana
+                    {
+                        "step": 2,
+                        "speaker": "diana",
+                        "title": "Tu Primera Decisión",
+                        "content": (
+                            "<i>Diana sonríe, como si leyera tus pensamientos.</i>\n\n"
+                            "<b>—Interesante...</b> Tu respuesta dice más de lo que crees.\n\n"
+                            "Mira adelante. Hay una <b>puerta misteriosa</b> ante ti. "
+                            "No tiene cerradura, solo una inscripción:\n\n"
+                            "<i>\"Solo quien se conoce a sí mismo puede cruzar.\"</i>\n\n"
+                            "<b>¿Qué haces?</b>"
+                        ),
+                        "decisions": json.dumps([
+                            {"text": "💨 La cruzo sin dudar", "archetype_hint": "IMPULSIVE"},
+                            {"text": "🤔 La examino antes de actuar", "archetype_hint": "CONTEMPLATIVE"},
+                            {"text": "👁️ Observo desde las sombras", "archetype_hint": "SILENT"}
+                        ]),
+                        "is_active": True,
+                        "created_at": datetime.now(UTC)
+                    },
+                    # PASO 3: Lucien explica las mecánicas
+                    {
+                        "step": 3,
+                        "speaker": "lucien",
+                        "title": "Las Reglas de este Mundo",
+                        "content": (
+                            "<i>Una figura masculina emerge de la penumbra. "
+                            "Su voz es profunda, serena, como la de un contador de historias ancestral.</i>\n\n"
+                            "<b>—Bienvenido, viajero.</b> Soy <b>Lucien</b>.\n\n"
+                            "Diana te ha guiado hasta aquí, pero ahora debo explicarte "
+                            "<b>las reglas de nuestro mundo</b>:\n\n"
+                            "💋 <b>Besitos</b>\n"
+                            "Es la moneda de este reino. Ya recibiste <b>{besitos} besitos</b> "
+                            "como regalo de bienvenida. Úsalos sabiamente.\n\n"
+                            "• Reacciona a historias para ganar más\n"
+                            "• Completa misiones diarias para obtener recompensas\n"
+                            "• Cada besito cuenta en tu viaje\n\n"
+                            "<b>—Ahora, continuemos tu iniciación...</b>"
+                        ),
+                        "decisions": None,
+                        "is_active": True,
+                        "created_at": datetime.now(UTC)
+                    },
+                    # PASO 4: Diana revela el arquetipo detectado
+                    {
+                        "step": 4,
+                        "speaker": "diana",
+                        "title": "Tu Verdadera Naturaleza",
+                        "content": (
+                            "<i>Diana reaparece, sus ojos brillan con reconocimiento.</i>\n\n"
+                            "<b>—Te he observado, viajero.</b>\n\n"
+                            "Tus elecciones, tu manera de actuar... todo forma un patrón. "
+                            "He detectado tu <b>arquetipo</b>:\n\n"
+                            "━━━━━━━━━━━━━━━━━━\n"
+                            "🎭 <b>{archetype}</b>\n"
+                            "━━━━━━━━━━━━━━━━━━\n\n"
+                            "<i>{archetype_description}</i>\n\n"
+                            "<b>Este arquetipo influirá en tu viaje.</b>\n"
+                            "Algunos caminos se abrirán, otros se cerrarán. "
+                            "Pero recuerda: nada está grabado en piedra.\n\n"
+                            "<b>¿Estás listo para el último paso?</b>"
+                        ),
+                        "decisions": None,
+                        "is_active": True,
+                        "created_at": datetime.now(UTC)
+                    },
+                    # PASO 5: Entrada a la historia completa
+                    {
+                        "step": 5,
+                        "speaker": "diana",
+                        "title": "El Comienzo de Tu Historia",
+                        "content": (
+                            "<i>Diana extiende su mano hacia ti, invitándote a cruzar el umbral.</i>\n\n"
+                            "<b>—Has completado tu iniciación, viajero.</b>\n\n"
+                            "Ahora conoces las reglas, aceptas tu arquetipo, "
+                            "y estás listo para escribir tu propia historia.\n\n"
+                            "━━━━━━━━━━━━━━━━━━\n"
+                            "✨ <b>TU ARQUETIPO: {archetype}</b>\n"
+                            "💋 <b>TUS BESITOS: {besitos}</b>\n"
+                            "━━━━━━━━━━━━━━━━━━\n\n"
+                            "<b>¿Qué deseas hacer ahora?</b>\n\n"
+                            "<i>Recuerda: cada decisión cuenta, cada camino es único.</i>"
+                        ),
+                        "decisions": json.dumps([
+                            {"text": "📖 Comenzar Historia", "callback": "onboard:complete"},
+                            {"text": "📚 Ver Diario", "callback": "journal:view"}
+                        ]),
+                        "is_active": True,
+                        "created_at": datetime.now(UTC)
+                    }
+                ]
+
+                for fragment_data in onboarding_fragments:
+                    fragment = OnboardingFragment(**fragment_data)
+                    session.add(fragment)
+
+                await session.commit()
+                logger.info(f"✅ Creados {len(onboarding_fragments)} fragmentos de onboarding")
+            else:
+                logger.info(f"✅ Ya existen {fragment_count} fragmentos de onboarding")
+    except ImportError:
+        logger.debug("Módulo de narrativa no disponible, saltando inicialización de onboarding")
 
 
 async def close_db() -> None:
