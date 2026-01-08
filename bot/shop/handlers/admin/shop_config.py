@@ -14,6 +14,7 @@ from typing import Optional
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
+from aiogram.filters.state import State as StateFilter
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -651,12 +652,10 @@ async def callback_grant_item_select(callback: CallbackQuery, state: FSMContext)
     await callback.answer()
 
 
-@shop_admin_router.message(F.text.regexp(r"^\d+$"))
+@shop_admin_router.message(F.text.regexp(r"^\d+$"), StateFilter("waiting_grant_user_id"))
 async def process_grant_user_id(message: Message, state: FSMContext, session: AsyncSession):
     """Procesa el ID del usuario y otorga el item."""
-    current_state = await state.get_state()
-    if current_state != "waiting_grant_user_id":
-        return
+    # El filtro StateFilter ya verifica que estamos en el estado correcto
 
     user_id = int(message.text.strip())
     data = await state.get_data()

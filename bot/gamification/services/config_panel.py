@@ -191,9 +191,9 @@ class ConfigurationPanelService:
             result = await self._session.execute(stmt)
             users_with_progress = result.scalar() or 0
 
-            # Capítulos completados (total)
-            stmt = select(func.count()).select_from(UserNarrativeProgress).where(
-                UserNarrativeProgress.is_completed == True
+            # Capítulos completados (total - suma de todos los usuarios)
+            stmt = select(func.sum(UserNarrativeProgress.chapters_completed)).select_from(
+                UserNarrativeProgress
             )
             result = await self._session.execute(stmt)
             chapters_completed = result.scalar() or 0

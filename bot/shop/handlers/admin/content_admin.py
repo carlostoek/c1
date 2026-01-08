@@ -12,7 +12,6 @@ from aiogram import Router, Bot, F
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from aiogram.filters import StateFilter
 
 from bot.shop.services.content_service import ContentService
 from bot.shop.database.models import ContentSet
@@ -20,10 +19,14 @@ from bot.shop.database.enums import ContentType, ContentTier
 from bot.services.lucien_voice import LucienVoiceService
 from bot.middlewares.database import DatabaseMiddleware
 from bot.middlewares.admin_auth import AdminAuthMiddleware
+from bot.states.admin import ContentAdminStates
+from config import Config
 
 logger = logging.getLogger(__name__)
 
 router = Router(name="content_admin")
+
+# Middlewares
 router.message.middleware(DatabaseMiddleware())
 router.message.middleware(AdminAuthMiddleware())
 router.callback_query.middleware(DatabaseMiddleware())
@@ -125,7 +128,7 @@ async def list_content_sets(callback: CallbackQuery, session: AsyncSession):
     nav_rows.append([InlineKeyboardButton(text="🔙 Volver", callback_data="admin:content")])
 
     if nav_rows:
-        rows.append(nav_rows)
+        rows.extend(nav_rows)
 
     rows.append([InlineKeyboardButton(text="➕ Crear Content Set", callback_data="unified:create:content")])
 
@@ -297,27 +300,42 @@ async def prompt_send_content_set(callback: CallbackQuery, state: FSMContext):
         "<i>Esta función es para testing del contenido.</i>",
         parse_mode="HTML"
     )
-    await state.set_state("waiting_test_user_id")
+    await state.set_state(ContentAdminStates.waiting_test_user_id)
     await callback.answer()
 
 
-@router.message(StateFilter("waiting_test_user_id"))
+@router.message(ContentAdminStates.waiting_test_user_id)
 async def send_test_content_set(message: Message, state: FSMContext, session: AsyncSession, bot: Bot):
     """Envía content set a usuario para testing."""
+    # DEBUG: Log estado actual
+    current_state = await state.get_state()
+    logger.info(f"🔍 Handler ejecutado! Estado actual: {current_state}")
+    logger.info(f"🔍 Mensaje recibido: {message.text} de user {message.from_user.id}")
+
     if not message.text or not message.text.strip().isdigit():
+        logger.info("❌ Validación falló: no es un número")
         await message.answer("❌ Ingresa un ID de usuario válido (números)")
         return
 
+    logger.info("✅ Validación pasó: es un número")
     user_id = int(message.text.strip())
+    logger.info(f"✅ user_id extraído: {user_id}")
+
     data = await state.get_data()
+    logger.info(f"🔍 State data: {data}")
     content_set_id = data.get('test_content_set_id')
 
+    logger.info(f"📤 Enviando content_set_id={content_set_id} a user_id={user_id}")
+
     if not content_set_id:
+        logger.error("❌ content_set_id es None! No se puede enviar.")
         await message.answer("❌ Error: no se pudo identificar el content set")
         await state.clear()
         return
 
+    logger.info("✅ content_set_id válido, creando ContentService...")
     content_service = ContentService(session, bot)
+    logger.info("✅ ContentService creado, iniciando envío...")
 
     try:
         success, msg = await content_service.send_content_set(
@@ -325,8 +343,11 @@ async def send_test_content_set(message: Message, state: FSMContext, session: As
             content_set_id=content_set_id,
             context_message="🧪 <b>Test de Envío</b>\n\nContenido de prueba desde admin panel.",
             delivery_context="admin_test",
-            trigger_type="manual"
+            trigger_type="manual",
+            skip_vip_validation=True  # Admin testing mode - saltar validación VIP
         )
+
+        logger.info(f"📤 Resultado envío: success={success}, msg={msg}")
 
         if success:
             await message.answer(
@@ -341,7 +362,7 @@ async def send_test_content_set(message: Message, state: FSMContext, session: As
             )
 
     except Exception as e:
-        logger.error(f"Error sending test content set: {e}")
+        logger.error(f"Error sending test content set: {e}", exc_info=True)
         await message.answer(
             f"❌ <b>Error:</b>\n\n{str(e)}",
             parse_mode="HTML"
@@ -513,11 +534,11 @@ async def prompt_edit_content_set_name(callback: CallbackQuery, state: FSMContex
         f"Ingresa el nuevo nombre:",
         parse_mode="HTML"
     )
-    await state.set_state("waiting_content_set_name")
+    await state.set_state(ContentAdminStates.waiting_content_set_name)
     await callback.answer()
 
 
-@router.message(StateFilter("waiting_content_set_name"))
+@router.message(ContentAdminStates.waiting_content_set_name)
 async def edit_content_set_name(message: Message, state: FSMContext, session: AsyncSession):
     """Actualiza nombre del content set."""
     if not message.text or len(message.text.strip()) < 3:
@@ -579,11 +600,11 @@ async def prompt_edit_content_set_description(callback: CallbackQuery, state: FS
         f"Ingresa la nueva descripción:",
         parse_mode="HTML"
     )
-    await state.set_state("waiting_content_set_description")
+    await state.set_state(ContentAdminStates.waiting_content_set_description)
     await callback.answer()
 
 
-@router.message(StateFilter("waiting_content_set_description"))
+@router.message(ContentAdminStates.waiting_content_set_description)
 async def edit_content_set_description(message: Message, state: FSMContext, session: AsyncSession):
     """Actualiza descripción del content set."""
     if not message.text or len(message.text.strip()) < 10:

@@ -356,3 +356,26 @@ class NarrativeAdminStates(StatesGroup):
     editing_decision_text = State()
     editing_decision_target = State()
     editing_decision_cost = State()
+
+
+class ContentAdminStates(StatesGroup):
+    """
+    Estados para administración de Content Sets (CMS Journey).
+
+    Flujos:
+    1. Enviar Content Set a Usuario (testing)
+    2. Crear/Editar Content Set
+
+    FSM Data esperada:
+    - test_content_set_id: int    # ID del content set a enviar
+    - edit_content_set_id: int    # ID del content set a editar
+    """
+
+    # Testing: Enviar content set a usuario
+    waiting_test_user_id = State()  # Esperando ID de usuario para envío de prueba
+
+    # Editar: Nombre de content set
+    waiting_content_set_name = State()  # Esperando nuevo nombre
+
+    # Editar: Descripción de content set
+    waiting_content_set_description = State()  # Esperando nueva descripción

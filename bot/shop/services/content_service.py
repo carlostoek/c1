@@ -259,7 +259,8 @@ class ContentService:
         content_set_id: int,
         context_message: Optional[str] = None,
         delivery_context: str = "manual",
-        trigger_type: str = "manual"
+        trigger_type: str = "manual",
+        skip_vip_validation: bool = False
     ) -> Tuple[bool, str]:
         """
         Envía un content set a un usuario vía Telegram.
@@ -270,25 +271,42 @@ class ContentService:
             context_message: Mensaje previo de contexto
             delivery_context: Contexto de entrega (shop_purchase, reward_claim, etc.)
             trigger_type: Tipo de trigger (manual, automatic, achievement)
+            skip_vip_validation: Si es True, salta validación VIP (para admin testing)
 
         Returns:
             Tuple (success, message)
         """
+        logger.info(
+            f"📤 Enviando content_set_id={content_set_id} a user_id={user_id} "
+            f"context={delivery_context} skip_vip={skip_vip_validation}"
+        )
+
         # Obtener content set
         content_set = await self.get_content_set(content_set_id)
         if not content_set:
+            logger.error(f"❌ Content set {content_set_id} no encontrado")
             return False, "Content set no encontrado"
 
         if not content_set.is_active:
+            logger.error(f"❌ Content set {content_set_id} no está activo")
             return False, "Content set no está activo"
 
-        # Validar permisos VIP
-        if content_set.requires_vip or content_set.tier == ContentTier.VIP.value:
+        logger.info(
+            f"✅ Content set encontrado: {content_set.name} "
+            f"(type={content_set.content_type}, tier={content_set.tier}, "
+            f"files={len(content_set.file_ids)})"
+        )
+
+        # Validar permisos VIP (solo si no es modo testing)
+        if not skip_vip_validation and (content_set.requires_vip or content_set.tier == ContentTier.VIP.value):
             user = await self.session.get(User, user_id)
             if not user:
                 return False, "Usuario no encontrado"
 
             if not await self._is_vip_user(user) and not await self._has_active_vip_subscription(user_id):
+                logger.warning(
+                    f"❌ Usuario {user_id} no es VIP y contenido requiere VIP"
+                )
                 return False, "Este contenido requiere suscripción VIP"
 
         # Verificar acceso previo
@@ -322,10 +340,11 @@ class ContentService:
                 trigger_type
             )
 
+            logger.info(f"✅ Content set {content_set_id} enviado exitosamente a {user_id}")
             return True, "Contenido enviado exitosamente"
 
         except Exception as e:
-            logger.error(f"Error enviando content set: {e}")
+            logger.error(f"Error enviando content set: {e}", exc_info=True)
             return False, f"Error: {str(e)}"
 
     async def _send_media_by_type(
@@ -346,13 +365,30 @@ class ContentService:
         content_type = content_set.content_type
         file_ids = content_set.file_ids
 
+        logger.info(
+            f"📤 _send_media_by_type: user_id={user_id}, "
+            f"content_type={content_type}, num_files={len(file_ids)}"
+        )
+
         if not file_ids:
             logger.warning(f"ContentSet {content_set.id} no tiene archivos")
             return False
 
         try:
+            # Verificar que el bot puede enviar mensajes al usuario
+            try:
+                await self.bot.send_chat_action(user_id, "upload_photo")
+                logger.info(f"✅ Bot puede enviar mensajes a user_id={user_id}")
+            except Exception as e:
+                logger.error(
+                    f"❌ Bot NO puede enviar mensajes a user_id={user_id}: {e}. "
+                    f"El usuario puede haber bloqueado al bot o no ha iniciado conversación."
+                )
+                return False
+
             if content_type == ContentType.PHOTO_SET.value:
                 # Enviar fotos como álbum usando send_media_group
+                logger.info(f"📤 Enviando PHOTO_SET con {len(file_ids)} fotos")
                 media_group = []
                 for file_id in file_ids:
                     media_group.append({'type': 'photo', 'media': file_id})
@@ -362,20 +398,28 @@ class ContentService:
                     album_batch = media_group[i:i+10]
                     await self.bot.send_media_group(user_id, album_batch)
                     await asyncio.sleep(0.3)  # Anti rate-limit
+                logger.info(f"✅ PHOTO_SET enviado correctamente")
 
             elif content_type == ContentType.VIDEO.value:
                 # Enviar video único
+                logger.info(f"📤 Enviando VIDEO: {file_ids[0]}")
                 await self.bot.send_video(user_id, file_ids[0])
+                logger.info(f"✅ VIDEO enviado correctamente")
 
             elif content_type == ContentType.AUDIO.value:
                 # Enviar audio único
+                logger.info(f"📤 Enviando AUDIO: {file_ids[0]}")
                 await self.bot.send_audio(user_id, file_ids[0])
+                logger.info(f"✅ AUDIO enviado correctamente")
 
             elif content_type == ContentType.MIXED.value:
                 # Enviar según metadata o intentar detectar
-                for file_id in file_ids:
+                logger.info(f"📤 Enviando MIXED content con {len(file_ids)} archivos")
+                for idx, file_id in enumerate(file_ids):
                     metadata = content_set.file_metadata.get(file_id, {})
                     file_type = metadata.get('type', 'photo')
+
+                    logger.info(f"📤 Enviando archivo {idx+1}/{len(file_ids)}: type={file_type}")
 
                     if file_type == 'photo':
                         await self.bot.send_photo(user_id, file_id)
@@ -388,11 +432,12 @@ class ContentService:
                         await self.bot.send_photo(user_id, file_id)
 
                     await asyncio.sleep(0.3)
+                logger.info(f"✅ MIXED content enviado correctamente")
 
             return True
 
         except Exception as e:
-            logger.error(f"Error enviando multimedia: {e}")
+            logger.error(f"Error enviando multimedia: {e}", exc_info=True)
             return False
 
     # ========================================
