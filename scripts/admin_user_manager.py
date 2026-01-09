@@ -10,6 +10,7 @@ Permite realizar operaciones de mantenimiento y debugging sobre usuarios especí
 - Resetear streaks de gamificación
 - Ver historial de transacciones
 - Limpiar progreso completo
+- Eliminar usuario completamente (TODAS las tablas)
 
 Uso:
     python scripts/admin_user_manager.py info <user_id>
@@ -20,7 +21,8 @@ Uso:
     python scripts/admin_user_manager.py reset-daily-gift <user_id>
     python scripts/admin_user_manager.py reset-streaks <user_id>
     python scripts/admin_user_manager.py transactions <user_id> [--limit 20]
-    python scripts/admin_user_manager.py reset-all <user_id>
+    python scripts/admin_user_manager.py reset-all <user_id> --confirm
+    python scripts/admin_user_manager.py delete-user <user_id> --confirm
 """
 
 import argparse
@@ -36,17 +38,38 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.engine import get_session, init_db
-from bot.database.models import User, FreeChannelRequest, UserLifecycle
+from bot.database.models import (
+    User,
+    FreeChannelRequest,
+    UserLifecycle,
+    VIPSubscriber,
+    BroadcastMessage,
+    ConversionEvent,
+    NotificationPreferences,
+    ReengagementLog,
+)
 from bot.gamification.database.models import (
     UserGamification,
     BesitoTransaction,
     DailyGiftClaim,
     UserStreak,
+    UserReaction,
+    UserMission,
+    UserReward,
+    CustomReaction,
 )
 from bot.narrative.database.models import (
     UserNarrativeProgress,
     UserDecisionHistory,
 )
+from bot.narrative.database.models_immersive import (
+    UserFragmentVisit,
+    NarrativeCooldown,
+    UserChallengeAttempt,
+    ChapterCompletion,
+    DailyNarrativeLimit,
+)
+from bot.narrative.database.onboarding_models import UserOnboardingProgress
 from bot.narrative.database.enums import ArchetypeType
 
 
@@ -352,6 +375,148 @@ class UserManager:
         await self.session.commit()
         return True
 
+    async def delete_user_completely(self, user_id: int) -> dict:
+        """
+        Elimina COMPLETAMENTE al usuario y TODOS sus datos de TODAS las tablas.
+
+        ⚠️ ADVERTENCIA: Esta operación es IRREVERSIBLE y elimina:
+        - Registro del usuario
+        - Todo el progreso narrativo (progress, decisions, visits, challenges)
+        - Onboarding progress
+        - Gamificación (besitos, reacciones, streaks, misiones, recompensas)
+        - Transacciones de besitos
+        - Daily gift claims
+        - Solicitudes Free/VIP
+        - Lifecycle tracking
+        - Notificaciones y reengagement
+        - Custom reactions
+        - Broadcast messages
+        - Shop (inventarios, compras, accesos) - CASCADE automático
+
+        Args:
+            user_id: ID del usuario a eliminar
+
+        Returns:
+            dict: Resumen de eliminación con contadores por tabla
+        """
+        stats = {
+            "user_id": user_id,
+            "tables_deleted": {},
+            "total_rows_deleted": 0,
+        }
+
+        # Orden de eliminación: de tablas relacionadas a tablas principales
+        # (evitar foreign key constraints)
+
+        # 1. NARRATIVE IMMERSIVE (sin CASCADE)
+        for model, table_name in [
+            (UserFragmentVisit, "user_fragment_visits"),
+            (NarrativeCooldown, "narrative_cooldowns"),
+            (UserChallengeAttempt, "user_challenge_attempts"),
+            (ChapterCompletion, "chapter_completions"),
+            (DailyNarrativeLimit, "daily_narrative_limits"),
+        ]:
+            result = await self.session.execute(
+                delete(model).where(model.user_id == user_id)
+            )
+            stats["tables_deleted"][table_name] = result.rowcount
+            stats["total_rows_deleted"] += result.rowcount
+
+        # 2. NARRATIVE ONBOARDING
+        result = await self.session.execute(
+            delete(UserOnboardingProgress).where(
+                UserOnboardingProgress.user_id == user_id
+            )
+        )
+        stats["tables_deleted"]["user_onboarding_progress"] = result.rowcount
+        stats["total_rows_deleted"] += result.rowcount
+
+        # 3. NARRATIVE CORE (sin CASCADE)
+        for model, table_name in [
+            (UserDecisionHistory, "user_decision_history"),
+            (UserNarrativeProgress, "user_narrative_progress"),
+        ]:
+            result = await self.session.execute(
+                delete(model).where(model.user_id == user_id)
+            )
+            stats["tables_deleted"][table_name] = result.rowcount
+            stats["total_rows_deleted"] += result.rowcount
+
+        # 4. GAMIFICATION (sin CASCADE - excepto BesitoTransaction, DailyGiftClaim)
+        for model, table_name in [
+            (CustomReaction, "custom_reactions"),
+            (UserReaction, "user_reactions"),
+            (UserReward, "user_rewards"),
+            (UserMission, "user_missions"),
+            (UserStreak, "user_streaks"),
+        ]:
+            result = await self.session.execute(
+                delete(model).where(model.user_id == user_id)
+            )
+            stats["tables_deleted"][table_name] = result.rowcount
+            stats["total_rows_deleted"] += result.rowcount
+
+        # 5. GAMIFICATION (con CASCADE - se borran automáticamente al borrar UserGamification)
+        # Contar antes de borrar
+        for model, table_name in [
+            (BesitoTransaction, "besito_transactions"),
+            (DailyGiftClaim, "daily_gift_claims"),
+        ]:
+            result = await self.session.execute(
+                select(model).where(model.user_id == user_id)
+            )
+            count = len(list(result.scalars().all()))
+            stats["tables_deleted"][table_name] = count
+            stats["total_rows_deleted"] += count
+
+        # 6. USER GAMIFICATION (tiene CASCADE a BesitoTransaction, DailyGiftClaim)
+        result = await self.session.execute(
+            delete(UserGamification).where(UserGamification.user_id == user_id)
+        )
+        stats["tables_deleted"]["user_gamification"] = result.rowcount
+        stats["total_rows_deleted"] += result.rowcount
+
+        # 7. SHOP (con CASCADE - se borran automáticamente)
+        # UserInventory, UserInventoryItem, ShopItemPurchase, UserContentAccess
+        # tienen CASCADE desde users, se borrarán automáticamente
+
+        # 8. LIFECYCLE & NOTIFICATIONS
+        for model, table_name in [
+            (ReengagementLog, "reengagement_log"),
+            (NotificationPreferences, "notification_preferences"),
+            (ConversionEvent, "conversion_events"),
+            (UserLifecycle, "user_lifecycle"),
+        ]:
+            result = await self.session.execute(
+                delete(model).where(model.user_id == user_id)
+            )
+            stats["tables_deleted"][table_name] = result.rowcount
+            stats["total_rows_deleted"] += result.rowcount
+
+        # 9. SUBSCRIPTIONS
+        for model, table_name in [
+            (BroadcastMessage, "broadcast_messages"),
+            (FreeChannelRequest, "free_channel_requests"),
+            (VIPSubscriber, "vip_subscribers"),
+        ]:
+            result = await self.session.execute(
+                delete(model).where(model.user_id == user_id)
+            )
+            stats["tables_deleted"][table_name] = result.rowcount
+            stats["total_rows_deleted"] += result.rowcount
+
+        # 10. FINALMENTE: USER (main table)
+        result = await self.session.execute(
+            delete(User).where(User.user_id == user_id)
+        )
+        stats["tables_deleted"]["users"] = result.rowcount
+        stats["total_rows_deleted"] += result.rowcount
+
+        # Commit transaction
+        await self.session.commit()
+
+        return stats
+
 
 # ============================================================================
 # CLI COMMANDS
@@ -654,6 +819,60 @@ async def cmd_reset_all(args):
             print(f"❌ Error al resetear progreso.")
 
 
+async def cmd_delete_user(args):
+    """Elimina COMPLETAMENTE al usuario de TODAS las tablas."""
+    await init_db()  # Inicializar BD
+    async with get_session() as session:
+        manager = UserManager(session)
+        user = await manager.get_user(args.user_id)
+
+        if not user:
+            print(f"❌ Usuario {args.user_id} no encontrado.")
+            return
+
+        # Confirmación
+        if not args.confirm:
+            print("\n" + "=" * 80)
+            print(
+                f"⚠️  ¡PELIGRO! Esta acción ELIMINARÁ COMPLETAMENTE al usuario {user.full_name}"
+            )
+            print("=" * 80)
+            print("\n🗑️  SE BORRARÁN PERMANENTEMENTE:")
+            print("  • Registro del usuario")
+            print("  • Todo el progreso narrativo (decisiones, visitas, challenges)")
+            print("  • Onboarding progress")
+            print("  • Gamificación (besitos, reacciones, streaks, misiones)")
+            print("  • Transacciones de besitos")
+            print("  • Daily gift claims")
+            print("  • Solicitudes Free/VIP")
+            print("  • Lifecycle tracking")
+            print("  • Notificaciones y reengagement")
+            print("  • Custom reactions")
+            print("  • Broadcast messages")
+            print("  • Shop (inventarios, compras, accesos)")
+            print("\n⚠️  ESTA ACCIÓN ES IRREVERSIBLE")
+            print("\nPara confirmar, ejecuta el comando con --confirm")
+            return
+
+        print(f"\n🗑️  Eliminando TODOS los datos de {user.full_name}...\n")
+        stats = await manager.delete_user_completely(args.user_id)
+
+        # Mostrar resumen
+        print("=" * 80)
+        print(f"✅ USUARIO ELIMINADO COMPLETAMENTE")
+        print("=" * 80)
+        print(f"\n📊 Resumen de eliminación:")
+        print(f"  • Usuario ID: {stats['user_id']}")
+        print(f"  • Total filas borradas: {stats['total_rows_deleted']}")
+        print(f"\n📋 Detalles por tabla:")
+
+        for table, count in sorted(stats["tables_deleted"].items()):
+            if count > 0:
+                print(f"  ✅ {table:<40} {count:>5} filas")
+
+        print("\n" + "=" * 80 + "\n")
+
+
 # ============================================================================
 # MAIN
 # ============================================================================
@@ -737,6 +956,18 @@ def main():
         help="Confirmar reset completo",
     )
 
+    # delete-user
+    parser_delete_user = subparsers.add_parser(
+        "delete-user",
+        help="ELIMINA COMPLETAMENTE al usuario y TODOS sus datos (MUY PELIGROSO)"
+    )
+    parser_delete_user.add_argument("user_id", type=int, help="ID del usuario")
+    parser_delete_user.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Confirmar eliminación completa",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -755,6 +986,7 @@ def main():
         "reset-streaks": cmd_reset_streaks,
         "transactions": cmd_transactions,
         "reset-all": cmd_reset_all,
+        "delete-user": cmd_delete_user,
     }
 
     cmd_func = commands.get(args.command)
