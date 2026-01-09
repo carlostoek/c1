@@ -230,6 +230,67 @@ async def process_json_file(
         # Parsear JSON
         json_content = json.loads(text_content)
 
+        # Detectar si es un array y procesarlo inteligentemente
+        if isinstance(json_content, list):
+            # Verificar si es un array de capítulos (cada uno con type/chapter/fragments)
+            if (json_content and
+                isinstance(json_content[0], dict) and
+                "type" in json_content[0] and
+                json_content[0]["type"] == "chapter"):
+                # Es un array de capítulos - procesarlos uno por uno
+                await processing_msg.edit_text(
+                    f"📚 <b>Detectado Array de Capítulos</b>\n\n"
+                    f"Se encontraron <b>{len(json_content)} capítulos</b> para importar.\n\n"
+                    f"Procesando cada capítulo...",
+                    parse_mode="HTML"
+                )
+
+                # Guardar en FSM para procesamiento secuencial
+                await state.update_data(
+                    import_mode="batch_chapters",
+                    chapters_to_import=json_content,
+                    current_chapter_idx=0,
+                    import_results={
+                        "total": len(json_content),
+                        "successful": 0,
+                        "failed": 0,
+                        "details": []
+                    },
+                    admin_chat_id=message.chat.id
+                )
+
+                # Procesar primer capítulo
+                await process_next_chapter(processing_msg, state, session)
+                return
+            else:
+                # Array simple sin estructura - error
+                await processing_msg.edit_text(
+                    "❌ <b>Formato JSON Incorrecto</b>\n\n"
+                    "Detectamos un array simple que no sigue el formato de capítulos.\n\n"
+                    "<b>El JSON debe tener una de estas estructuras:</b>\n\n"
+                    "<b>1. Capítulo completo:</b>\n"
+                    "<pre>{\n"
+                    '  "type": "chapter",\n'
+                    '  "chapter": {...},\n'
+                    '  "fragments": [...]\n'
+                    "}</pre>\n\n"
+                    "<b>2. Solo fragmentos:</b>\n"
+                    "<pre>{\n"
+                    '  "type": "fragments",\n'
+                    '  "chapter_slug": "nombre",\n'
+                    '  "fragments": [...]\n'
+                    "}</pre>\n\n"
+                    "<b>3. Array de capítulos:</b>\n"
+                    "<pre>[\n"
+                    '  {"type": "chapter", "chapter": {...}, "fragments": [...]},\n'
+                    '  {"type": "chapter", "chapter": {...}, "fragments": [...]}\n'
+                    "]</pre>",
+                    reply_markup=error_keyboard(),
+                    parse_mode="HTML"
+                )
+                await state.clear()
+                return
+
         # Validar contenido
         import_service = JsonImportService(session, message.bot)
         validation = await import_service.validate_json(json_content)
@@ -317,6 +378,125 @@ async def process_invalid_input(message: Message):
         "❌ Por favor envía un archivo .json\n\n"
         "No envíes texto pegado, debe ser un documento.",
         reply_markup=waiting_for_file_keyboard()
+    )
+
+
+# ========================================
+# PROCESAMIENTO BATCH DE CAPÍTULOS
+# ========================================
+
+async def process_next_chapter(
+    processing_msg,
+    state: FSMContext,
+    session: AsyncSession
+):
+    """Procesa el siguiente capítulo en un batch."""
+    data = await state.get_data()
+
+    if data.get("import_mode") != "batch_chapters":
+        return
+
+    chapters = data.get("chapters_to_import", [])
+    current_idx = data.get("current_chapter_idx", 0)
+    results = data.get("import_results", {})
+
+    if current_idx >= len(chapters):
+        # Todos los capítulos procesados - mostrar resumen
+        await show_batch_summary(processing_msg, results)
+        await state.clear()
+        return
+
+    chapter_data = chapters[current_idx]
+
+    try:
+        # Validar este capítulo
+        import_service = JsonImportService(session, processing_msg.bot)
+        validation = await import_service.validate_json(chapter_data)
+
+        if not validation.is_valid:
+            # Error en este capítulo
+            results["failed"] += 1
+            results["details"].append({
+                "chapter": chapter_data.get("chapter", {}).get("name", "Unknown"),
+                "status": "ERROR",
+                "message": ", ".join(validation.errors[:2])
+            })
+        else:
+            # Procesar importación
+            import_result = await import_service.import_content(
+                validation,
+                {},
+                data.get("admin_chat_id")
+            )
+
+            if import_result.success:
+                results["successful"] += 1
+                results["details"].append({
+                    "chapter": validation.chapter_data.get("name", "Unknown"),
+                    "status": "✅ OK",
+                    "message": f"{import_result.fragments_created} fragmentos"
+                })
+            else:
+                results["failed"] += 1
+                results["details"].append({
+                    "chapter": validation.chapter_data.get("name", "Unknown"),
+                    "status": "ERROR",
+                    "message": import_result.message
+                })
+
+    except Exception as e:
+        logger.error(f"Error procesando capítulo {current_idx}: {e}", exc_info=True)
+        results["failed"] += 1
+        results["details"].append({
+            "chapter": chapter_data.get("chapter", {}).get("name", "Unknown"),
+            "status": "ERROR",
+            "message": str(e)[:50]
+        })
+
+    # Actualizar y procesar siguiente
+    await state.update_data(
+        current_chapter_idx=current_idx + 1,
+        import_results=results
+    )
+
+    # Mostrar progreso
+    progress_text = (
+        f"📚 Procesando capítulos...\n\n"
+        f"Progreso: {current_idx + 1}/{len(chapters)}\n"
+        f"✅ Éxitos: {results['successful']}\n"
+        f"❌ Errores: {results['failed']}"
+    )
+
+    await processing_msg.edit_text(progress_text, parse_mode="HTML")
+
+    # Procesar siguiente capítulo recursivamente
+    await process_next_chapter(processing_msg, state, session)
+
+
+async def show_batch_summary(processing_msg, results):
+    """Muestra resumen de importación batch."""
+    summary = (
+        f"📊 <b>Importación Completada</b>\n\n"
+        f"<b>Total Capítulos:</b> {results['total']}\n"
+        f"<b>✅ Exitosos:</b> {results['successful']}\n"
+        f"<b>❌ Errores:</b> {results['failed']}\n\n"
+    )
+
+    if results["details"]:
+        summary += "<b>Detalles:</b>\n"
+        for detail in results["details"][:10]:
+            summary += (
+                f"\n{detail['status']} <code>{detail['chapter']}</code>\n"
+                f"   └ {detail['message']}"
+            )
+
+        if len(results["details"]) > 10:
+            summary += f"\n\n<i>... y {len(results['details']) - 10} más</i>"
+
+    await processing_msg.edit_text(
+        summary,
+        reply_markup=result_keyboard(),
+        parse_mode="HTML"
     )
 
 

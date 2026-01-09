@@ -94,7 +94,6 @@
         "media_file_id": null,
         "is_active": true,
         "decisions": [],
-        "requirements": []
         "requirements": [],
         "auto_send_content": true
       }
@@ -180,12 +179,8 @@
         "media_file_id": null,
         "is_active": true,
         "decisions": [],
-<<<<<<< HEAD
-        "requirements": []
-=======
         "requirements": [],
         "auto_send_content": true
->>>>>>> 6eb9242 (fix: Agregar campo auto_send_content para CMS Journey)
       }
     ]
   },
@@ -233,12 +228,8 @@
             "is_active": true
           }
         ],
-<<<<<<< HEAD
-        "requirements": []
-=======
         "requirements": [],
         "auto_send_content": true
->>>>>>> 6eb9242 (fix: Agregar campo auto_send_content para CMS Journey)
       },
       {
         "fragment_key": "c3_scene_lucien",
@@ -252,12 +243,8 @@
         "media_file_id": null,
         "is_active": true,
         "decisions": [],
-<<<<<<< HEAD
-        "requirements": []
-=======
         "requirements": [],
         "auto_send_content": true
->>>>>>> 6eb9242 (fix: Agregar campo auto_send_content para CMS Journey)
       },
       {
         "fragment_key": "c3_scene_diana",
@@ -271,17 +258,9 @@
         "media_file_id": null,
         "is_active": true,
         "decisions": [],
-<<<<<<< HEAD
-        "requirements": []
-      }
-    ]
-  }
-]
-=======
         "requirements": [],
         "auto_send_content": true
       }
     ]
   }
 ]
->>>>>>> 6eb9242 (fix: Agregar campo auto_send_content para CMS Journey)
