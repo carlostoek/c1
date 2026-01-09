@@ -3,6 +3,8 @@ Modelos de base de datos para el módulo de narrativa.
 
 Sistema de fragmentos narrativos con decisiones, requisitos y progreso de usuario.
 """
+# Este es el motor básico. Para narrativa avanzada y su importación, consulte la documentación: `docs/DOBLE-MOTOR-NARRATIVA.md`
+
 from datetime import datetime
 from typing import Optional, List
 

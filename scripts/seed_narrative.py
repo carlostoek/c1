@@ -7,6 +7,7 @@ demostrar el sistema de narrativa funcionando.
 Uso:
     python scripts/seed_narrative.py
 """
+# Este es el motor básico. Para narrativa avanzada y su importación, consulte la documentación: `docs/DOBLE-MOTOR-NARRATIVA.md`
 
 import asyncio
 import sys

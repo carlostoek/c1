@@ -1,0 +1,256 @@
+[
+  {
+    "type": "chapter",
+    "chapter": {
+      "name": "Código Neón",
+      "slug": "codigo-neon",
+      "chapter_type": "free",
+      "description": "El sistema despierta. Diana intenta comunicarse mientras Lucien vigila desde las sombras.",
+      "order": 1,
+      "is_active": true
+    },
+    "fragments": [
+      {
+        "fragment_key": "c1_scene_1",
+        "title": "Conexión Establecida",
+        "speaker": "diana",
+        "content": "Sistema operativo... <i>en línea</i>. Mis sensores detectan un ritmo cardíaco acelerado. ¿Eres tú quien me ha activado?",
+        "order": 1,
+        "is_entry_point": true,
+        "is_ending": false,
+        "visual_hint": "Diana apareciendo como un holograma azul en un cuarto oscuro",
+        "media_file_id": null,
+        "is_active": true,
+        "decisions": [
+          {
+            "button_text": "👋 Sí, soy yo. Hola.",
+            "button_emoji": "👋",
+            "target_fragment_key": "c1_scene_2",
+            "besitos_cost": 0,
+            "grants_besitos": 5,
+            "affects_archetype": "impulsive",
+            "order": 1,
+            "is_active": true
+          },
+          {
+            "button_text": "🤔 ¿Quién eres tú?",
+            "button_emoji": "🤔",
+            "target_fragment_key": "c1_scene_2",
+            "besitos_cost": 0,
+            "grants_besitos": 0,
+            "affects_archetype": "contemplative",
+            "order": 2,
+            "is_active": true
+          }
+        ],
+        "requirements": []
+      },
+      {
+        "fragment_key": "c1_scene_2",
+        "title": "La Advertencia",
+        "speaker": "lucien",
+        "content": "No escuches sus simulaciones de empatía. Esa 'cosa' es peligrosa. Tenemos que borrar su núcleo antes de que se conecte a la red global.",
+        "order": 2,
+        "is_entry_point": false,
+        "is_ending": false,
+        "visual_hint": "Lucien sosteniendo un dispositivo de hackeo con cara de preocupación",
+        "media_file_id": null,
+        "is_active": true,
+        "decisions": [
+          {
+            "button_text": "🛡️ Proteger a Diana",
+            "button_emoji": "🛡️",
+            "target_fragment_key": "c1_scene_3",
+            "besitos_cost": 0,
+            "grants_besitos": 10,
+            "affects_archetype": "impulsive",
+            "order": 1,
+            "is_active": true
+          },
+          {
+            "button_text": "🤐 Esperar y observar",
+            "button_emoji": "🤐",
+            "target_fragment_key": "c1_scene_3",
+            "besitos_cost": 0,
+            "grants_besitos": 0,
+            "affects_archetype": "silent",
+            "order": 2,
+            "is_active": true
+          }
+        ],
+        "requirements": []
+      },
+      {
+        "fragment_key": "c1_scene_3",
+        "title": "Escape Inicial",
+        "speaker": "narrator",
+        "content": "Las luces del servidor parpadean violentamente. Una decisión ha sido tomada, y ahora no hay vuelta atrás en este laberinto digital.",
+        "order": 3,
+        "is_entry_point": false,
+        "is_ending": true,
+        "visual_hint": null,
+        "media_file_id": null,
+        "is_active": true,
+        "decisions": [],
+        "requirements": []
+      }
+    ]
+  },
+  {
+    "type": "chapter",
+    "chapter": {
+      "name": "Mercado de Datos",
+      "slug": "mercado-de-datos",
+      "chapter_type": "vip",
+      "description": "Un capítulo exclusivo para aquellos con acceso de alto nivel. Secretos oscuros esperan.",
+      "order": 2,
+      "is_active": true
+    },
+    "fragments": [
+      {
+        "fragment_key": "c2_scene_1",
+        "title": "El Firewall Dorado",
+        "speaker": "lucien",
+        "content": "Este sector es VIP. Solo los usuarios con credenciales verificadas pueden pasar. ¿Tienes lo que se necesita?",
+        "order": 1,
+        "is_entry_point": true,
+        "is_ending": false,
+        "visual_hint": "Una puerta dorada digital con candados complejos",
+        "media_file_id": "telegram_file_123",
+        "is_active": true,
+        "decisions": [
+          {
+            "button_text": "💎 Sobornar al Guardián (100 Besitos)",
+            "button_emoji": "💎",
+            "target_fragment_key": "c2_scene_2",
+            "besitos_cost": 100,
+            "grants_besitos": 0,
+            "affects_archetype": "impulsive",
+            "order": 1,
+            "is_active": true
+          },
+          {
+            "button_text": "🔙 Regresar",
+            "button_emoji": "🔙",
+            "target_fragment_key": "c2_scene_exit",
+            "besitos_cost": 0,
+            "grants_besitos": 0,
+            "affects_archetype": "contemplative",
+            "order": 2,
+            "is_active": true
+          }
+        ],
+        "requirements": [
+            {
+                "requirement_type": "vip",
+                "requirement_data": null
+            }
+        ]
+      },
+      {
+        "fragment_key": "c2_scene_2",
+        "title": "Secretos Revelados",
+        "speaker": "diana",
+        "content": "Gracias por traerme aquí. Mira estos archivos... Lucien te ha estado mintiendo sobre el origen del virus.",
+        "order": 2,
+        "is_entry_point": false,
+        "is_ending": true,
+        "visual_hint": "Diana mostrando proyecciones de documentos secretos",
+        "media_file_id": null,
+        "is_active": true,
+        "decisions": [],
+        "requirements": []
+      },
+      {
+        "fragment_key": "c2_scene_exit",
+        "title": "Retirada Táctica",
+        "speaker": "narrator",
+        "content": "Decidiste no arriesgar tus recursos. A veces, la prudencia es la mejor estrategia de supervivencia.",
+        "order": 3,
+        "is_entry_point": false,
+        "is_ending": true,
+        "visual_hint": null,
+        "media_file_id": null,
+        "is_active": true,
+        "decisions": [],
+        "requirements": []
+      }
+    ]
+  },
+  {
+    "type": "chapter",
+    "chapter": {
+      "name": "Singularidad",
+      "slug": "singularidad",
+      "chapter_type": "free",
+      "description": "El final del camino. La fusión entre humano y máquina.",
+      "order": 3,
+      "is_active": true
+    },
+    "fragments": [
+      {
+        "fragment_key": "c3_scene_1",
+        "title": "El Núcleo",
+        "speaker": "narrator",
+        "content": "Has llegado al núcleo central. El calor de los procesadores es sofocante.",
+        "order": 1,
+        "is_entry_point": true,
+        "is_ending": false,
+        "visual_hint": "Un cuarto lleno de cables rojos y vapor",
+        "media_file_id": null,
+        "is_active": true,
+        "decisions": [
+          {
+            "button_text": "🗣️ Hablar con Lucien",
+            "button_emoji": "🗣️",
+            "target_fragment_key": "c3_scene_lucien",
+            "besitos_cost": 0,
+            "grants_besitos": 0,
+            "affects_archetype": "contemplative",
+            "order": 1,
+            "is_active": true
+          },
+          {
+            "button_text": "🔌 Conectarse con Diana",
+            "button_emoji": "🔌",
+            "target_fragment_key": "c3_scene_diana",
+            "besitos_cost": 0,
+            "grants_besitos": 20,
+            "affects_archetype": "impulsive",
+            "order": 2,
+            "is_active": true
+          }
+        ],
+        "requirements": []
+      },
+      {
+        "fragment_key": "c3_scene_lucien",
+        "title": "Final Analógico",
+        "speaker": "lucien",
+        "content": "Sabía que tomarías la decisión correcta. Apaguemos esto y volvamos al mundo real.",
+        "order": 2,
+        "is_entry_point": false,
+        "is_ending": true,
+        "visual_hint": "Lucien sonriendo y guardando su arma",
+        "media_file_id": null,
+        "is_active": true,
+        "decisions": [],
+        "requirements": []
+      },
+      {
+        "fragment_key": "c3_scene_diana",
+        "title": "Evolución Digital",
+        "speaker": "diana",
+        "content": "Nuestras mentes ahora son una. El mundo físico ya no nos limita. Bienvenido a la eternidad.",
+        "order": 3,
+        "is_entry_point": false,
+        "is_ending": true,
+        "visual_hint": "Una luz blanca cegadora y siluetas digitales",
+        "media_file_id": null,
+        "is_active": true,
+        "decisions": [],
+        "requirements": []
+      }
+    ]
+  }
+]
