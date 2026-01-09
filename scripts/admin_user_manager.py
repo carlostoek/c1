@@ -499,9 +499,15 @@ class UserManager:
             (FreeChannelRequest, "free_channel_requests"),
             (VIPSubscriber, "vip_subscribers"),
         ]:
-            result = await self.session.execute(
-                delete(model).where(model.user_id == user_id)
-            )
+            if model == BroadcastMessage:
+                # BroadcastMessage uses 'sent_by' instead of 'user_id'
+                result = await self.session.execute(
+                    delete(model).where(model.sent_by == user_id)
+                )
+            else:
+                result = await self.session.execute(
+                    delete(model).where(model.user_id == user_id)
+                )
             stats["tables_deleted"][table_name] = result.rowcount
             stats["total_rows_deleted"] += result.rowcount
 

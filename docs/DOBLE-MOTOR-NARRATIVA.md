@@ -84,7 +84,85 @@ Este sistema es la herramienta administrativa para cargar contenido masivo **dir
 
 - **Formato JSON:**
   - El sistema espera un JSON con una clave `"type"` (`"chapter"` o `"fragments"`) y una lista de `"fragments"`.
-  - **Importante:** Para los `requirements`, la clave correcta a usar es `"value"`, no `"requirement_data"`.
+
+  **Estructura completa para type="chapter":**
+  ```json
+  {
+    "type": "chapter",
+    "chapter": {
+      "name": "Nombre del Capítulo",
+      "slug": "slug-unico",
+      "chapter_type": "free",
+      "description": "Descripción opcional",
+      "order": 0,
+      "is_active": true
+    },
+    "fragments": [...]
+  }
+  ```
+
+  **Estructura completa para type="fragments":**
+  ```json
+  {
+    "type": "fragments",
+    "chapter_slug": "slug-del-capitulo-existente",
+    "fragments": [...]
+  }
+  ```
+
+  **Estructura completa de un fragmento:**
+  ```json
+  {
+    "fragment_key": "clave_unica",
+    "title": "Título del fragmento",
+    "speaker": "diana",
+    "content": "Contenido del mensaje",
+    "order": 0,
+    "is_entry_point": false,
+    "is_ending": false,
+    "visual_hint": "Pista visual opcional",
+    "media": "url_o_file_id_opcional",
+    "auto_send_content": true,
+    "decisions": [
+      {
+        "button_text": "Texto del botón",
+        "button_emoji": "🔥",
+        "target_fragment_key": "clave_destino",
+        "order": 0,
+        "besitos_cost": 0,
+        "grants_besitos": 0,
+        "affects_archetype": "valor_opcional"
+      }
+    ],
+    "requirements": [
+      {
+        "requirement_type": "vip",
+        "value": "true",
+        "rejection_message": "Mensaje de rechazo"
+      }
+    ]
+  }
+  ```
+
+  **Campos requeridos del fragmento:**
+  - `fragment_key`: string único
+  - `title`: string
+  - `speaker`: string (valores válidos: "diana", "lucien", "narrator")
+  - `content`: string
+
+  **Campos opcionales del fragmento:**
+  - `order`: número (default: 0)
+  - `is_entry_point`: boolean (default: false)
+  - `is_ending`: boolean (default: false)
+  - `visual_hint`: string
+  - `media`: string (URL o file_id de Telegram)
+  - `auto_send_content`: boolean (default: true)
+  - `decisions`: array de objetos
+  - `requirements`: array de objetos
+
+  **Requisitos (requirements):**
+  - Valores válidos de `requirement_type`: "none", "vip", "besitos", "archetype", "decision"
+  - **Importante:** La clave correcta para el valor es `"value"`, no `"requirement_data"`.
 
   ```json
   "requirements": [
