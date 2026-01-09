@@ -101,6 +101,9 @@ class NarrativeFragment(Base):
     # Estado
     is_active: Mapped[bool] = mapped_column(default=True)
 
+    # CMS Journey: Auto-envío del contenido al cargar el fragmento
+    auto_send_content: Mapped[bool] = mapped_column(default=True)
+
     # Metadata adicional (JSON para información extra como grants_clue, etc.)
     extra_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 

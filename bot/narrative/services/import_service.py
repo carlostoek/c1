@@ -443,7 +443,8 @@ class JsonImportService:
             is_entry_point=fragment_data.get("is_entry_point", False),
             is_ending=fragment_data.get("is_ending", False),
             visual_hint=fragment_data.get("visual_hint"),
-            media_file_id=media_file_id
+            media_file_id=media_file_id,
+            auto_send_content=fragment_data.get("auto_send_content", True)
         )
 
         # Crear decisiones
@@ -485,6 +486,9 @@ class JsonImportService:
             ),
             "is_ending": fragment_data.get("is_ending", existing.is_ending),
             "visual_hint": fragment_data.get("visual_hint", existing.visual_hint),
+            "auto_send_content": fragment_data.get(
+                "auto_send_content", existing.auto_send_content
+            ),
         }
 
         if media_file_id:

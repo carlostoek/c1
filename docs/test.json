@@ -21,6 +21,7 @@
         "visual_hint": "Diana apareciendo como un holograma azul en un cuarto oscuro",
         "media_file_id": null,
         "is_active": true,
+        "auto_send_content": true,
         "decisions": [
           {
             "button_text": "👋 Sí, soy yo. Hola.",
@@ -78,7 +79,8 @@
             "is_active": true
           }
         ],
-        "requirements": []
+        "requirements": [],
+        "auto_send_content": true
       },
       {
         "fragment_key": "c1_scene_3",
@@ -93,6 +95,8 @@
         "is_active": true,
         "decisions": [],
         "requirements": []
+        "requirements": [],
+        "auto_send_content": true
       }
     ]
   },
@@ -141,11 +145,13 @@
           }
         ],
         "requirements": [
-            {
-                "requirement_type": "vip",
-                "requirement_data": null
-            }
-        ]
+          {
+            "requirement_type": "vip",
+            "value": "",
+            "rejection_message": "Este contenido es exclusivo para miembros VIP."
+          }
+        ],
+        "auto_send_content": true
       },
       {
         "fragment_key": "c2_scene_2",
@@ -159,7 +165,8 @@
         "media_file_id": null,
         "is_active": true,
         "decisions": [],
-        "requirements": []
+        "requirements": [],
+        "auto_send_content": true
       },
       {
         "fragment_key": "c2_scene_exit",
@@ -173,7 +180,12 @@
         "media_file_id": null,
         "is_active": true,
         "decisions": [],
+<<<<<<< HEAD
         "requirements": []
+=======
+        "requirements": [],
+        "auto_send_content": true
+>>>>>>> 6eb9242 (fix: Agregar campo auto_send_content para CMS Journey)
       }
     ]
   },
@@ -221,7 +233,12 @@
             "is_active": true
           }
         ],
+<<<<<<< HEAD
         "requirements": []
+=======
+        "requirements": [],
+        "auto_send_content": true
+>>>>>>> 6eb9242 (fix: Agregar campo auto_send_content para CMS Journey)
       },
       {
         "fragment_key": "c3_scene_lucien",
@@ -235,7 +252,12 @@
         "media_file_id": null,
         "is_active": true,
         "decisions": [],
+<<<<<<< HEAD
         "requirements": []
+=======
+        "requirements": [],
+        "auto_send_content": true
+>>>>>>> 6eb9242 (fix: Agregar campo auto_send_content para CMS Journey)
       },
       {
         "fragment_key": "c3_scene_diana",
@@ -249,8 +271,17 @@
         "media_file_id": null,
         "is_active": true,
         "decisions": [],
+<<<<<<< HEAD
         "requirements": []
       }
     ]
   }
 ]
+=======
+        "requirements": [],
+        "auto_send_content": true
+      }
+    ]
+  }
+]
+>>>>>>> 6eb9242 (fix: Agregar campo auto_send_content para CMS Journey)

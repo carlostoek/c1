@@ -219,8 +219,16 @@ async def process_json_file(
         file = await message.bot.get_file(document.file_id)
         file_bytes = await message.bot.download_file(file.file_path)
 
+        # Parsear JSON (leer todo el contenido primero)
+        file_content = file_bytes.read()
+        text_content = file_content.decode("utf-8")
+
+        # Log para debugging (primeros 200 chars)
+        logger.debug(f"JSON content preview: {text_content[:200]}")
+        logger.debug(f"JSON content length: {len(text_content)} chars")
+
         # Parsear JSON
-        json_content = json.loads(file_bytes.read().decode("utf-8"))
+        json_content = json.loads(text_content)
 
         # Validar contenido
         import_service = JsonImportService(session, message.bot)
@@ -277,10 +285,16 @@ async def process_json_file(
             await show_confirmation(processing_msg, validation, {})
 
     except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error: {e}", exc_info=True)
+        logger.error(f"JSON content preview: {text_content[:500] if 'text_content' in locals() else 'N/A'}")
         await processing_msg.edit_text(
             f"❌ <b>Error de Formato JSON</b>\n\n"
             f"<code>{str(e)}</code>\n\n"
-            f"Verifica que el archivo sea un JSON válido.",
+            f"<b>Línea:</b> {e.lineno}\n"
+            f"<b>Columna:</b> {e.colno}\n"
+            f"<b>Posición:</b> {e.pos}\n\n"
+            f"Verifica que el archivo sea un JSON válido.\n\n"
+            f"<i>Tip: Usa un validador JSON online para verificar tu archivo.</i>",
             reply_markup=error_keyboard(),
             parse_mode="HTML"
         )

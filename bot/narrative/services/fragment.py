@@ -175,6 +175,7 @@ class FragmentService:
         is_ending: bool = False,
         visual_hint: Optional[str] = None,
         media_file_id: Optional[str] = None,
+        auto_send_content: bool = True,
     ) -> NarrativeFragment:
         """
         Crea nuevo fragmento narrativo.
@@ -190,6 +191,7 @@ class FragmentService:
             is_ending: Si es final del capítulo
             visual_hint: Descripción de imagen opcional
             media_file_id: Telegram file_id de media opcional
+            auto_send_content: Si se envía automáticamente al cargar (CMS Journey)
 
         Returns:
             Fragmento creado
@@ -213,6 +215,7 @@ class FragmentService:
             is_ending=is_ending,
             visual_hint=visual_hint,
             media_file_id=media_file_id,
+            auto_send_content=auto_send_content,
             is_active=True
         )
 
