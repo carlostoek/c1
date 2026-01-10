@@ -13,6 +13,7 @@ from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
+from typing import Optional
 from bot.gamification.database.models import Mission, Reward, Level, GamificationConfig
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ class NotificationService:
     async def notify_level_up(
         self,
         user_id: int,
-        old_level: Level,
+        old_level: Optional[Level],
         new_level: Level
     ) -> None:
         """
@@ -105,11 +106,11 @@ class NotificationService:
 
         Args:
             user_id: ID del usuario
-            old_level: Nivel anterior
+            old_level: Nivel anterior (None si es el primer nivel)
             new_level: Nuevo nivel alcanzado
         """
         message = NOTIFICATION_TEMPLATES['level_up'].format(
-            old_level=old_level.name,
+            old_level=old_level.name if old_level else "Inicio",
             new_level=new_level.name,
             min_besitos=new_level.min_besitos
         )
