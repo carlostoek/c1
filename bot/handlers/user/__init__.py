@@ -9,5 +9,6 @@ from bot.handlers.user.start import user_router
 import bot.handlers.user.vip_flow
 import bot.handlers.user.free_join_request
 import bot.handlers.user.preferences
+import bot.handlers.user.menu_handlers
 
 __all__ = ["user_router"]

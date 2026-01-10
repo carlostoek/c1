@@ -28,31 +28,80 @@ async def build_start_menu(
     """
     Construye el menú principal de /start para un usuario.
 
-    Menú con la voz de Lucien para todos los usuarios.
+    Menú diferenciado según rol (VIP/FREE) y estado de onboarding.
+    Usa MenuService para construcción dinámica de keyboards.
 
     Args:
         session: Sesión de BD
         bot: Bot de Telegram
         user_id: ID del usuario de Telegram
         user_name: Nombre del usuario
-        container: ServiceContainer opcional (no usado)
+        container: ServiceContainer (requerido para MenuService)
 
     Returns:
         Tuple de (welcome_message, keyboard)
     """
-    # Usar LucienVoiceService para mensaje de bienvenida
-    lucien = LucienVoiceService()
-    welcome_message = await lucien.get_welcome_message("new_user")
+    # Crear container si no se proporciona
+    if container is None:
+        container = ServiceContainer(session, bot)
 
-    # Keyboard con botones principales - sin emojis excesivos en el texto
-    keyboard = create_inline_keyboard([
-        [{"text": "📺 Canal VIP", "callback_data": "user:vip_access"}],
-        [{"text": "📢 Canal Free", "callback_data": "user:free_access"}],
-        [{"text": "🎟️ Canjear Token", "callback_data": "user:redeem_token"}],
-        [{"text": "🏛️ El Gabinete", "callback_data": "shop:main"}],
-        [{"text": "📜 Mi Historia", "callback_data": "narr:start"}],
-        [{"text": "📊 Mi Perfil", "callback_data": "user:profile"}],
-    ])
+    # Obtener usuario de BD para determinar rol
+    user = await container.user.get_user(user_id)
+    role = user.role.value if user else "free"
+
+    # Verificar si completó onboarding
+    from bot.narrative.services.container import NarrativeContainer
+    narrative = NarrativeContainer(session, bot)
+    completed_onboarding = await narrative.onboarding.has_completed_onboarding(user_id)
+
+    logger.debug(
+        f"Construyendo menú para user={user_id}, role={role}, "
+        f"onboarding={completed_onboarding}"
+    )
+
+    # Mensaje de bienvenida diferenciado según rol
+    lucien = LucienVoiceService()
+
+    if role == "vip":
+        # Usuario VIP activo
+        welcome_message = await lucien.get_welcome_message(
+            "vip_user",
+            {"user_name": user_name}
+        )
+    elif role == "free":
+        # Usuario FREE
+        welcome_message = await lucien.get_welcome_message(
+            "free_user",
+            {"user_name": user_name, "completed_onboarding": completed_onboarding}
+        )
+    else:
+        # Fallback para otros roles
+        welcome_message = await lucien.get_welcome_message("new_user")
+
+    # Construir keyboard dinámico según rol y onboarding
+    keyboard_buttons = await container.menu.build_keyboard_for_role(
+        role=role,
+        user_id=user_id,
+        completed_onboarding=completed_onboarding,
+        parent_key=None  # Menú principal
+    )
+
+    # Si no hay botones dinámicos, usar fallback hardcodeado
+    if not keyboard_buttons:
+        logger.warning(
+            f"No se encontraron menu items para role={role}, "
+            f"usando fallback hardcodeado"
+        )
+        keyboard_buttons = [
+            [{"text": "📺 Canal VIP", "callback_data": "user:vip_access"}],
+            [{"text": "📢 Canal Free", "callback_data": "user:free_access"}],
+            [{"text": "🎟️ Canjear Token", "callback_data": "user:redeem_token"}],
+            [{"text": "🏛️ El Gabinete", "callback_data": "shop:main"}],
+            [{"text": "📜 Mi Historia", "callback_data": "narr:start"}],
+            [{"text": "📊 Mi Perfil", "callback_data": "user:profile"}],
+        ]
+
+    keyboard = create_inline_keyboard(keyboard_buttons)
 
     return welcome_message, keyboard
 

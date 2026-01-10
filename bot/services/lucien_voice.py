@@ -30,12 +30,13 @@ class LucienVoiceService:
         Obtiene mensaje de bienvenida adaptado al tipo de usuario.
 
         Args:
-            user_type: Tipo de usuario ("new_user", "returning_user", "active_user", "admin")
+            user_type: Tipo de usuario ("new_user", "returning_user", "active_user", "admin", "vip_user", "free_user")
             user_context: Contexto adicional del usuario
                 - archetype: Arquetipo detectado (opcional)
                 - days_absent: Días desde última visita
                 - is_vip: Si es VIP
                 - vip_days_remaining: Días VIP restantes
+                - completed_onboarding: Si completó onboarding (para free_user)
 
         Returns:
             str: Mensaje personalizado
@@ -44,6 +45,14 @@ class LucienVoiceService:
 
         if user_type == "admin":
             return templates.WELCOME_MESSAGES["admin"]
+
+        # Usuario VIP (menú diferenciado)
+        if user_type == "vip_user":
+            return templates.WELCOME_MESSAGES["vip_user"]
+
+        # Usuario FREE (menú diferenciado)
+        if user_type == "free_user":
+            return templates.WELCOME_MESSAGES["free_user"]
 
         # Usuario nuevo
         if user_type == "new_user":

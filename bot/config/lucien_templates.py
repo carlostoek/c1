@@ -111,6 +111,21 @@ WELCOME_MESSAGES = {
         "y se tejen las experiencias de nuestros... visitantes.\n\n"
         "¿Qué aspecto del reino requiere su atención hoy?</i>"
     ),
+    "vip_user": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>Bienvenido de vuelta al círculo exclusivo.\n\n"
+        "Diana ha preparado nuevos contenidos para quienes merecen\n"
+        "acceder a lo que no es para todos. El Diván le espera,\n"
+        "donde lo profundo y lo íntimo encuentran su morada.</i>"
+    ),
+    "free_user": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>Ah, llegó alguien nuevo al vestíbulo...\n\n"
+        "Vea lo que Diana tiene para ofrecer. Algunos contenidos\n"
+        "están disponibles, otros... requieren que demuestre\n"
+        "su valía completando el ritual de introducción.</i>\n\n"
+        "<i>Explore con atención. No todo es para cualquiera.</i>"
+    ),
 }
 
 # ========================================
@@ -190,6 +205,13 @@ ERROR_MESSAGES = {
         "<i>No le quedan intentos disponibles.\n\n"
         "Este camino está cerrado por ahora. Pero hay otros senderos\n"
         "en el reino que podrían revelarse a su dedicación.</i>"
+    ),
+    "onboarding_required": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>Ah... esta área requiere que complete el tutorial primero.\n\n"
+        "Diana no permite que cualquiera acceda a su narrativa íntima\n"
+        "sin antes demostrar que comprende las reglas del reino.\n\n"
+        "Complete el ritual de introducción y las puertas se abrirán.</i>"
     ),
 }
 
