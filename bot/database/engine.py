@@ -38,6 +38,12 @@ try:
 except ImportError:
     pass
 
+# Importar modelos de men\u00fas din\u00e1micos para registrarlos en metadata
+try:
+    import bot.database.models_menu  # noqa: F401
+except ImportError:
+    pass
+
 logger = logging.getLogger(__name__)
 
 # ===== ENGINE GLOBAL =====

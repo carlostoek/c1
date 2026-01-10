@@ -53,6 +53,8 @@ class ServiceContainer:
         self._user_service = None
         self._broadcast_service = None
         self._content_service = None
+        self._menu_service = None
+        self._interest_service = None
 
         # ONDA D Services
         self._user_lifecycle_service = None
@@ -251,6 +253,43 @@ class ServiceContainer:
             self._notification_preferences_service = NotificationPreferencesService(self._session)
         return self._notification_preferences_service
 
+    # ===== MENU SERVICE =====
+
+    @property
+    def menu(self):
+        """
+        Service de gestión de menús dinámicos.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            MenuService: Instancia del service
+        """
+        if self._menu_service is None:
+            from bot.services.menu_service import MenuService
+            logger.debug("🔄 Lazy loading: MenuService")
+            self._menu_service = MenuService(self._session)
+
+        return self._menu_service
+
+    # ===== INTEREST SERVICE =====
+
+    @property
+    def interest(self):
+        """
+        Service de gestión de intereses de usuarios.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            InterestService: Instancia del service
+        """
+        if self._interest_service is None:
+            from bot.services.interest_service import InterestService
+            logger.debug("🔄 Lazy loading: InterestService")
+            self._interest_service = InterestService(self._session)
+
+        return self._interest_service
 
     # ===== UTILIDADES =====
 
@@ -281,6 +320,10 @@ class ServiceContainer:
             loaded.append("broadcast")
         if self._content_service is not None:
             loaded.append("content")
+        if self._menu_service is not None:
+            loaded.append("menu")
+        if self._interest_service is not None:
+            loaded.append("interest")
 
         return loaded
 

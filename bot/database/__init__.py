@@ -8,6 +8,11 @@ from bot.database.models import (
     VIPSubscriber,
     FreeChannelRequest
 )
+from bot.database.models_menu import (
+    MenuItem,
+    MenuConfig,
+    UserInterest
+)
 from bot.database.engine import (
     init_db,
     close_db,
@@ -23,6 +28,11 @@ __all__ = [
     "InvitationToken",
     "VIPSubscriber",
     "FreeChannelRequest",
+
+    # Menu Models
+    "MenuItem",
+    "MenuConfig",
+    "UserInterest",
 
     # Engine & Sessions
     "init_db",
