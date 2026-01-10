@@ -220,6 +220,73 @@ async def callback_set_info(callback: CallbackQuery, session: AsyncSession):
     await callback.answer()
 
 
+@user_router.callback_query(F.data.startswith("customized_info:"))
+async def callback_customized_info(callback: CallbackQuery, session: AsyncSession):
+    """
+    Muestra información detallada de contenido personalizado antes de expresar interés.
+
+    Pantalla intermedia que presenta el servicio personalizado con:
+    - Descripción del servicio
+    - Botón "Me interesa"
+    - Botón "Regresar"
+
+    Formato del callback_data: customized_info:service_key
+    Ejemplo: customized_info:consulta_general
+
+    Args:
+        callback: CallbackQuery del usuario
+        session: Sesión de BD (inyectada por middleware)
+    """
+    # Parsear: customized_info:consulta_general
+    parts = callback.data.split(":", 1)
+    if len(parts) < 2:
+        logger.warning(f"⚠️ Formato inválido de customized_info: {callback.data}")
+        await callback.answer("Error: formato inválido", show_alert=True)
+        return
+
+    service_key = parts[1]
+
+    logger.info(f"✨ Usuario {callback.from_user.id} viendo info de personalizado: {service_key}")
+
+    # Catálogo de información de servicios personalizados
+    customized_info = {
+        "consulta_general": {
+            "title": "✨ Consulta General",
+            "description": (
+                "<b>Servicio Personalizado General</b>\n\n"
+                "Un espacio dedicado para explorar sus deseos más profundos.\n\n"
+                "Este servicio incluye:\n\n"
+                "• Sesión personalizada 1 a 1\n"
+                "• Asesoría completa según sus necesidades\n"
+                "• Confidencialidad absoluta\n"
+                "• Atención exclusiva y detallada\n\n"
+                "<i>Una experiencia diseñada especialmente para usted.</i>"
+            )
+        }
+    }
+
+    # Obtener información del servicio
+    info = customized_info.get(service_key)
+
+    if not info:
+        logger.warning(f"⚠️ Servicio personalizado no encontrado: {service_key}")
+        await callback.answer("Servicio no encontrado", show_alert=True)
+        return
+
+    # Keyboard con "Me interesa" y "Regresar"
+    keyboard = create_inline_keyboard([
+        [{"text": "💝 Me Interesa", "callback_data": f"interest:personalizado:{service_key}"}],
+        [{"text": "🔙 Regresar", "callback_data": "submenu:free_content"}]
+    ])
+
+    await callback.message.edit_text(
+        info["description"],
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
 @user_router.callback_query(F.data.startswith("interest:"))
 async def callback_interest(callback: CallbackQuery, session: AsyncSession):
     """

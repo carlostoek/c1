@@ -134,7 +134,7 @@ async def seed_free_menu(container: ServiceContainer):
             "button_text": "Personalizados",
             "button_emoji": "✨",
             "action_type": "callback",
-            "action_content": "interest:personalizado:consulta_general",
+            "action_content": "customized_info:consulta_general",
             "target_role": "free",
             "parent_key": "free_content",
             "display_order": 2,
