@@ -91,7 +91,7 @@ class MenuItem(Base):
         "MenuItem",
         backref="parent",
         remote_side=[item_key],
-        cascade="all, delete-orphan"
+        cascade="all"  # delete-orphan no es válido para many-to-one
     )
 
     # Índices compuestos
