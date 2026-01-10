@@ -118,6 +118,55 @@ async def callback_admin_menu_list(callback: CallbackQuery, session: AsyncSessio
             [{"text": "🔙 Volver", "callback_data": "admin:menus"}]
         ])
 
+        # Agregar botones de acción para cada item
+        if items:
+            action_rows = []
+            for item in items:
+                action_rows.append([
+                    {
+                        "text": "✏️ Editar",
+                        "callback_data": f"admin:menu_edit:{item.item_key}"
+                    },
+                    {
+                        "text": "🔄" if item.is_active else "🔛",
+                        "callback_data": f"admin:menu_toggle:{item.item_key}"
+                    },
+                    {
+                        "text": "🗑️ Eliminar",
+                        "callback_data": f"admin:menu_delete:{item.item_key}"
+                    }
+                ])
+
+            # Agregar fila con acción rápida para cada item
+            # Para simplificar, mostramos los botones de acción después de la lista
+            text += "\n\n<b>Acciones rápidas:</b>\n<i>(Usa los botones de abajo)</i>"
+
+            # Keyboard con botones de acción para el primer item (por ahora)
+            # En una versión completa podríamos tener paginación
+            if items:
+                first_item = items[0]
+                action_text = "✏️ Editar" if first_item.is_active else "🔄 Activar"
+                keyboard = create_inline_keyboard([
+                    [
+                        {
+                            "text": f"{action_text} {first_item.button_text}",
+                            "callback_data": f"admin:menu_edit:{first_item.item_key}"
+                        },
+                        {
+                            "text": "🔄" if first_item.is_active else "🔛",
+                            "callback_data": f"admin:menu_toggle:{first_item.item_key}"
+                        },
+                        {
+                            "text": "🗑️",
+                            "callback_data": f"admin:menu_delete:{first_item.item_key}"
+                        }
+                    ],
+                    [
+                        {"text": "📝 Ver Todos los Items", "callback_data": f"admin:menu_details:{role}"},
+                        {"text": "🔙 Volver", "callback_data": "admin:menus"}
+                    ]
+                ])
+
         await callback.message.edit_text(
             text,
             reply_markup=keyboard,
@@ -253,4 +302,156 @@ async def callback_admin_menu_create(callback: CallbackQuery):
         reply_markup=keyboard,
         parse_mode="HTML"
     )
+    await callback.answer()
+
+
+# ========================================
+# ACCIONES RÁPIDAS
+# ========================================
+
+@admin_router.callback_query(F.data.startswith("admin:menu_toggle:"))
+async def toggle_menu_item(callback: CallbackQuery, session: AsyncSession):
+    """
+    Activa o desactiva un item de menú.
+
+    Callback format: admin:menu_toggle:item_key
+
+    Cambia el estado is_active del item.
+    """
+    item_key = callback.data.split(":")[-1]
+
+    logger.info(f"🔄 Admin {callback.from_user.id} toggling item: {item_key}")
+
+    container = ServiceContainer(session, callback.bot)
+
+    # Obtener item actual
+    item = await container.menu.get_menu_item_by_key(item_key)
+
+    if not item:
+        await callback.answer("❌ Item no encontrado", show_alert=True)
+        return
+
+    # Toggle is_active
+    new_status = not item.is_active
+    item.is_active = new_status
+
+    await session.commit()
+    await session.refresh(item)
+
+    logger.info(f"✅ Item {item_key} ahora está {'activo' if new_status else 'inactivo'}")
+
+    # Mensaje de Lucien
+    lucien = LucienVoiceService()
+    if new_status:
+        text = await lucien.get_wizard_message("menu_activated")
+    else:
+        text = await lucien.get_wizard_message("menu_deactivated")
+
+    keyboard = create_inline_keyboard([
+        [{"text": "🔙 Volver", "callback_data": f"admin:menu_list:{item.target_role}"}]
+    ])
+
+    try:
+        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    except Exception:
+        # Si no se puede editar, enviar nuevo mensaje
+        await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+
+    await callback.answer()
+
+
+@admin_router.callback_query(F.data.startswith("admin:menu_delete:"))
+async def delete_menu_item(callback: CallbackQuery, session: AsyncSession):
+    """
+    Elimina un item de menú (soft delete).
+
+    Callback format: admin:menu_delete:item_key
+
+    Marca is_active = False (no elimina físicamente).
+    """
+    item_key = callback.data.split(":")[-1]
+
+    logger.info(f"🗑️ Admin {callback.from_user.id} eliminando item: {item_key}")
+
+    container = ServiceContainer(session, callback.bot)
+
+    # Obtener item actual
+    item = await container.menu.get_menu_item_by_key(item_key)
+
+    if not item:
+        await callback.answer("❌ Item no encontrado", show_alert=True)
+        return
+
+    # Soft delete (marcar como inactivo)
+    item.is_active = False
+
+    await session.commit()
+
+    logger.info(f"✅ Item {item_key} eliminado (soft delete)")
+
+    # Mensaje de Lucien
+    lucien = LucienVoiceService()
+    text = await lucien.get_wizard_message("menu_deleted")
+
+    keyboard = create_inline_keyboard([
+        [{"text": "🔙 Volver", "callback_data": f"admin:menu_list:{item.target_role}"}]
+    ])
+
+    try:
+        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+
+    await callback.answer()
+
+
+@admin_router.callback_query(F.data.startswith("admin:menu_edit:"))
+async def edit_menu_item(callback: CallbackQuery, session: AsyncSession):
+    """
+    Edita un item de menú existente.
+
+    Callback format: admin:menu_edit:item_key
+
+    NOTA: Por limitaciones de tiempo, esta es una implementación básica.
+    Una versión completa reutilizaría el wizard con datos pre-cargados.
+    """
+    item_key = callback.data.split(":")[-1]
+
+    logger.info(f"✏️ Admin {callback.from_user.id} editando item: {item_key}")
+
+    container = ServiceContainer(session, callback.bot)
+
+    # Obtener item actual
+    item = await container.menu.get_menu_item_by_key(item_key)
+
+    if not item:
+        await callback.answer("❌ Item no encontrado", show_alert=True)
+        return
+
+    # Por ahora, mostrar mensaje con info básica
+    # En una versión completa, reutilizaríamos el wizard
+    text = (
+        f"📝 <b>Editar Item: {item.button_text}</b>\n\n"
+        f"<b>Item Key:</b> <code>{item.item_key}</code>\n"
+        f"<b>Texto actual:</b> {item.button_text}\n"
+        f"<b>Emoji actual:</b> {item.button_emoji or '(sin emoji)'}\n"
+        f"<b>Acción actual:</b> {item.action_type} → <code>{item.action_content}</code>\n"
+        f"<b>Rol actual:</b> {item.target_role}\n\n"
+        "<i>⚠️ La edición completa via wizard está pendiente de implementación.</i>\n\n"
+        "<b>Opciones disponibles:</b>\n"
+        "• Puedes eliminar y recrear el item con el wizard\n"
+        "• O usar los botones de acción rápida (toggle, delete)"
+    )
+
+    keyboard = create_inline_keyboard([
+        [{"text": "🔄 Toggle Activo/Inactivo", "callback_data": f"admin:menu_toggle:{item_key}"}],
+        [{"text": "🗑️ Eliminar", "callback_data": f"admin:menu_delete:{item_key}"}],
+        [{"text": "🔙 Volver", "callback_data": f"admin:menu_list:{item.target_role}"}]
+    ])
+
+    try:
+        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+
     await callback.answer()
