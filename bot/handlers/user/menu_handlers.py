@@ -7,6 +7,7 @@ Maneja:
 - Registro de interés en productos comerciales
 """
 import logging
+from datetime import datetime
 
 from aiogram import F
 from aiogram.types import CallbackQuery
@@ -14,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.handlers.user.start import user_router
 from bot.services.lucien_voice import LucienVoiceService
+from bot.services.container import ServiceContainer
 from bot.utils.keyboards import create_inline_keyboard
+from config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -117,3 +120,152 @@ async def callback_submenu(callback: CallbackQuery, session: AsyncSession):
         parse_mode="HTML"
     )
     await callback.answer()
+
+
+@user_router.callback_query(F.data.startswith("interest:"))
+async def callback_interest(callback: CallbackQuery, session: AsyncSession):
+    """
+    Usuario expresa interés en un producto comercial.
+
+    Registra el interés en BD y notifica a admins para seguimiento.
+
+    Formato del callback_data: interest:product_type:product_key
+    Ejemplo: interest:set:encanto_inicial
+
+    Args:
+        callback: CallbackQuery del usuario
+        session: Sesión de BD (inyectada por middleware)
+    """
+    user_id = callback.from_user.id
+
+    # Parsear: interest:set:encanto_inicial
+    parts = callback.data.split(":", 2)
+    if len(parts) < 3:
+        logger.warning(f"⚠️ Formato inválido de interest: {callback.data}")
+        await callback.answer("Error: formato inválido", show_alert=True)
+        return
+
+    product_type = parts[1]
+    product_key = parts[2]
+
+    logger.info(
+        f"💝 Usuario {user_id} expresó interés en: "
+        f"{product_type}:{product_key}"
+    )
+
+    container = ServiceContainer(session, callback.bot)
+
+    try:
+        # Registrar interés en BD
+        interest = await container.interest.register_interest(
+            user_id=user_id,
+            product_type=product_type,
+            product_key=product_key
+        )
+
+        # Commit para persistir antes de notificar
+        await session.commit()
+        await session.refresh(interest)
+
+        # Notificar a admins
+        await _notify_admin_interest(
+            bot=callback.bot,
+            interest=interest,
+            user=callback.from_user
+        )
+
+        # Responder al usuario con mensaje de Diana
+        message_text = (
+            "💋 <b>¡Gracias por tu interés!</b>\n\n"
+            f"<i>He recibido tu solicitud sobre <b>{product_key}</b>.</i>\n\n"
+            "Me pondré en contacto contigo lo antes posible "
+            "para brindarte todos los detalles.\n\n"
+            "<i>— Diana</i>"
+        )
+
+        keyboard = create_inline_keyboard([
+            [{"text": "🔙 Volver al Menú", "callback_data": "profile:back"}]
+        ])
+
+        await callback.message.edit_text(
+            message_text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await callback.answer("✅ Interés registrado")
+
+    except Exception as e:
+        logger.error(f"❌ Error registrando interés: {e}", exc_info=True)
+        await callback.answer(
+            "⚠️ Error al registrar interés. Intente nuevamente.",
+            show_alert=True
+        )
+
+
+async def _notify_admin_interest(bot, interest, user):
+    """
+    Notifica a todos los admins sobre un nuevo interés de usuario.
+
+    Envía mensaje con información del usuario y botones de acción rápida:
+    - Responder (contacto directo)
+    - Marcar como contactado
+    - Bloquear usuario
+    - Expulsar del bot
+
+    Args:
+        bot: Instancia del bot de Telegram
+        interest: UserInterest registrado
+        user: Usuario de Telegram (from_user)
+    """
+    # Formatear fecha en formato legible
+    created_at_str = interest.created_at.strftime("%d/%m/%Y %H:%M")
+
+    # Construir mensaje de notificación
+    text = (
+        f"🔔 <b>Nuevo Interés Registrado</b>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"👤 <b>Usuario:</b> {user.first_name}"
+    )
+
+    if user.last_name:
+        text += f" {user.last_name}"
+
+    if user.username:
+        text += f"\n📱 <b>Username:</b> @{user.username}"
+
+    text += (
+        f"\n🆔 <b>ID:</b> <code>{user.id}</code>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📦 <b>Producto:</b> {interest.product_type}\n"
+        f"🔑 <b>Clave:</b> {interest.product_key}\n"
+        f"🕐 <b>Fecha:</b> {created_at_str}\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    )
+
+    # Keyboard con acciones rápidas
+    keyboard = create_inline_keyboard([
+        [
+            {"text": "💬 Responder", "callback_data": f"admin:contact:{interest.id}"},
+            {"text": "✅ Contactado", "callback_data": f"admin:contacted:{interest.id}"}
+        ],
+        [
+            {"text": "🚫 Bloquear", "callback_data": f"admin:block:{user.id}"},
+            {"text": "👋 Expulsar", "callback_data": f"admin:kick:{user.id}"}
+        ]
+    ])
+
+    # Enviar notificación a todos los admins
+    for admin_id in Config.ADMIN_USER_IDS:
+        try:
+            await bot.send_message(
+                chat_id=admin_id,
+                text=text,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+            logger.info(f"📤 Notificación de interés enviada a admin {admin_id}")
+        except Exception as e:
+            logger.error(
+                f"❌ Error enviando notificación a admin {admin_id}: {e}",
+                exc_info=True
+            )
