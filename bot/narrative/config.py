@@ -22,32 +22,40 @@ class NarrativeConfig:
     # ========================================
 
     # Cooldown entre decisiones consecutivas
-    DECISION_COOLDOWN_SECONDS: int = 30
+    # Evita que usuarios avancen demasiado rápido en la narrativa
+    DECISION_COOLDOWN_SECONDS: int = 120  # 2 minutos (antes: 30s)
 
     # Cooldown para fragmentos marcados como "intensos"
+    # Permite asimilar momentos clave de la historia
     INTENSE_FRAGMENT_COOLDOWN_SECONDS: int = 300  # 5 minutos
 
     # Cooldown después de completar un capítulo
-    CHAPTER_COMPLETION_COOLDOWN_SECONDS: int = 600  # 10 minutos
+    # Crea anticipación para el siguiente capítulo
+    CHAPTER_COMPLETION_COOLDOWN_SECONDS: int = 900  # 15 minutos (antes: 10 min)
 
     # Cooldown para reintentar un desafío fallado
-    CHALLENGE_RETRY_COOLDOWN_SECONDS: int = 60  # 1 minuto
+    # Evita spam en desafíos
+    CHALLENGE_RETRY_COOLDOWN_SECONDS: int = 120  # 2 minutos (antes: 1 min)
 
     # Cooldown mínimo entre visitas al mismo fragmento
-    FRAGMENT_REVISIT_COOLDOWN_SECONDS: int = 0  # Desactivado por defecto
+    # Desactivado por defecto (permite revisitar libremente)
+    FRAGMENT_REVISIT_COOLDOWN_SECONDS: int = 0
 
     # ========================================
     # LÍMITES DIARIOS
     # ========================================
 
     # Máximo de fragmentos que se pueden ver por día
-    DAILY_FRAGMENT_LIMIT: int = 50  # 0 = sin límite
+    # Controla el ritmo de consumo de contenido
+    DAILY_FRAGMENT_LIMIT: int = 30  # ~1 hora de lectura (antes: 50)
 
     # Máximo de decisiones por día
-    DAILY_DECISION_LIMIT: int = 30  # 0 = sin límite
+    # Evita saturación y mantiene engagement a largo plazo
+    DAILY_DECISION_LIMIT: int = 20  # ~40 minutos de juego (antes: 30)
 
     # Máximo de intentos de desafíos por día
-    DAILY_CHALLENGE_ATTEMPTS: int = 10  # 0 = sin límite
+    # Previene frustración por intentos excesivos
+    DAILY_CHALLENGE_ATTEMPTS: int = 8  # Suficiente para varios desafíos (antes: 10)
 
     # ========================================
     # DESAFÍOS

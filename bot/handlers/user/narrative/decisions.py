@@ -34,14 +34,16 @@ async def callback_process_decision(
     Procesa decisión del usuario.
 
     Flujo:
-    1. Obtener decisión de BD
-    2. Verificar requisitos (besitos, condiciones)
-    3. Cobrar besitos si aplica
-    4. Registrar decisión en historial
-    5. Incrementar contador de decisiones
-    6. Actualizar arquetipo (tiempo de respuesta)
-    7. Otorgar besitos/recompensas si aplica
-    8. Avanzar al siguiente fragmento
+    1. Verificar cooldown de decisiones
+    2. Obtener decisión de BD
+    3. Verificar requisitos (besitos, condiciones)
+    4. Cobrar besitos si aplica
+    5. Registrar decisión en historial
+    6. Incrementar contador de decisiones
+    7. Actualizar arquetipo (tiempo de respuesta)
+    8. Otorgar besitos/recompensas si aplica
+    9. Avanzar al siguiente fragmento
+    10. Establecer cooldown para próxima decisión
 
     Args:
         callback: Callback del botón de decisión
@@ -60,6 +62,39 @@ async def callback_process_decision(
 
     narrative = NarrativeContainer(session, callback.bot)
     gamification = GamificationContainer(session, callback.bot)
+
+    # Verificar cooldown de decisiones
+    from bot.narrative.database.enums import CooldownType
+    from bot.narrative.config import NarrativeConfig
+
+    is_active, expires_at, cooldown_msg = await narrative.cooldown.check_cooldown(
+        user_id=user_id,
+        cooldown_type=CooldownType.DECISION,
+        target_key="global_decision"
+    )
+
+    if is_active:
+        remaining = await narrative.cooldown.get_remaining_time(
+            user_id, CooldownType.DECISION, "global_decision"
+        )
+        keyboard = create_inline_keyboard([[
+            {"text": "🔙 Volver", "callback_data": "narr:start"}
+        ]])
+
+        minutes = remaining // 60
+        seconds = remaining % 60
+        time_str = f"{minutes}m {seconds}s" if minutes > 0 else f"{seconds}s"
+
+        logger.info(f"⏳ Usuario {user_id} bloqueado por cooldown (quedan {time_str})")
+
+        await callback.message.edit_text(
+            f"⏳ <b>Espera un momento</b>\n\n"
+            f"{cooldown_msg}\n\n"
+            f"⏱️ Tiempo restante: <b>{time_str}</b>",
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+        return
 
     # Obtener decisión de BD
     decision = await narrative.decision.get_decision_by_id(decision_id)
@@ -135,12 +170,22 @@ async def callback_process_decision(
         next_fragment.chapter_id
     )
 
-    # Formatear y mostrar siguiente fragmento
-    await _show_fragment(callback.message, narrative, user_id, next_fragment)
+    # Establecer cooldown para próxima decisión
+    await narrative.cooldown.set_cooldown(
+        user_id=user_id,
+        cooldown_type=CooldownType.DECISION,
+        target_key="global_decision",
+        duration_seconds=NarrativeConfig.DECISION_COOLDOWN_SECONDS,
+        message=NarrativeConfig.get_cooldown_message("decision")
+    )
 
     logger.info(
-        f"✅ Usuario {user_id} avanzó a fragmento: {next_fragment.fragment_key}"
+        f"✅ Usuario {user_id} avanzó a fragmento: {next_fragment.fragment_key} "
+        f"(cooldown establecido: {NarrativeConfig.DECISION_COOLDOWN_SECONDS}s)"
     )
+
+    # Formatear y mostrar siguiente fragmento
+    await _show_fragment(callback.message, narrative, user_id, next_fragment)
 
 
 async def _show_fragment(message, narrative: NarrativeContainer, user_id: int, fragment):

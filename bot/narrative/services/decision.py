@@ -178,6 +178,13 @@ class DecisionService:
             chapter_id=next_fragment.chapter_id
         )
 
+        # Establecer cooldown para fragmentos intensos
+        await self._apply_fragment_cooldown(user_id, next_fragment)
+
+        # Verificar si completó capítulo y aplicar cooldown
+        if next_fragment.is_ending:
+            await self._apply_chapter_completion_cooldown(user_id, next_fragment.chapter_id)
+
         logger.info(
             f"✅ Usuario {user_id} procesó decisión {decision_id} "
             f"→ {next_fragment.fragment_key}"
@@ -502,3 +509,75 @@ class DecisionService:
         )
 
         return decisions
+
+    # ========================================
+    # MÉTODOS DE COOLDOWN
+    # ========================================
+
+    async def _apply_fragment_cooldown(
+        self,
+        user_id: int,
+        fragment: NarrativeFragment
+    ) -> None:
+        """
+        Aplica cooldown si el fragmento es intenso.
+
+        Args:
+            user_id: ID del usuario
+            fragment: Fragmento al que avanzó
+        """
+        from bot.narrative.services.cooldown import CooldownService
+        from bot.narrative.database.enums import CooldownType
+        from bot.narrative.config import NarrativeConfig
+
+        # Verificar si el fragmento es intenso (basado en visual_hint)
+        is_intense = (
+            fragment.visual_hint
+            and any(
+                keyword in fragment.visual_hint.lower()
+                for keyword in ["intense", "climax", "revelation", "critical"]
+            )
+        )
+
+        if is_intense:
+            cooldown_service = CooldownService(self._session)
+            await cooldown_service.set_cooldown(
+                user_id=user_id,
+                cooldown_type=CooldownType.FRAGMENT,
+                target_key=fragment.fragment_key,
+                duration_seconds=NarrativeConfig.INTENSE_FRAGMENT_COOLDOWN_SECONDS,
+                message=NarrativeConfig.get_cooldown_message("fragment")
+            )
+            logger.info(
+                f"⏳ Cooldown de fragmento intenso aplicado: "
+                f"{NarrativeConfig.INTENSE_FRAGMENT_COOLDOWN_SECONDS}s para {fragment.fragment_key}"
+            )
+
+    async def _apply_chapter_completion_cooldown(
+        self,
+        user_id: int,
+        chapter_id: int
+    ) -> None:
+        """
+        Aplica cooldown al completar un capítulo.
+
+        Args:
+            user_id: ID del usuario
+            chapter_id: ID del capítulo completado
+        """
+        from bot.narrative.services.cooldown import CooldownService
+        from bot.narrative.database.enums import CooldownType
+        from bot.narrative.config import NarrativeConfig
+
+        cooldown_service = CooldownService(self._session)
+        await cooldown_service.set_cooldown(
+            user_id=user_id,
+            cooldown_type=CooldownType.CHAPTER,
+            target_key=f"chapter_{chapter_id}",
+            duration_seconds=NarrativeConfig.CHAPTER_COMPLETION_COOLDOWN_SECONDS,
+            message=NarrativeConfig.get_cooldown_message("chapter")
+        )
+        logger.info(
+            f"🎉 Cooldown de completado de capítulo aplicado: "
+            f"{NarrativeConfig.CHAPTER_COMPLETION_COOLDOWN_SECONDS}s para capítulo {chapter_id}"
+        )
