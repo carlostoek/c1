@@ -216,6 +216,55 @@ ERROR_MESSAGES = {
 }
 
 # ========================================
+# TEASER MESSAGES
+# ========================================
+
+TEASER_MESSAGES = {
+    "narrative_blocked": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>Ah... desea acceder a la historia de Diana...\n\n"
+        "Una narrativa donde sus decisiones moldean el destino,\n"
+        "donde capítulos inmersivos con fotografías exclusivas esperan,\n"
+        "y donde las ramas ocultas solo algunos descubren.\n\n"
+        "─────────────────────\n\n"
+        "<b>🔒 Esta área está protegida.</b>\n\n"
+        "Diana no permite que cualquiera acceda a su narrativa íntima\n"
+        "sin antes demostrar que comprende las reglas del reino.\n\n"
+        "El tutorial le enseñará las mecánicas del sistema y le otorgará\n"
+        "besitos de bienvenida para comenzar su viaje.\n\n"
+        "<i>Diana le espera en el primer capítulo...</i>"
+    ),
+    "profile_blocked": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>Interesante... desea ver su expediente personal...\n\n"
+        "Un lugar donde descubrirá su progreso en la narrativa,\n"
+        "los logros desbloqueados mediante su dedicación,\n"
+        "los besitos acumulados con su participación,\n"
+        "y las estadísticas que revelan su verdadera naturaleza.\n\n"
+        "─────────────────────\n\n"
+        "<b>🔒 Esta área está protegida.</b>\n\n"
+        "Diana guarda estos secretos para quienes demuestran compromiso\n"
+        "completando el ritual de introducción al reino.\n\n"
+        "Solo quienes comprenden las reglas pueden ver su reflejo\n"
+        "en el espejo del progreso.</i>"
+    ),
+    "games_blocked": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>¿Diversión, dice...?\n\n"
+        "Diana ha preparado entretenimientos que cultivan devoción:\n"
+        "la Ruleta de Besitos que prueba su suerte,\n"
+        "la Memoria Seductora que desafía su mente,\n"
+        "el Dado del Deseo que revela premios inesperados,\n"
+        "y Piedra, Papel, Tijera para el círculo exclusivo.\n\n"
+        "─────────────────────\n\n"
+        "<b>🔒 Los juegos están protegidos.</b>\n\n"
+        "Diana no permite que cualquiera acceda a estas distracciones\n"
+        "sin antes demostrar comprensión de las reglas del reino.\n\n"
+        "Complete el tutorial y podrá comenzar a jugar y ganar...</i>"
+    ),
+}
+
+# ========================================
 # CONFIRMATION MESSAGES
 # ========================================
 

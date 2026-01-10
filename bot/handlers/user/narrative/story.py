@@ -54,27 +54,13 @@ async def callback_start_story(
 
     # Verificar si completó onboarding (obligatorio para acceder a la historia)
     if not await narrative.onboarding.has_completed_onboarding(user_id):
-        logger.info(f"🚫 Usuario {user_id} no ha completado onboarding, mostrando teaser")
+        logger.info(f"🚫 Usuario {user_id} no ha completado onboarding, mostrando teaser de Lucien")
         from bot.services.lucien_voice import LucienVoiceService
 
         lucien = LucienVoiceService()
 
-        text = (
-            "📜 <b>Historia Interactiva</b>\n\n"
-            "🌙 <i>Sumérgete en un narrativa donde tus decisiones moldean el destino</i>\n\n"
-            "<b>✨ Lo que encontrarás:</b>\n"
-            "• 📖 Capítulos inmersivos con fotografías exclusivas\n"
-            "• 🔀 Decisiones que afectan el desenlace\n"
-            "• 💎 Contenido VIP para suscriptores\n"
-            "• 🏆 Logros y ramas ocultas\n"
-            "• 💋 Besitos como recompensa\n\n"
-            "─────────────────────\n\n"
-            "🔒 <b>La historia está protegida</b>\n\n"
-            "Esta experiencia requiere que completes el tutorial de introducción.\n\n"
-            "El tutorial te enseñará las mecánicas del sistema y te "
-            "otorgará <b>besitos de bienvenida</b> para comenzar tu viaje.\n\n"
-            "<i>Diana te espera en el primer capítulo...</i>"
-        )
+        # Usar template de Lucien para teaser de narrativa bloqueada
+        text = await lucien.get_teaser_message("narrative_blocked")
 
         keyboard = create_inline_keyboard([
             [{"text": "📖 Iniciar Tutorial", "callback_data": "onboard:start"}],

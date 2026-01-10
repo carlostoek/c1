@@ -549,3 +549,26 @@ class LucienVoiceService:
                 ],
             },
         }
+
+    async def get_teaser_message(
+        self,
+        teaser_type: str,
+    ) -> str:
+        """
+        Obtiene un mensaje teaser para contenido bloqueado por onboarding.
+
+        Args:
+            teaser_type: Tipo de teaser ("narrative_blocked", "profile_blocked", "games_blocked")
+
+        Returns:
+            str: Mensaje teaser formateado con la voz de Lucien
+        """
+        message_template = templates.TEASER_MESSAGES.get(teaser_type)
+
+        if not message_template:
+            logger.warning(f"Tipo de teaser no encontrado: {teaser_type}")
+            # Fallback a onboarding_required genérico
+            return templates.ERROR_MESSAGES.get("onboarding_required",
+                "🎩 <b>Lucien:</b>\n<i>Complete el tutorial para acceder.</i>")
+
+        return message_template
