@@ -86,7 +86,7 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
             {"text": "🏪 Gestión de Tienda", "callback_data": "admin:shop"},
             {"text": "🎬 CMS Journey", "callback_data": "admin:content"}
         ],
-        [{"text": "📋 Configurar Menús", "callback_data": "admin:menu_config"}],
+        [{"text": "📋 Configurar Menús", "callback_data": "admin:menus"}],
         [
             {"text": "📊 Estadísticas", "callback_data": "admin:stats"},
             {"text": "⚙️ Configuración", "callback_data": "admin:config"}
