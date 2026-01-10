@@ -223,3 +223,87 @@ def gamification_menu_keyboard() -> InlineKeyboardMarkup:
             {"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}
         ]
     ])
+
+
+# ========================================
+# Keyboards para Wizard de Menús
+# ========================================
+
+def action_type_selection_keyboard() -> InlineKeyboardMarkup:
+    """
+    Keyboard para seleccionar tipo de acción en wizard de menús.
+
+    Opciones:
+    - Callback (ejecuta callback_data)
+    - URL (abre enlace externo)
+    - Submenú (navega a submenú)
+    - Info (muestra mensaje informativo)
+    - Blocked (opción bloqueada)
+    - Cancelar
+
+    Returns:
+        InlineKeyboardMarkup con opciones
+    """
+    return create_inline_keyboard([
+        [{"text": "🔘 Callback", "callback_data": "wizard:action:callback"}],
+        [{"text": "🔗 URL", "callback_data": "wizard:action:url"}],
+        [{"text": "📁 Submenú", "callback_data": "wizard:action:submenu"}],
+        [{"text": "ℹ️ Info", "callback_data": "wizard:action:info"}],
+        [{"text": "🚫 Blocked", "callback_data": "wizard:action:blocked"}],
+        [{"text": "❌ Cancelar", "callback_data": "wizard:cancel"}]
+    ])
+
+
+def target_role_selection_keyboard() -> InlineKeyboardMarkup:
+    """
+    Keyboard para seleccionar rol objetivo en wizard de menús.
+
+    Opciones:
+    - FREE (usuarios gratuitos)
+    - VIP (suscriptores)
+    - Admin (administradores)
+    - Todos (todos los usuarios)
+    - Atrás
+
+    Returns:
+        InlineKeyboardMarkup con opciones
+    """
+    return create_inline_keyboard([
+        [{"text": "👥 FREE", "callback_data": "wizard:role:free"}],
+        [{"text": "⭐ VIP", "callback_data": "wizard:role:vip"}],
+        [{"text": "👑 Admin", "callback_data": "wizard:role:admin"}],
+        [{"text": "🌐 Todos", "callback_data": "wizard:role:all"}],
+        [{"text": "⬅️ Atrás", "callback_data": "wizard:back"}]
+    ])
+
+
+def boolean_selection_keyboard() -> InlineKeyboardMarkup:
+    """
+    Keyboard para selección Sí/No en wizard de menús.
+
+    Usado para requires_onboarding y otras opciones binarias.
+
+    Returns:
+        InlineKeyboardMarkup con opciones
+    """
+    return create_inline_keyboard([
+        [
+            {"text": "✅ Sí", "callback_data": "wizard:bool:true"},
+            {"text": "❌ No", "callback_data": "wizard:bool:false"}
+        ],
+        [{"text": "⬅️ Atrás", "callback_data": "wizard:back"}]
+    ])
+
+
+def wizard_cancel_keyboard() -> InlineKeyboardMarkup:
+    """
+    Keyboard con solo botón Cancelar para wizard.
+
+    Usado en pasos del wizard donde solo se puede cancelar.
+
+    Returns:
+        InlineKeyboardMarkup con botón cancelar
+    """
+    return create_inline_keyboard([
+        [{"text": "❌ Cancelar Wizard", "callback_data": "wizard:cancel"}]
+    ])

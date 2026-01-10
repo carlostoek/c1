@@ -799,3 +799,97 @@ CONTENT_SET_MESSAGES = {
         "Diana revisará el resultado con usted.</i>"
     ),
 }
+
+
+# ========================================
+# WIZARD MESSAGES (Menú Management)
+# ========================================
+
+WIZARD_MESSAGES = {
+    "menu_welcome": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>Ah... desea modificar la estructura del reino...\n\n"
+        "Diana confía en su criterio para organizar lo que nuestros visitantes ven.\n\n"
+        "Comencemos con la configuración del nuevo elemento.\n\n"
+        "<b>Paso 1/10:</b> Ingrese el identificador único (item_key).\n\n"
+        "<i>Use nombres descriptivos como: 'mi_nuevo_item', 'vip_opcion', etc.</i>"
+    ),
+    "menu_success": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>Excelente... el nuevo elemento ha sido integrado al reino.\n\n"
+        "Diana tomará nota de este cambio.\n\n"
+        "Los visitantes comenzarán a verlo inmediatamente.</i>"
+    ),
+    "menu_updated": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>El elemento ha sido actualizado según sus instrucciones.\n\n"
+        "Diana aprueba esta modificación.\n\n"
+        "Los cambios son inmediatos para los visitantes.</i>"
+    ),
+    "menu_cancelled": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>Entendido... ha decidido no proseguir.\n\n"
+        "Quizás en otro momento el reino esté listo para este cambio.\n\n"
+        "No se han realizado modificaciones.</i>"
+    ),
+    "menu_deleted": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>El elemento ha sido retirado del reino...\n\n"
+        "Diana ha tomado nota de esta decisión.\n\n"
+        "Los visitantes ya no verán esta opción.</i>"
+    ),
+    "menu_activated": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>El elemento ha sido activado...\n\n"
+        "Los visitantes podrán verlo nuevamente.</i>"
+    ),
+    "menu_deactivated": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>El elemento ha sido desactivado temporalmente...\n\n"
+        "Nadie podrá verlo hasta que decida activarlo nuevamente.</i>"
+    ),
+    "menu_error": (
+        "🎩 <b>Lucien:</b>\n"
+        "<i>Algo inesperado ha ocurrido...\n\n"
+        "Permítame consultar los registros y solucionar este inconveniente.\n\n"
+        "Por favor, intente nuevamente.</i>"
+    ),
+    # Mensajes de paso específicos
+    "menu_step_button_text": (
+        "📝 <b>Paso 2/10: Texto del Botón</b>\n\n"
+        "Ingrese el texto que aparecerá en el botón.\n\n"
+        "<i>Ejemplo: 'Mi Nueva Opción'</i>"
+    ),
+    "menu_step_button_emoji": (
+        "📝 <b>Paso 3/10: Emoji del Botón (Opcional)</b>\n\n"
+        "Ingrese el emoji para el botón o envíe /skip para omitir.\n\n"
+        "<i>Ejemplo: '🚀' o /skip para no usar emoji</i>"
+    ),
+    "menu_step_action_content": (
+        "📝 <b>Paso 5/10: Contenido de la Acción</b>\n\n"
+        "Ingrese el contenido según el tipo seleccionado:\n\n"
+        "• Callback: <code>mi:callback:data</code>\n"
+        "• URL: <code>https://ejemplo.com</code>\n"
+        "• Submenú: <code>item_key_del_padre</code>\n"
+        "• Info: Mensaje informativo\n"
+        "• Blocked: Mensaje de bloqueo\n\n"
+        "<i>Use el formato apropiado.</i>"
+    ),
+    "menu_step_display_order": (
+        "📝 <b>Paso 8/10: Orden de Visualización</b>\n\n"
+        "Ingrese el número de orden (entero positivo).\n\n"
+        "<i>Ejemplo: 1 (primero), 2 (segundo), etc.</i>"
+    ),
+    "menu_step_row_number": (
+        "📝 <b>Paso 9/10: Número de Fila</b>\n\n"
+        "Ingrese el número de fila (entero positivo).\n\n"
+        "<i>Ejemplo: 1 (primera fila), 2 (segunda fila), etc.</i>"
+    ),
+    "menu_step_parent_key": (
+        "📝 <b>Paso 7/10: Elemento Padre (Opcional)</b>\n\n"
+        "Si este botón debe estar dentro de un submenú,\n"
+        "ingrese el item_key del padre.\n\n"
+        "Si es del menú principal, envíe /skip.\n\n"
+        "<i>Ejemplo: 'free_content' para estar dentro de Información de Contenido</i>"
+    ),
+}

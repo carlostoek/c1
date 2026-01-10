@@ -379,3 +379,77 @@ class ContentAdminStates(StatesGroup):
 
     # Editar: Descripción de content set
     waiting_content_set_description = State()  # Esperando nueva descripción
+
+
+class MenuWizardStates(StatesGroup):
+    """
+    Estados para wizard de gestión de menús dinámicos.
+
+    Wizard completo para crear/editar items de menú sin tocar código.
+    Reemplaza y amplía la funcionalidad de MenuConfigStates.
+
+    Flujo de Creación (10 pasos):
+    1. Ingresar item_key (único, indentificador)
+    2. Ingresar button_text (texto del botón)
+    3. Ingresar button_emoji (opcional, /skip para omitir)
+    4. Seleccionar action_type (callback/url/submenu/info/blocked)
+    5. Ingresar action_content (según tipo)
+    6. Seleccionar target_role (vip/free/all/admin)
+    7. Seleccionar parent_key (opcional, para submenús)
+    8. Ingresar display_order (número)
+    9. Ingresar row_number (número)
+    10. ¿Requiere onboarding? (Sí/No)
+    11. Confirmar → Guardar o Cancelar
+
+    Flujo de Edición:
+    - Reutiliza los mismos estados
+    - Pre-carga datos existentes
+    - Permite modificar campos seleccionados
+
+    FSM Data esperada:
+    - mode: 'create' o 'edit'
+    - editing_item_key: str (solo en modo edit)
+    - item_key: str
+    - button_text: str
+    - button_emoji: Optional[str]
+    - action_type: str
+    - action_content: str
+    - target_role: str
+    - parent_key: Optional[str]
+    - display_order: int
+    - row_number: int
+    - requires_onboarding: bool
+    """
+
+    # Paso 1: Item Key (identificador único)
+    entering_item_key = State()
+
+    # Paso 2: Texto del botón
+    entering_button_text = State()
+
+    # Paso 3: Emoji del botón (opcional)
+    entering_button_emoji = State()
+
+    # Paso 4: Tipo de acción (callback/url/submenu/info/blocked)
+    selecting_action_type = State()
+
+    # Paso 5: Contenido de la acción
+    entering_action_content = State()
+
+    # Paso 6: Rol objetivo (vip/free/all/admin)
+    selecting_target_role = State()
+
+    # Paso 7: Padre (parent_key para submenús)
+    selecting_parent_key = State()
+
+    # Paso 8: Orden de visualización
+    entering_display_order = State()
+
+    # Paso 9: Número de fila
+    entering_row_number = State()
+
+    # Paso 10: Requiere onboarding
+    entering_requires_onboarding = State()
+
+    # Paso 11: Confirmación final
+    confirming = State()

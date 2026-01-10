@@ -572,3 +572,30 @@ class LucienVoiceService:
                 "🎩 <b>Lucien:</b>\n<i>Complete el tutorial para acceder.</i>")
 
         return message_template
+
+    async def get_wizard_message(
+        self,
+        wizard_type: str,
+    ) -> str:
+        """
+        Obtiene un mensaje del wizard de menús con la voz de Lucien.
+
+        Args:
+            wizard_type: Tipo de mensaje (ver WIZARD_MESSAGES en templates)
+                "menu_welcome", "menu_success", "menu_cancelled", "menu_error",
+                "menu_step_button_text", "menu_step_button_emoji", etc.
+
+        Returns:
+            str: Mensaje formateado con la voz de Lucien
+        """
+        message_template = templates.WIZARD_MESSAGES.get(wizard_type)
+
+        if not message_template:
+            logger.warning(f"Tipo de mensaje wizard no encontrado: {wizard_type}")
+            # Fallback genérico
+            return (
+                "🎩 <b>Lucien:</b>\n"
+                "<i>Procedamos con la configuración...</i>"
+            )
+
+        return message_template
