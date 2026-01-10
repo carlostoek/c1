@@ -122,6 +122,104 @@ async def callback_submenu(callback: CallbackQuery, session: AsyncSession):
     await callback.answer()
 
 
+@user_router.callback_query(F.data.startswith("set_info:"))
+async def callback_set_info(callback: CallbackQuery, session: AsyncSession):
+    """
+    Muestra información detallada de un set antes de expresar interés.
+
+    Pantalla intermedia que presenta el set con:
+    - Descripción del set
+    - Botón "Me interesa"
+    - Botón "Regresar"
+
+    Formato del callback_data: set_info:set_key
+    Ejemplo: set_info:encanto_inicial
+
+    Args:
+        callback: CallbackQuery del usuario
+        session: Sesión de BD (inyectada por middleware)
+    """
+    # Parsear: set_info:encanto_inicial
+    parts = callback.data.split(":", 1)
+    if len(parts) < 2:
+        logger.warning(f"⚠️ Formato inválido de set_info: {callback.data}")
+        await callback.answer("Error: formato inválido", show_alert=True)
+        return
+
+    set_key = parts[1]
+
+    logger.info(f"ℹ️ Usuario {callback.from_user.id} viendo info de set: {set_key}")
+
+    # Catálogo de información de sets
+    sets_info = {
+        "encanto_inicial": {
+            "title": "🌸 Encanto Inicial",
+            "description": (
+                "<b>Set Encanto Inicial</b>\n\n"
+                "El comienzo de un viaje sensorial. Este set incluye:\n\n"
+                "• 10 fotografías exclusivas\n"
+                "• Temática: Elegancia y sutileza\n"
+                "• Ambiente: Íntimo y delicado\n\n"
+                "<i>Un primer acercamiento a la belleza sin filtros.</i>"
+            )
+        },
+        "sensualidad_revelada": {
+            "title": "💃 Sensualidad Revelada",
+            "description": (
+                "<b>Set Sensualidad Revelada</b>\n\n"
+                "Donde la sutileza da paso a la sugerencia. Este set incluye:\n\n"
+                "• 15 fotografías exclusivas\n"
+                "• Temática: Sensualidad y confianza\n"
+                "• Ambiente: Cálido y provocador\n\n"
+                "<i>La expresión auténtica de la feminidad.</i>"
+            )
+        },
+        "pasion_desbordante": {
+            "title": "🔥 Pasión Desbordante",
+            "description": (
+                "<b>Set Pasión Desbordante</b>\n\n"
+                "Intensidad sin reservas. Este set incluye:\n\n"
+                "• 20 fotografías exclusivas\n"
+                "• Temática: Pasión y deseo\n"
+                "• Ambiente: Ardiente e intenso\n\n"
+                "<i>Donde las inhibiciones se desvanecen.</i>"
+            )
+        },
+        "intimidad_explosiva": {
+            "title": "💥 Intimidad Explosiva",
+            "description": (
+                "<b>Set Intimidad Explosiva</b>\n\n"
+                "El nivel más profundo de conexión visual. Este set incluye:\n\n"
+                "• 25 fotografías exclusivas\n"
+                "• Temática: Intimidad total\n"
+                "• Ambiente: Sin límites\n\n"
+                "<i>La experiencia más completa y auténtica.</i>"
+            )
+        }
+    }
+
+    # Obtener información del set
+    set_info = sets_info.get(set_key)
+
+    if not set_info:
+        logger.warning(f"⚠️ Set no encontrado: {set_key}")
+        await callback.answer("Set no encontrado", show_alert=True)
+        return
+
+    # Keyboard con "Me interesa" y "Regresar"
+    keyboard = create_inline_keyboard([
+        [{"text": "💝 Me Interesa", "callback_data": f"interest:set:{set_key}"}],
+        [{"text": "🔙 Regresar", "callback_data": "submenu:free_sets"}]
+    ])
+
+    await callback.message.edit_text(
+        set_info["description"],
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
 @user_router.callback_query(F.data.startswith("interest:"))
 async def callback_interest(callback: CallbackQuery, session: AsyncSession):
     """

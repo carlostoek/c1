@@ -75,10 +75,8 @@ class MenuService:
             # Usuario sin rol específico, solo 'all'
             stmt = stmt.where(MenuItem.target_role == "all")
 
-        # Filtrar por onboarding si no lo completó
-        if not user_completed_onboarding:
-            # Excluir items que requieran onboarding
-            stmt = stmt.where(MenuItem.requires_onboarding == False)
+        # NO filtrar por onboarding - todas las opciones visibles
+        # La validación se hace cuando el usuario accede a la funcionalidad
 
         # Ordenar
         stmt = stmt.order_by(MenuItem.display_order, MenuItem.row_number)

@@ -60,43 +60,43 @@ async def seed_free_menu(container: ServiceContainer):
             "requires_onboarding": False
         },
 
-        # Mi Historia (bloqueado hasta onboarding)
+        # Mi Historia (acceso directo, validación al acceder)
         {
             "item_key": "free_historia",
             "button_text": "Mi Historia",
             "button_emoji": "📜",
-            "action_type": "blocked",
+            "action_type": "callback",
             "action_content": "narr:start",
             "target_role": "free",
             "display_order": 2,
             "row_number": 2,
-            "requires_onboarding": True
+            "requires_onboarding": False
         },
 
-        # Mi Perfil (bloqueado hasta onboarding)
+        # Mi Perfil (acceso directo, validación al acceder)
         {
             "item_key": "free_perfil",
             "button_text": "Mi Perfil",
             "button_emoji": "📊",
-            "action_type": "blocked",
+            "action_type": "callback",
             "action_content": "user:profile",
             "target_role": "free",
             "display_order": 3,
             "row_number": 3,
-            "requires_onboarding": True
+            "requires_onboarding": False
         },
 
-        # Juegos (bloqueado hasta onboarding)
+        # Juegos (acceso directo, validación al acceder)
         {
             "item_key": "free_juegos",
             "button_text": "Juegos",
             "button_emoji": "🎮",
-            "action_type": "blocked",
+            "action_type": "callback",
             "action_content": "games:main",
             "target_role": "free",
             "display_order": 4,
             "row_number": 4,
-            "requires_onboarding": True
+            "requires_onboarding": False
         },
 
         # ¡Hazte VIP!
@@ -144,13 +144,13 @@ async def seed_free_menu(container: ServiceContainer):
 
         # ===== SUBMENÚ: Sets =====
 
-        # Encanto Inicial
+        # Encanto Inicial (muestra info → "Me interesa")
         {
             "item_key": "set_encanto",
             "button_text": "Encanto Inicial",
             "button_emoji": "🌸",
             "action_type": "callback",
-            "action_content": "interest:set:encanto_inicial",
+            "action_content": "set_info:encanto_inicial",
             "target_role": "free",
             "parent_key": "free_sets",
             "display_order": 1,
@@ -158,13 +158,13 @@ async def seed_free_menu(container: ServiceContainer):
             "requires_onboarding": False
         },
 
-        # Sensualidad Revelada
+        # Sensualidad Revelada (muestra info → "Me interesa")
         {
             "item_key": "set_sensualidad",
             "button_text": "Sensualidad Revelada",
             "button_emoji": "💃",
             "action_type": "callback",
-            "action_content": "interest:set:sensualidad_revelada",
+            "action_content": "set_info:sensualidad_revelada",
             "target_role": "free",
             "parent_key": "free_sets",
             "display_order": 2,
@@ -172,13 +172,13 @@ async def seed_free_menu(container: ServiceContainer):
             "requires_onboarding": False
         },
 
-        # Pasión Desbordante
+        # Pasión Desbordante (muestra info → "Me interesa")
         {
             "item_key": "set_pasion",
             "button_text": "Pasión Desbordante",
             "button_emoji": "🔥",
             "action_type": "callback",
-            "action_content": "interest:set:pasion_desbordante",
+            "action_content": "set_info:pasion_desbordante",
             "target_role": "free",
             "parent_key": "free_sets",
             "display_order": 3,
@@ -186,13 +186,13 @@ async def seed_free_menu(container: ServiceContainer):
             "requires_onboarding": False
         },
 
-        # Intimidad Explosiva
+        # Intimidad Explosiva (muestra info → "Me interesa")
         {
             "item_key": "set_intimidad",
             "button_text": "Intimidad Explosiva",
             "button_emoji": "💥",
             "action_type": "callback",
-            "action_content": "interest:set:intimidad_explosiva",
+            "action_content": "set_info:intimidad_explosiva",
             "target_role": "free",
             "parent_key": "free_sets",
             "display_order": 4,
