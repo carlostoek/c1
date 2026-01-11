@@ -378,3 +378,166 @@ class ArchetypeService:
             distribution[archetype_value] = row.count
 
         return distribution
+
+    async def analyze_with_reactions(
+        self,
+        user_id: int,
+        force: bool = False
+    ) -> Tuple[ArchetypeType, float]:
+        """
+        Analiza arquetipo usando DECISIONES + REACCIONES.
+
+        Cambio clave: Ahora considera AMBAS fuentes de datos:
+        1. UserDecisionHistory.response_time_seconds
+        2. CustomReaction.response_time_seconds (donde is_narrative_reaction=True)
+
+        Algoritmo:
+        - Obtener tiempos de decisiones (existente)
+        - Obtener tiempos de reacciones narrativas (NUEVO)
+        - Calcular promedio ponderado (50/50)
+        - Clasificar según umbrales
+        - Actualizar confianza
+
+        Args:
+            user_id: ID del usuario
+            force: Forzar actualización
+
+        Returns:
+            (arquetipo, confianza)
+        """
+        # 1. Obtener stats de decisiones (existente)
+        decision_stats = await self.get_response_time_stats(user_id)
+
+        # 2. Obtener stats de reacciones narrativas (NUEVO)
+        reaction_stats = await self.get_reaction_time_stats(user_id)
+
+        # 3. Combinar tiempos
+        combined_times = []
+
+        # Agregar tiempos de decisiones
+        if decision_stats['total_decisions'] > 0:
+            decision_times = await self._get_individual_decision_times(user_id)
+            combined_times.extend(decision_times)
+
+        # Agregar tiempos de reacciones
+        if reaction_stats['total_reactions'] > 0:
+            reaction_times = await self._get_individual_reaction_times(user_id)
+            combined_times.extend(reaction_times)
+
+        if not combined_times:
+            return ArchetypeType.UNKNOWN, 0.0
+
+        # 4. Calcular promedio
+        avg_time = sum(combined_times) / len(combined_times)
+
+        # 5. Clasificar
+        archetype = self.classify_response_time(avg_time)
+
+        # 6. Calcular confianza (más datos = más confianza)
+        total_signals = len(combined_times)
+        confidence = self.calculate_confidence(
+            total_decisions=total_signals,
+            avg_time=avg_time,
+            archetype=archetype
+        )
+
+        # 7. Actualizar si corresponde
+        should_update = await self.should_update_archetype(
+            user_id, archetype, confidence
+        )
+
+        if should_update or force:
+            from bot.narrative.services.progress import ProgressService
+            progress_service = ProgressService(self._session)
+            await progress_service.update_archetype(
+                user_id, archetype, confidence
+            )
+
+            logger.info(
+                f"🎭 Arquetipo actualizado (con reacciones): user={user_id}, "
+                f"archetype={archetype.value}, confidence={confidence:.2f}, "
+                f"avg_time={avg_time:.1f}s, signals={total_signals} "
+                f"(decisions={decision_stats['total_decisions']}, "
+                f"reactions={reaction_stats['total_reactions']})"
+            )
+
+        return archetype, confidence
+
+    async def get_reaction_time_stats(self, user_id: int) -> dict:
+        """
+        Obtiene estadísticas de tiempos de reacciones narrativas.
+
+        Similar a get_response_time_stats() pero para CustomReaction.
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            {
+                'total_reactions': 5,
+                'avg_response_time': 8.5,
+                'min_response_time': 3.0,
+                'max_response_time': 15.0
+            }
+        """
+        from bot.gamification.database.models import CustomReaction
+
+        stmt = select(
+            func.count(CustomReaction.id).label('total'),
+            func.avg(CustomReaction.response_time_seconds).label('avg_time'),
+            func.min(CustomReaction.response_time_seconds).label('min_time'),
+            func.max(CustomReaction.response_time_seconds).label('max_time')
+        ).where(
+            CustomReaction.user_id == user_id,
+            CustomReaction.is_narrative_reaction == True,
+            CustomReaction.response_time_seconds.isnot(None)
+        )
+
+        result = await self._session.execute(stmt)
+        row = result.one()
+
+        return {
+            'total_reactions': row.total or 0,
+            'avg_response_time': float(row.avg_time or 0),
+            'min_response_time': float(row.min_time or 0),
+            'max_response_time': float(row.max_time or 0)
+        }
+
+    async def _get_individual_reaction_times(self, user_id: int) -> List[int]:
+        """
+        Obtiene lista de tiempos de reacciones narrativas.
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            Lista de tiempos en segundos [5, 8, 12, 3, ...]
+        """
+        from bot.gamification.database.models import CustomReaction
+
+        stmt = select(CustomReaction.response_time_seconds).where(
+            CustomReaction.user_id == user_id,
+            CustomReaction.is_narrative_reaction == True,
+            CustomReaction.response_time_seconds.isnot(None)
+        )
+
+        result = await self._session.execute(stmt)
+        return [row[0] for row in result.all()]
+
+    async def _get_individual_decision_times(self, user_id: int) -> List[int]:
+        """
+        Obtiene lista de tiempos de decisiones narrativas.
+
+        Args:
+            user_id: ID del usuario
+
+        Returns:
+            Lista de tiempos en segundos [7, 4, 10, 6, ...]
+        """
+        stmt = select(UserDecisionHistory.response_time_seconds).where(
+            UserDecisionHistory.user_id == user_id,
+            UserDecisionHistory.response_time_seconds.isnot(None)
+        )
+
+        result = await self._session.execute(stmt)
+        return [row[0] for row in result.all()]

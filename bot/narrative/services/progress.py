@@ -347,3 +347,34 @@ class ProgressService:
         history = result.scalar_one_or_none()
 
         return history is not None
+
+    async def advance_after_reaction(
+        self,
+        user_id: int,
+        current_fragment_key: str,
+        next_fragment_key: str
+    ) -> UserNarrativeProgress:
+        """
+        Avanza narrativa después de reacción exitosa.
+
+        Similar a advance_to() pero con logging específico para reacciones.
+
+        Args:
+            user_id: Usuario
+            current_fragment_key: Fragmento actual (donde esperaba reacción)
+            next_fragment_key: Fragmento siguiente
+
+        Returns:
+            Progreso actualizado
+        """
+        progress = await self.advance_to(
+            user_id=user_id,
+            fragment_key=next_fragment_key
+        )
+
+        logger.info(
+            f"✅ Usuario {user_id} avanzó por reacción: "
+            f"{current_fragment_key} → {next_fragment_key}"
+        )
+
+        return progress

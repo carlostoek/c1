@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.handlers.admin.main import admin_router
 from bot.services.container import ServiceContainer
+from bot.services.lucien_voice import LucienVoiceService
 from bot.utils.keyboards import create_inline_keyboard
 
 logger = logging.getLogger(__name__)
@@ -259,50 +260,6 @@ async def callback_admin_menu_details(callback: CallbackQuery, session: AsyncSes
             "⚠️ Error al cargar detalles",
             show_alert=True
         )
-
-
-@admin_router.callback_query(F.data == "admin:menu_create")
-async def callback_admin_menu_create(callback: CallbackQuery):
-    """
-    Muestra instrucciones para crear un nuevo item de menú.
-
-    Por ahora, indica al admin que use el script de seed
-    o cree items manualmente en la BD.
-
-    Args:
-        callback: CallbackQuery del admin
-    """
-    text = (
-        "➕ <b>Crear Nuevo Item de Menú</b>\n\n"
-        "Para crear nuevos items de menú, puede:\n\n"
-        "<b>Opción 1: Script de Seed</b>\n"
-        "Edite <code>scripts/seed_menus.py</code> y agregue sus items.\n"
-        "Luego ejecute:\n"
-        "<code>python scripts/seed_menus.py</code>\n\n"
-        "<b>Opción 2: Base de Datos</b>\n"
-        "Inserte directamente en la tabla <code>menu_items</code>.\n\n"
-        "<b>Campos requeridos:</b>\n"
-        "• <code>item_key</code>: Identificador único\n"
-        "• <code>button_text</code>: Texto del botón\n"
-        "• <code>action_type</code>: callback, submenu, url, etc.\n"
-        "• <code>action_content</code>: Callback data o URL\n"
-        "• <code>target_role</code>: free, vip, all, admin\n"
-        "• <code>display_order</code>: Orden de aparición\n"
-        "• <code>row_number</code>: Fila en el keyboard\n\n"
-        "<i>Próximamente: Editor visual de menús</i>"
-    )
-
-    keyboard = create_inline_keyboard([
-        [{"text": "📖 Ver Documentación", "url": "https://github.com/tu-repo"}],
-        [{"text": "🔙 Volver", "callback_data": "admin:menus"}]
-    ])
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=keyboard,
-        parse_mode="HTML"
-    )
-    await callback.answer()
 
 
 # ========================================
