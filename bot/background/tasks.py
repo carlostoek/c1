@@ -153,6 +153,40 @@ async def cleanup_old_data(bot: Bot):
         logger.error(f"❌ Error en tarea de limpieza: {e}", exc_info=True)
 
 
+async def cleanup_narrative_reaction_waits(bot: Bot):
+    """
+    Limpia waits de reacción narrativa expirados.
+
+    Tarea de background que:
+    1. Busca NarrativeReactionWait con expires_at <= now
+    2. Elimina waits expirados
+    3. Loguea cantidad eliminada
+
+    Frecuencia recomendada: Cada 5 minutos
+
+    Args:
+        bot: Instancia del bot
+    """
+    logger.info("🔄 Ejecutando tarea: Limpieza de waits de reacción narrativa")
+
+    try:
+        async with get_session() as session:
+            from bot.narrative.services.reaction_narrative import NarrativeReactionService
+
+            service = NarrativeReactionService(session)
+            count = await service.cleanup_expired_waits()
+
+            await session.commit()
+
+            if count > 0:
+                logger.info(f"🧹 {count} wait(s) expirado(s) eliminado(s)")
+            else:
+                logger.debug("✓ No hay waits expirados para limpiar")
+
+    except Exception as e:
+        logger.error(f"❌ Error en limpieza de waits narrativos: {e}", exc_info=True)
+
+
 def start_background_tasks(bot: Bot):
     """
     Inicia el scheduler con todas las tareas programadas.
@@ -252,7 +286,23 @@ def start_background_tasks(bot: Bot):
     )
     logger.info("✅ Tarea programada: Streak expiration (cada 1 hora)")
 
-    # Tarea 6: Añadir tareas de lifecycle (ONDA D)
+    # Tarea 6: Limpieza de waits de reacción narrativa
+    # Frecuencia: Cada 5 minutos
+    async def narrative_wait_cleanup_job():
+        """Job wrapper para limpieza de waits con session management."""
+        await cleanup_narrative_reaction_waits(bot)
+
+    _scheduler.add_job(
+        narrative_wait_cleanup_job,
+        trigger=IntervalTrigger(minutes=5),
+        id="narrative_wait_cleanup",
+        name="Cleanup narrative reaction waits",
+        replace_existing=True,
+        max_instances=1
+    )
+    logger.info("✅ Tarea programada: Limpieza waits narrativos (cada 5 min)")
+
+    # Tarea 7: Añadir tareas de lifecycle (ONDA D)
     add_lifecycle_tasks_to_scheduler(_scheduler, bot)
 
     # Iniciar scheduler

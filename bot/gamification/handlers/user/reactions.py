@@ -81,15 +81,48 @@ async def handle_reaction_button(
             )
             return
 
-        # 4. Registrar reacción
-        container = GamificationContainer(session, callback.bot)
-
         # Obtener emoji de la configuración del mensaje
         emoji = "❤️"  # Default
         for btn_config in broadcast_msg.reaction_buttons:
             if btn_config.get("reaction_type_id") == reaction_type_id:
                 emoji = btn_config.get("emoji", "❤️")
                 break
+
+        # =============================================
+        # NUEVO: DETECTAR SI ES REACCIÓN NARRATIVA
+        # =============================================
+        from bot.narrative.services.reaction_narrative import NarrativeReactionService
+
+        narrative_service = NarrativeReactionService(session)
+
+        is_valid, error_msg, wait = await narrative_service.validate_reaction(
+            user_id, broadcast_msg.id, emoji
+        )
+
+        if wait:
+            # Usuario tiene misión narrativa activa
+            if not is_valid:
+                # Reacción inválida para misión
+                await callback.answer(
+                    f"⚠️ {error_msg}",
+                    show_alert=True
+                )
+                return
+
+            # Reacción válida: procesar como narrativa
+            await _handle_narrative_reaction(
+                callback=callback,
+                session=session,
+                broadcast_msg=broadcast_msg,
+                reaction_type_id=reaction_type_id,
+                emoji=emoji,
+                wait=wait
+            )
+            return
+
+        # Si no es narrativa, procesar como reacción normal
+        # 4. Registrar reacción
+        container = GamificationContainer(session, callback.bot)
 
         # Registrar reacción (el servicio maneja la validación de duplicados)
         result = await container.custom_reaction.register_custom_reaction(
@@ -171,6 +204,148 @@ async def handle_reaction_button(
         logger.error(f"Error handling reaction button: {e}", exc_info=True)
         await callback.answer(
             "⚠️ Error al procesar reacción",
+            show_alert=True
+        )
+
+
+async def _handle_narrative_reaction(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    broadcast_msg: BroadcastMessage,
+    reaction_type_id: int,
+    emoji: str,
+    wait
+):
+    """
+    Procesa reacción narrativa (NUEVO).
+
+    Flujo:
+    1. Calcular tiempo de respuesta
+    2. Registrar reacción con tiempo
+    3. Analizar arquetipo
+    4. Avanzar narrativa
+    5. Enviar siguiente fragmento
+    6. Notificar usuario
+
+    Args:
+        callback: CallbackQuery del usuario
+        session: Sesión de BD
+        broadcast_msg: Mensaje de broadcasting
+        reaction_type_id: ID del tipo de reacción
+        emoji: Emoji usado
+        wait: NarrativeReactionWait activo
+    """
+    user_id = callback.from_user.id
+
+    try:
+        # 1. Calcular tiempo de respuesta
+        from bot.narrative.services.reaction_narrative import NarrativeReactionService
+
+        narrative_service = NarrativeReactionService(session)
+        response_time = await narrative_service.calculate_response_time(wait)
+
+        logger.info(
+            f"⏱️ Tiempo de respuesta narrativo: user={user_id}, "
+            f"time={response_time}s, fragment={wait.fragment_key}"
+        )
+
+        # 2. Registrar reacción con tiempo
+        from bot.gamification.services.custom_reaction import CustomReactionService
+
+        reaction_service = CustomReactionService(session)
+
+        result = await reaction_service.register_narrative_reaction(
+            broadcast_message_id=broadcast_msg.id,
+            user_id=user_id,
+            reaction_type_id=reaction_type_id,
+            emoji=emoji,
+            fragment_key=wait.fragment_key,
+            response_time_seconds=response_time
+        )
+
+        if not result["success"]:
+            await callback.answer("⚠️ Error al registrar", show_alert=True)
+            return
+
+        # 3. Analizar arquetipo (integrado con decisiones)
+        from bot.narrative.services.archetype import ArchetypeService
+
+        archetype_service = ArchetypeService(session)
+
+        archetype, confidence = await archetype_service.analyze_with_reactions(
+            user_id=user_id,
+            force=False
+        )
+
+        # 4. Completar wait
+        await narrative_service.complete_reaction_wait(user_id)
+
+        # 5. Avanzar narrativa
+        from bot.narrative.services.progress import ProgressService
+
+        progress_service = ProgressService(session)
+
+        await progress_service.advance_after_reaction(
+            user_id=user_id,
+            current_fragment_key=wait.fragment_key,
+            next_fragment_key=wait.next_fragment_key
+        )
+
+        # 6. Obtener siguiente fragmento
+        from bot.narrative.services.container import NarrativeContainer
+
+        narrative_container = NarrativeContainer(session, callback.bot)
+
+        next_fragment = await narrative_container.fragment.get_fragment_by_key(
+            wait.next_fragment_key
+        )
+
+        if not next_fragment:
+            logger.error(
+                f"Fragment not found: {wait.next_fragment_key}"
+            )
+            await callback.answer(
+                "⚠️ Error al avanzar historia",
+                show_alert=True
+            )
+            return
+
+        # 7. Enviar fragmento siguiente al usuario en privado
+        from bot.narrative.handlers.user.story import send_fragment_message
+
+        await send_fragment_message(
+            bot=callback.bot,
+            user_id=user_id,
+            fragment=next_fragment,
+            session=session
+        )
+
+        # 8. Commit explícito
+        await session.commit()
+
+        # 9. Respuesta al usuario
+        besitos = result["besitos_earned"]
+        signal = result["archetype_signal"]
+
+        response = (
+            f"✅ ¡Reacción registrada!\n"
+            f"+{besitos} besitos 🎉\n\n"
+            f"⏱️ Tiempo: {response_time}s\n"
+            f"🎭 Señal: {signal.upper()}\n\n"
+            f"Continuemos la historia en privado..."
+        )
+
+        await callback.answer(response, show_alert=True)
+
+        logger.info(
+            f"✅ Reacción narrativa completada: user={user_id}, "
+            f"besitos={besitos}, archetype={archetype.value}"
+        )
+
+    except Exception as e:
+        logger.error(f"Error in narrative reaction: {e}", exc_info=True)
+        await callback.answer(
+            "⚠️ Error al procesar reacción narrativa",
             show_alert=True
         )
 

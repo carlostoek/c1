@@ -668,3 +668,64 @@ async def _build_chapter_selection_keyboard(
         ])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+async def send_fragment_message(
+    bot,
+    user_id: int,
+    fragment,
+    session: AsyncSession
+):
+    """
+    Helper reutilizable para enviar fragmento narrativo al usuario.
+
+    Usado desde:
+    - Avance automático después de reacción narrativa
+    - Navegación normal de fragmentos
+    - Cualquier flujo que necesite enviar un fragmento
+
+    Args:
+        bot: Instancia del bot
+        user_id: ID del usuario
+        fragment: NarrativeFragment a enviar
+        session: Sesión de BD
+    """
+    from bot.narrative.services.container import NarrativeContainer
+
+    # Construir container
+    container = NarrativeContainer(session, bot)
+
+    # Obtener contexto completo del usuario
+    context = await build_full_user_context(container, user_id, fragment.fragment_key)
+
+    # Aplicar variantes si existen
+    fragment_data = await container.variant.apply_variant(fragment, context)
+
+    # Formatear contenido
+    content = format_fragment_content(fragment_data)
+
+    # Construir keyboard de decisiones
+    keyboard = await build_decision_keyboard(fragment_data, context)
+
+    # Enviar mensaje
+    if fragment_data.get("media_file_id"):
+        # Enviar con media
+        await bot.send_photo(
+            chat_id=user_id,
+            photo=fragment_data["media_file_id"],
+            caption=content,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+    else:
+        # Solo texto
+        await bot.send_message(
+            chat_id=user_id,
+            text=content,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+
+    logger.info(
+        f"📨 Fragmento enviado: user={user_id}, fragment={fragment.fragment_key}"
+    )
