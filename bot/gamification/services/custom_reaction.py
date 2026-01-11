@@ -287,3 +287,174 @@ class CustomReactionService:
         )
 
         # No hacemos commit aquí, se hace en el método que llama
+
+    async def register_narrative_reaction(
+        self,
+        broadcast_message_id: int,
+        user_id: int,
+        reaction_type_id: int,
+        emoji: str,
+        fragment_key: str,
+        response_time_seconds: int
+    ) -> Dict:
+        """
+        Registra reacción narrativa con tiempo de respuesta.
+
+        Diferencias con register_custom_reaction():
+        - Guarda response_time_seconds
+        - Marca is_narrative_reaction = True
+        - Guarda narrative_fragment_key
+        - Retorna datos extra para ArchetypeService
+
+        Args:
+            broadcast_message_id: ID del mensaje
+            user_id: Usuario que reacciona
+            reaction_type_id: Tipo de reacción
+            emoji: Emoji usado
+            fragment_key: Fragmento narrativo asociado
+            response_time_seconds: Tiempo de respuesta
+
+        Returns:
+            {
+                "success": True,
+                "besitos_earned": 10,
+                "response_time": 8,
+                "archetype_signal": "contemplative",
+                "should_advance": True
+            }
+        """
+        # 1. Validar que no haya duplicados (misma lógica que register_custom_reaction)
+        stmt = select(CustomReaction).where(
+            CustomReaction.broadcast_message_id == broadcast_message_id,
+            CustomReaction.user_id == user_id,
+            CustomReaction.reaction_type_id == reaction_type_id
+        )
+        result = await self.session.execute(stmt)
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            logger.warning(
+                f"User {user_id} already reacted with {emoji} to message {broadcast_message_id}"
+            )
+            return {
+                "success": False,
+                "already_reacted": True,
+                "message": "Ya has reaccionado con este emoji"
+            }
+
+        # 2. Obtener configuración de besitos desde Reaction
+        stmt = select(Reaction).where(Reaction.id == reaction_type_id)
+        result = await self.session.execute(stmt)
+        reaction_type = result.scalar_one_or_none()
+
+        if not reaction_type:
+            logger.error(f"Reaction type {reaction_type_id} not found")
+            return {
+                "success": False,
+                "error": "Tipo de reacción no encontrado"
+            }
+
+        besitos_to_grant = reaction_type.besitos_value
+
+        # 3. Crear CustomReaction con campos narrativos
+        custom_reaction = CustomReaction(
+            broadcast_message_id=broadcast_message_id,
+            user_id=user_id,
+            reaction_type_id=reaction_type_id,
+            emoji=emoji,
+            besitos_earned=besitos_to_grant,
+            # Campos narrativos
+            response_time_seconds=response_time_seconds,
+            is_narrative_reaction=True,
+            narrative_fragment_key=fragment_key
+        )
+
+        self.session.add(custom_reaction)
+
+        try:
+            await self.session.flush()
+            await self.session.refresh(custom_reaction)
+
+            logger.info(
+                f"⏱️ Reacción narrativa registrada: user={user_id}, "
+                f"emoji={emoji}, fragment={fragment_key}, time={response_time_seconds}s, "
+                f"besitos={besitos_to_grant}"
+            )
+        except IntegrityError as e:
+            await self.session.rollback()
+            logger.error(f"Error registering narrative reaction: {e}")
+            return {
+                "success": False,
+                "error": "Error al registrar reacción"
+            }
+
+        # 4. Otorgar besitos (importar BesitoService aquí para evitar dependencias circulares)
+        from bot.gamification.services.besito import BesitoService
+
+        besito_service = BesitoService(self.session)
+
+        await besito_service.add_besitos(
+            user_id=user_id,
+            amount=besitos_to_grant,
+            transaction_type=TransactionType.CUSTOM_REACTION,
+            description=f"Reacción narrativa: {emoji} en {fragment_key}",
+            reference_id=custom_reaction.id
+        )
+
+        # 5. Actualizar stats del mensaje
+        await self._update_message_stats(broadcast_message_id)
+
+        # 6. Clasificar señal de arquetipo
+        from bot.narrative.services.archetype import ArchetypeService
+
+        archetype_service = ArchetypeService(self.session)
+        archetype_signal = archetype_service.classify_response_time(response_time_seconds)
+
+        logger.info(
+            f"🎭 Señal de arquetipo detectada: user={user_id}, "
+            f"time={response_time_seconds}s → {archetype_signal.value}"
+        )
+
+        return {
+            "success": True,
+            "besitos_earned": besitos_to_grant,
+            "response_time": response_time_seconds,
+            "archetype_signal": archetype_signal.value,
+            "should_advance": True
+        }
+
+    async def get_narrative_reactions_for_user(
+        self,
+        user_id: int,
+        limit: int = 20
+    ) -> List[CustomReaction]:
+        """
+        Obtiene reacciones narrativas del usuario.
+
+        Para análisis de arquetipos basado en reacciones.
+
+        Args:
+            user_id: ID del usuario
+            limit: Número máximo de reacciones a retornar
+
+        Returns:
+            Lista de CustomReaction narrativas
+        """
+        stmt = (
+            select(CustomReaction)
+            .where(
+                CustomReaction.user_id == user_id,
+                CustomReaction.is_narrative_reaction == True
+            )
+            .order_by(CustomReaction.created_at.desc())
+            .limit(limit)
+        )
+
+        result = await self.session.execute(stmt)
+        reactions = list(result.scalars().all())
+
+        logger.debug(
+            f"Found {len(reactions)} narrative reactions for user {user_id}"
+        )
+
+        return reactions

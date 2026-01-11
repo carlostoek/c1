@@ -350,3 +350,64 @@ class DailyNarrativeLimit(Base):
 
     def __repr__(self):
         return f"<DailyNarrativeLimit(user={self.user_id}, fragments={self.fragments_viewed})>"
+
+
+class NarrativeReactionWait(Base):
+    """
+    Tracking de usuarios esperando reaccionar en canal.
+
+    Se crea cuando usuario entra a fragmento con requires_channel_reaction.
+    Se elimina cuando reacciona o timeout expira.
+
+    Propósito:
+    - Persistencia: Si bot reinicia, no pierde tracking
+    - Validación: Verificar que reacción corresponde a misión activa
+    - Timeout: Background task limpia waits expirados
+
+    Attributes:
+        id: ID único del wait
+        user_id: Usuario esperando (UNIQUE: 1 wait activo por usuario)
+        fragment_key: Fragmento que requiere reacción
+        broadcast_message_id: ID del mensaje de broadcasting
+        required_emoji: Emoji específico (None = cualquiera)
+        started_at: Timestamp de inicio del wait
+        expires_at: Timestamp de expiración (timeout)
+        next_fragment_key: Fragmento siguiente (para auto-avance)
+
+    Índices:
+        - (user_id): UNIQUE para 1 wait activo por usuario
+        - (expires_at): Para cleanup eficiente
+    """
+
+    __tablename__ = "narrative_reaction_waits"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+
+    # Fragmento que requiere reacción
+    fragment_key: Mapped[str] = mapped_column(String(50))
+
+    # Mensaje de broadcasting esperado
+    broadcast_message_id: Mapped[int] = mapped_column(Integer)
+
+    # Reacción requerida (None = cualquiera)
+    required_emoji: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+
+    # Timestamps
+    started_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column()
+
+    # Fragmento siguiente (para auto-avance)
+    next_fragment_key: Mapped[str] = mapped_column(String(50))
+
+    # Índices
+    __table_args__ = (
+        Index("idx_narrative_reaction_wait_user", "user_id", unique=True),
+        Index("idx_narrative_reaction_expires", "expires_at"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<NarrativeReactionWait(user={self.user_id}, "
+            f"fragment='{self.fragment_key}', expires={self.expires_at})>"
+        )

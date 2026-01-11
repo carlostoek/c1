@@ -10,6 +10,7 @@ from bot.narrative.services.container import (
 from bot.narrative.services.fragment import FragmentService
 from bot.narrative.services.progress import ProgressService
 from bot.narrative.services.decision import DecisionService
+from bot.narrative.services.reaction_narrative import NarrativeReactionService
 
 __all__ = [
     # Container
@@ -21,4 +22,5 @@ __all__ = [
     "FragmentService",
     "ProgressService",
     "DecisionService",
+    "NarrativeReactionService",
 ]

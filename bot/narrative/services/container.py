@@ -53,6 +53,7 @@ class NarrativeContainer:
         self._challenge_service = None
         self._journal_service = None
         self._onboarding_service = None
+        self._reaction_narrative_service = None
 
     # ========================================
     # PROPERTIES (LAZY LOADING)
@@ -189,6 +190,14 @@ class NarrativeContainer:
             self._onboarding_service = OnboardingService(self._session)
         return self._onboarding_service
 
+    @property
+    def reaction_narrative(self):
+        """Servicio de reacciones narrativas."""
+        if self._reaction_narrative_service is None:
+            from bot.narrative.services.reaction_narrative import NarrativeReactionService
+            self._reaction_narrative_service = NarrativeReactionService(self._session)
+        return self._reaction_narrative_service
+
     # ========================================
     # UTILIDADES
     # ========================================
@@ -232,6 +241,8 @@ class NarrativeContainer:
             loaded.append('journal')
         if self._onboarding_service is not None:
             loaded.append('onboarding')
+        if self._reaction_narrative_service is not None:
+            loaded.append('reaction_narrative')
         return loaded
 
     def clear_cache(self):
@@ -252,6 +263,7 @@ class NarrativeContainer:
         self._challenge_service = None
         self._journal_service = None
         self._onboarding_service = None
+        self._reaction_narrative_service = None
 
 
 # ========================================

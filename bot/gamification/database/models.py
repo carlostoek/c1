@@ -516,6 +516,23 @@ class CustomReaction(Base):
         nullable=False
     )
 
+    # Campos para reacciones narrativas (integración con arquetipos)
+    response_time_seconds: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        default=None
+    )
+    is_narrative_reaction: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+    narrative_fragment_key: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+        default=None
+    )
+
     # Relaciones
     reaction_type: Mapped["Reaction"] = relationship(
         "Reaction",
@@ -531,6 +548,9 @@ class CustomReaction(Base):
         ),
         Index('idx_user_created', 'user_id', 'created_at'),
         Index('idx_broadcast_message', 'broadcast_message_id'),
+        # Índices para reacciones narrativas
+        Index('idx_narrative_reaction', 'user_id', 'is_narrative_reaction'),
+        Index('idx_narrative_response_time', 'user_id', 'response_time_seconds'),
     )
 
 
