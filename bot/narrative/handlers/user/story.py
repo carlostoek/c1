@@ -423,6 +423,22 @@ async def callback_goto_fragment(callback: CallbackQuery, session: AsyncSession)
         chapter_id=fragment.chapter_id
     )
 
+    # =============================================
+    # NUEVO: DETECTAR SI REQUIERE REACCIÓN EN CANAL
+    # =============================================
+    metadata = fragment.extra_metadata or {}
+
+    if metadata.get("requires_channel_reaction"):
+        # Iniciar misión de reacción en canal
+        await _start_reaction_mission(
+            callback=callback,
+            session=session,
+            fragment=fragment,
+            metadata=metadata
+        )
+        return
+
+    # Si no requiere reacción, mostrar fragmento normalmente
     # Mostrar fragmento
     await show_fragment(
         message=callback.message,
@@ -668,6 +684,132 @@ async def _build_chapter_selection_keyboard(
         ])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+async def _start_reaction_mission(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    fragment,
+    metadata: dict
+):
+    """
+    Inicia misión de reacción en canal (NUEVO).
+
+    Flujo:
+    1. Validar configuración del metadata
+    2. Verificar que mensaje de broadcasting existe
+    3. Crear NarrativeReactionWait
+    4. Enviar instrucciones al usuario con link al mensaje
+
+    Args:
+        callback: CallbackQuery del usuario
+        session: Sesión de BD
+        fragment: NarrativeFragment con reacción requerida
+        metadata: extra_metadata del fragmento
+    """
+    user_id = callback.from_user.id
+
+    # 1. Validar metadata
+    broadcast_message_id = metadata.get("broadcast_message_id")
+    required_emoji = metadata.get("required_emoji")  # None = cualquiera
+    timeout_seconds = metadata.get("timeout_seconds", 120)
+    next_fragment_key = metadata.get("auto_advance_fragment_key")
+
+    if not broadcast_message_id or not next_fragment_key:
+        logger.error(
+            f"Metadata incompleto en fragmento {fragment.fragment_key}"
+        )
+        await callback.answer(
+            "⚠️ Configuración incorrecta",
+            show_alert=True
+        )
+        return
+
+    # 2. Verificar que mensaje existe
+    from bot.database.models import BroadcastMessage
+    from sqlalchemy import select
+
+    stmt = select(BroadcastMessage).where(
+        BroadcastMessage.id == broadcast_message_id
+    )
+    result = await session.execute(stmt)
+    broadcast_msg = result.scalar_one_or_none()
+
+    if not broadcast_msg:
+        logger.error(
+            f"BroadcastMessage {broadcast_message_id} not found"
+        )
+        await callback.answer(
+            "⚠️ Mensaje no encontrado",
+            show_alert=True
+        )
+        return
+
+    # 3. Crear wait
+    from bot.narrative.services.reaction_narrative import NarrativeReactionService
+
+    narrative_service = NarrativeReactionService(session)
+
+    wait = await narrative_service.start_reaction_wait(
+        user_id=user_id,
+        fragment_key=fragment.fragment_key,
+        broadcast_message_id=broadcast_message_id,
+        next_fragment_key=next_fragment_key,
+        required_emoji=required_emoji,
+        timeout_seconds=timeout_seconds
+    )
+
+    # 4. Commit
+    await session.commit()
+
+    # 5. Construir link al mensaje del canal
+    from bot.database.models import BotConfig
+
+    config_stmt = select(BotConfig).where(BotConfig.id == 1)
+    result = await session.execute(config_stmt)
+    config = result.scalar_one()
+
+    # Determinar canal (VIP o Free según contexto)
+    # Por ahora usar VIP, pero idealmente detectar según el capítulo
+    channel_id = config.vip_channel_id or config.free_channel_id
+
+    if not channel_id:
+        await callback.answer(
+            "⚠️ Canal no configurado",
+            show_alert=True
+        )
+        return
+
+    # Construir link al mensaje
+    # Formato: https://t.me/c/{channel_id_sin_-100}/{message_id}
+    channel_id_clean = str(channel_id).replace("-100", "")
+    channel_link = f"https://t.me/c/{channel_id_clean}/{broadcast_msg.message_id}"
+
+    # 6. Preparar texto de instrucciones
+    emoji_text = f"con {required_emoji}" if required_emoji else "con cualquier emoji"
+
+    instruction_message = (
+        f"🎯 <b>Misión Narrativa</b>\n\n"
+        f"{fragment.content}\n\n"
+        f"<b>Tu misión:</b>\n"
+        f"Ve al canal y reacciona {emoji_text} al mensaje indicado.\n\n"
+        f"⏱️ Tienes <b>{timeout_seconds} segundos</b>\n\n"
+        f"👉 <a href='{channel_link}'>Ir al mensaje en el canal</a>"
+    )
+
+    # 7. Enviar instrucciones
+    await callback.message.edit_text(
+        text=instruction_message,
+        parse_mode="HTML",
+        disable_web_page_preview=True
+    )
+
+    await callback.answer()
+
+    logger.info(
+        f"🎯 Misión de reacción iniciada: user={user_id}, "
+        f"fragment={fragment.fragment_key}, timeout={timeout_seconds}s"
+    )
 
 
 async def send_fragment_message(
