@@ -36,6 +36,12 @@ def db_setup(event_loop):
     # Limpiar BD despues del test
     event_loop.run_until_complete(close_db())
 
+    # Eliminar archivo de BD para próximo test
+    import os
+    db_path = "/data/data/com.termux/files/home/repos/c1/bot.db"
+    if os.path.exists(db_path):
+        os.remove(db_path)
+
 
 @pytest.fixture
 def mock_bot():

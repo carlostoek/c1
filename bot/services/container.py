@@ -51,6 +51,14 @@ class ServiceContainer:
         self._stats_service = None
         self._pricing_service = None
         self._user_service = None
+        self._points_service = None
+        self._reactions_service = None
+        self._streak_service = None
+        self._shop_service = None
+        self._badges_service = None
+        self._levels_service = None
+        self._media_sets_service = None
+        self._missions_service = None
 
         logger.debug("🏭 ServiceContainer inicializado (modo lazy)")
 
@@ -168,6 +176,158 @@ class ServiceContainer:
 
         return self._user_service
 
+    # ===== POINTS SERVICE =====
+
+    @property
+    def points(self):
+        """
+        Service de gestión de puntos ("besitos").
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            PointsService: Instancia del service
+        """
+        if self._points_service is None:
+            from bot.services.points import PointsService
+            logger.debug("🔄 Lazy loading: PointsService")
+            self._points_service = PointsService(self._session, self._bot)
+
+        return self._points_service
+
+    # ===== REACTIONS SERVICE =====
+
+    @property
+    def reactions(self):
+        """
+        Service de gestión de reacciones personalizadas.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            ReactionService: Instancia del service
+        """
+        if self._reactions_service is None:
+            from bot.services.reactions import ReactionService
+            logger.debug("🔄 Lazy loading: ReactionService")
+            self._reactions_service = ReactionService(self._session, self._bot)
+
+        return self._reactions_service
+
+    # ===== STREAK SERVICE =====
+
+    @property
+    def streak(self):
+        """
+        Service de gestión de rachas de participación.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            StreakService: Instancia del service
+        """
+        if self._streak_service is None:
+            from bot.services.streak import StreakService
+            logger.debug("🔄 Lazy loading: StreakService")
+            self._streak_service = StreakService(self._session, self._bot)
+
+        return self._streak_service
+
+    # ===== SHOP SERVICE =====
+
+    @property
+    def shop(self):
+        """
+        Service de gestión de tienda de gamificación.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            ShopService: Instancia del service
+        """
+        if self._shop_service is None:
+            from bot.services.shop import ShopService
+            logger.debug("🔄 Lazy loading: ShopService")
+            self._shop_service = ShopService(self._session, self._bot)
+
+        return self._shop_service
+
+    # ===== BADGES SERVICE =====
+
+    @property
+    def badges(self):
+        """
+        Service de gestión de badges/insignias.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            BadgeService: Instancia del service
+        """
+        if self._badges_service is None:
+            from bot.services.badges import BadgeService
+            logger.debug("🔄 Lazy loading: BadgeService")
+            self._badges_service = BadgeService(self._session)
+
+        return self._badges_service
+
+    # ===== LEVELS SERVICE =====
+
+    @property
+    def levels(self):
+        """
+        Service de gestión de niveles de usuario.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            LevelService: Instancia del service
+        """
+        if self._levels_service is None:
+            from bot.services.levels import LevelService
+            logger.debug("🔄 Lazy loading: LevelService")
+            self._levels_service = LevelService(self._session)
+
+        return self._levels_service
+
+    # ===== MEDIA SETS SERVICE =====
+
+    @property
+    def media_sets(self):
+        """
+        Service de gestión de sets multimedia (CMS).
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            MediaSetService: Instancia del service
+        """
+        if self._media_sets_service is None:
+            from bot.services.media_sets import MediaSetService
+            logger.debug("🔄 Lazy loading: MediaSetService")
+            self._media_sets_service = MediaSetService(self._session, self._bot)
+
+        return self._media_sets_service
+
+    # ===== MISSIONS SERVICE =====
+
+    @property
+    def missions(self):
+        """
+        Service de gestión de misiones de gamificación.
+
+        Se carga lazy (solo en primer acceso).
+
+        Returns:
+            MissionService: Instancia del service
+        """
+        if self._missions_service is None:
+            from bot.services.missions import MissionService
+            logger.debug("🔄 Lazy loading: MissionService")
+            self._missions_service = MissionService(self._session)
+
+        return self._missions_service
+
     # ===== UTILIDADES =====
 
     def get_loaded_services(self) -> list[str]:
@@ -193,6 +353,22 @@ class ServiceContainer:
             loaded.append("pricing")
         if self._user_service is not None:
             loaded.append("user")
+        if self._points_service is not None:
+            loaded.append("points")
+        if self._reactions_service is not None:
+            loaded.append("reactions")
+        if self._streak_service is not None:
+            loaded.append("streak")
+        if self._shop_service is not None:
+            loaded.append("shop")
+        if self._badges_service is not None:
+            loaded.append("badges")
+        if self._levels_service is not None:
+            loaded.append("levels")
+        if self._media_sets_service is not None:
+            loaded.append("media_sets")
+        if self._missions_service is not None:
+            loaded.append("missions")
 
         return loaded
 

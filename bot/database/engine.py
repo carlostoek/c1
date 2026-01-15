@@ -16,7 +16,18 @@ from sqlalchemy import text
 
 from config import Config
 from bot.database.base import Base
-from bot.database.models import BotConfig
+
+# Importar TODOS los modelos para que se registren en Base.metadata
+# Si no se importan, las tablas no se crean con create_all()
+from bot.database.models import (
+    BotConfig, User, SubscriptionPlan, InvitationToken,
+    VIPSubscriber, FreeChannelRequest
+)
+from bot.database.gamification_models import (
+    GamificationConfig, Publication, UserReaction, UserPoints,
+    PointsTransaction, Badge, UserBadge, UserLevel, MediaSet,
+    MediaSetItem, ShopItem, ShopPurchase, Mission, UserMissionProgress
+)
 
 logger = logging.getLogger(__name__)
 
