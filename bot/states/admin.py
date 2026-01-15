@@ -140,3 +140,55 @@ class PricingSetupStates(StatesGroup):
 
     # Paso 3: Esperando precio del plan
     waiting_for_price = State()
+
+
+class GamificationConfigStates(StatesGroup):
+    """
+    Estados para configuración de gamificación.
+
+    Flujo:
+    1. Admin selecciona configurar puntos por reacción
+    2. Bot entra en waiting_for_points_per_reaction
+    3. Admin envía número de puntos
+    4. Bot valida (>= 1, <= 100) y guarda
+    5. Bot sale del estado
+
+    Flujo emojis:
+    1. Admin selecciona configurar emojis predeterminados
+    2. Bot entra en waiting_for_default_emojis
+    3. Admin envía lista de emojis separados por espacios
+    4. Bot valida (1-10 emojis) y guarda
+    5. Bot sale del estado
+    """
+
+    # Esperando número de puntos por reacción
+    waiting_for_points_per_reaction = State()
+
+    # Esperando lista de emojis predeterminados
+    waiting_for_default_emojis = State()
+
+
+class PublishWithReactionsStates(StatesGroup):
+    """
+    Estados para publicar contenido con botones de reacción.
+
+    Flujo:
+    1. Admin selecciona canal destino (VIP/Free/Ambos)
+    2. Bot entra en waiting_for_content
+    3. Admin envía contenido (texto, foto, video)
+    4. Bot muestra preview y entra en waiting_for_confirmation
+    5. Admin confirma → Bot publica + crea Publication + sale del estado
+    6. Admin cancela → Bot sale del estado
+
+    Características:
+    - Usa emojis predeterminados globales
+    - Crea registro Publication en BD
+    - Genera keyboard inline con botones de reacción
+    - Botones actualizan conteo en tiempo real
+    """
+
+    # Esperando contenido a publicar
+    waiting_for_content = State()
+
+    # Esperando confirmación de publicación
+    waiting_for_confirmation = State()

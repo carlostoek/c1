@@ -292,7 +292,12 @@ class ReactionService:
         if emoji not in publication.reaction_buttons:
             return False, f"Emoji '{emoji}' no permitido", None
 
-        # Crear reacción
+        # Asegurar que el usuario tenga UserPoints (crear si no existe)
+        from bot.services.points import PointsService
+        points_service = PointsService(self._session, self._bot)
+        await points_service.get_or_create_points(user_id)
+
+        # Crear reacción PRIMERO (para que calculate_streak la encuentre)
         reaction = UserReaction(
             user_id=user_id,
             publication_id=publication_id,
@@ -304,9 +309,26 @@ class ReactionService:
         await self._session.commit()
         await self._session.refresh(reaction)
 
+        # Otorgar puntos al usuario
+        await points_service.award_points(
+            user_id=user_id,
+            amount=points_awarded,
+            transaction_type="reaction",
+            description=f"Reacción {emoji} en publicación {publication_id}",
+            reference_id=publication_id
+        )
+
+        # Actualizar racha del usuario (ahora la reacción ya existe en BD)
+        from bot.services.streak import StreakService
+        streak_service = StreakService(self._session, self._bot)
+        new_streak, is_record = await streak_service.update_streak_after_reaction(
+            user_id=user_id,
+            channel_id=publication.channel_id
+        )
+
         logger.info(
             f"👍 User {user_id} reaccionó en publicación {publication_id} "
-            f"con {emoji} (+{points_awarded} pts)"
+            f"con {emoji} (+{points_awarded} pts, 🔥 racha: {new_streak})"
         )
 
         return True, "Reacción registrada", reaction

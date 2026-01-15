@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
+from aiogram import F
+from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.enums import UserRole
@@ -22,13 +24,6 @@ from bot.utils.keyboards import create_inline_keyboard
 from config import Config
 
 logger = logging.getLogger(__name__)
-
-# Router para handlers de usuario
-user_router = Router(name="user")
-
-# Aplicar middleware de database (NO AdminAuth, estos son usuarios normales)
-user_router.message.middleware(DatabaseMiddleware())
-user_router.callback_query.middleware(DatabaseMiddleware())
 
 
 @user_router.message(Command("start"))
@@ -289,14 +284,18 @@ async def _send_welcome_message(
 
     # Usuario no es VIP: mostrar opciones
     keyboard = create_inline_keyboard([
+        [{"text": "🏆 Mi Perfil", "callback_data": "user:profile"}],
         [{"text": "🎟️ Canjear Token VIP", "callback_data": "user:redeem_token"}],
         [{"text": "📺 Solicitar Acceso Free", "callback_data": "user:request_free"}],
     ])
 
     await message.answer(
         f"👋 Hola <b>{user_name}</b>!\n\n"
-        f"Bienvenido al bot de acceso a canales.\n\n"
+        f"Bienvenido al bot de canales VIP y Free.\n\n"
         f"<b>Opciones disponibles:</b>\n\n"
+        f"🏆 <b>Gamificación</b>\n"
+        f"¡Gana puntos reaccionando en los canales!\n"
+        f"Reclama regalos diarios y canjea puntos por recompensas.\n\n"
         f"🎟️ <b>Canjear Token VIP</b>\n"
         f"Si tienes un token de invitación, canjéalo para acceso VIP.\n\n"
         f"📺 <b>Solicitar Acceso Free</b>\n"
@@ -305,3 +304,29 @@ async def _send_welcome_message(
         reply_markup=keyboard,
         parse_mode="HTML"
     )
+
+
+@user_router.callback_query(F.data == "user:start")
+async def callback_user_start(callback: CallbackQuery, session: AsyncSession):
+    """
+    Vuelve al mensaje de inicio del usuario.
+
+    Reenvía el comando /start para mostrar el menú principal.
+    """
+    logger.debug(f"🔄 User {callback.from_user.id} volviendo al inicio")
+
+    # Crear un mensaje falso con estructura de comando
+    from aiogram.types import Message
+    from unittest.mock import Mock
+
+    # Crear mock de mensaje con atributos necesarios
+    mock_message = Mock(spec=Message)
+    mock_message.from_user = callback.from_user
+    mock_message.text = "/start"
+    mock_message.bot = callback.bot
+    mock_message.answer = callback.message.answer
+
+    # Reutilizar cmd_start
+    await cmd_start(mock_message, session)
+
+    await callback.answer()

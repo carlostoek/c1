@@ -10,7 +10,7 @@ Maneja:
 """
 import logging
 from datetime import datetime, timedelta
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 
 from sqlalchemy import select, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,6 +51,20 @@ class PointsService:
         """
         self._session = session
         self._bot = bot
+
+    def _normalize_transaction_type(self, transaction_type: Union[TransactionType, str]) -> TransactionType:
+        """
+        Normaliza el tipo de transacción a enum.
+
+        Args:
+            transaction_type: TransactionType enum o string
+
+        Returns:
+            TransactionType: Enum normalizado
+        """
+        if isinstance(transaction_type, str):
+            return TransactionType(transaction_type)
+        return transaction_type
 
     # ===== CONFIGURACIÓN =====
 
@@ -131,7 +145,7 @@ class PointsService:
         self,
         user_id: int,
         amount: int,
-        transaction_type: TransactionType,
+        transaction_type: Union[TransactionType, str],
         description: str,
         reference_id: Optional[int] = None
     ) -> PointsTransaction:
@@ -141,7 +155,7 @@ class PointsService:
         Args:
             user_id: ID del usuario
             amount: Cantidad de puntos (debe ser positivo)
-            transaction_type: Tipo de transacción
+            transaction_type: Tipo de transacción (enum o string)
             description: Descripción de la transacción
             reference_id: ID de referencia (opcional)
 
@@ -153,6 +167,9 @@ class PointsService:
         """
         if amount <= 0:
             raise ValueError("Amount debe ser positivo")
+
+        # Normalizar transaction_type
+        transaction_type = self._normalize_transaction_type(transaction_type)
 
         # Obtener o crear balance
         points = await self.get_or_create_points(user_id)
@@ -186,7 +203,7 @@ class PointsService:
         self,
         user_id: int,
         amount: int,
-        transaction_type: TransactionType,
+        transaction_type: Union[TransactionType, str],
         description: str,
         reference_id: Optional[int] = None
     ) -> Tuple[bool, str]:
@@ -196,7 +213,7 @@ class PointsService:
         Args:
             user_id: ID del usuario
             amount: Cantidad de puntos (debe ser positivo)
-            transaction_type: Tipo de transacción
+            transaction_type: Tipo de transacción (enum o string)
             description: Descripción del gasto
             reference_id: ID de referencia (opcional)
 
@@ -205,6 +222,9 @@ class PointsService:
         """
         if amount <= 0:
             return False, "Amount debe ser positivo"
+
+        # Normalizar transaction_type
+        transaction_type = self._normalize_transaction_type(transaction_type)
 
         # Obtener balance
         points = await self.get_balance(user_id)
