@@ -456,7 +456,7 @@ async def test_streak_service_update_streak(mock_bot):
         session.add(user)
         await session.commit()
 
-        # Reaccionar
+        # Reaccionar (esto ya actualiza la racha internamente)
         await container.reactions.add_reaction(
             user_id=983,
             publication_id=pub.id,
@@ -464,14 +464,10 @@ async def test_streak_service_update_streak(mock_bot):
             points_awarded=1
         )
 
-        # Actualizar racha
-        new_streak, is_record = await container.streak.update_streak_after_reaction(
-            user_id=983,
-            channel_id="-100123456789"
-        )
-
-        assert new_streak == 1
-        assert is_record is True  # Primer récord
+        # Verificar racha actualizada (no llamar update_streak_after_reaction de nuevo)
+        points = await container.points.get_balance(983)
+        assert points.current_streak == 1
+        assert points.max_streak == 1  # Primer récord
 
 
 @pytest.mark.asyncio
