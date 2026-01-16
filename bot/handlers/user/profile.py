@@ -31,6 +31,10 @@ def create_profile_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="🎁 Regalo Diario", callback_data="user:daily_gift")
     )
 
+    builder.row(
+        InlineKeyboardButton(text="🛒 Tienda", callback_data="user:shop")
+    )
+
     # Sección de info
     builder.row(
         InlineKeyboardButton(text="📋 Misiones", callback_data="user:missions"),

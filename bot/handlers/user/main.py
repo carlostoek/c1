@@ -22,7 +22,8 @@ user_router.callback_query.middleware(DatabaseMiddleware())
 from bot.handlers.user import (
     start,
     reactions,
-    profile
+    profile,
+    shop
     # vip_flow,
     # free_flow
 )
