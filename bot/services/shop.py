@@ -5,12 +5,10 @@ Maneja:
 - Items de tienda
 - Compras de usuarios
 - Entrega de recompensas
-
-NOTE: Implementación básica para SPRINT 1.
-SPRINT 3 completará la funcionalidad completa.
 """
 import logging
 from typing import List, Tuple, Optional
+from datetime import datetime
 
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -98,15 +96,74 @@ class ShopService:
 
         Returns:
             Tuple[bool, str, ShopPurchase]: (éxito, mensaje, compra)
-
-        NOTE: Implementación completa en SPRINT 3
         """
-        # TODO: Implementar lógica completa de compra
-        # - Verificar stock
-        # - Verificar puntos suficientes
-        # - Descontar puntos
-        # - Entregar recompensa
-        return False, "Implementación pendiente (SPRINT 3)", None
+        # Obtener item
+        item = await self.get_item(item_id)
+        if item is None:
+            return False, "Item no encontrado", None
+
+        if not item.active:
+            return False, "Este item no está disponible", None
+
+        # Verificar stock
+        if item.stock >= 0 and item.stock == 0:
+            return False, "Este item está agotado", None
+
+        # Verificar puntos suficientes
+        from bot.services.points import PointsService
+        points_service = PointsService(self._session, self._bot)
+        points = await points_service.get_balance(user_id)
+
+        if points is None or points.balance < item.price_points:
+            return False, f"Puntos insuficientes (necesitas: {item.price_points})", None
+
+        # Descontar puntos
+        success, msg = await points_service.spend_points(
+            user_id=user_id,
+            amount=item.price_points,
+            transaction_type="shop_purchase",
+            description=f"Compra: {item.name}",
+            reference_id=item_id
+        )
+
+        if not success:
+            return False, msg, None
+
+        # Entregar recompensa
+        reward_success, reward_msg = await self.deliver_reward(user_id, item)
+
+        if not reward_success:
+            # Reembolsar puntos si falla la entrega
+            await points_service.award_points(
+                user_id=user_id,
+                amount=item.price_points,
+                transaction_type="shop_purchase",
+                description=f"Reembolso: {item.name}",
+                reference_id=item_id
+            )
+            return False, f"Error al entregar recompensa: {reward_msg}", None
+
+        # Actualizar stock si es limitado
+        if item.stock > 0:
+            item.stock -= 1
+
+        # Crear registro de compra
+        purchase = ShopPurchase(
+            user_id=user_id,
+            item_id=item_id,
+            points_spent=item.price_points,
+            purchased_at=datetime.utcnow()
+        )
+
+        self._session.add(purchase)
+        await self._session.commit()
+
+        logger.info(
+            f"🛒 Compra: user {user_id} → {item.name} "
+            f"({item.price_points} pts)"
+        )
+
+        return True, f"¡Compraste {item.name}! {reward_msg}", purchase
 
     # ===== ENTREGA DE RECOMPENSAS =====
 
@@ -124,12 +181,47 @@ class ShopService:
 
         Returns:
             Tuple[bool, str]: (éxito, mensaje)
-
-        NOTE: Implementación completa en SPRINT 3
         """
-        # TODO: Implementar según item_type:
-        # - BADGE: Otorgar badge
-        # - LEVEL: Asignar nivel
-        # - VIP_DAYS: Extender suscripción
-        # - MEDIA_SET: Enviar contenido
-        return False, "Implementación pendiente (SPRINT 3)"
+        if item.item_type == ShopItemType.BADGE:
+            # Otorgar badge
+            from bot.services.badges import BadgeService
+            badge_service = BadgeService(self._session)
+            return await badge_service.award_badge(user_id, item.reference_id)
+
+        elif item.item_type == ShopItemType.LEVEL:
+            # Los niveles son automáticos según puntos
+            # No se pueden "comprar" directamente
+            return False, "Los niveles se obtienen automáticamente con puntos"
+
+        elif item.item_type == ShopItemType.VIP_DAYS:
+            # Extender suscripción VIP
+            from bot.services.subscription import SubscriptionService
+            subscription_service = SubscriptionService(self._session, self._bot)
+
+            # Obtener suscriptor actual
+            subscriber = await subscription_service.get_vip_subscriber(user_id)
+
+            if subscriber and subscription_service.is_vip_active(user_id):
+                # Extender suscripción existente
+                from datetime import timedelta
+                subscriber.expiry_date = subscriber.expiry_date + timedelta(days=item.vip_days)
+                await self._session.commit()
+                return True, f"+{item.vip_days} días de VIP añadidos"
+            else:
+                # Crear nueva suscripción
+                from datetime import timedelta, datetime
+                expiry = datetime.utcnow() + timedelta(days=item.vip_days)
+                new_subscriber = await subscription_service.create_vip_subscriber(
+                    user_id=user_id,
+                    expiry_date=expiry
+                )
+                return True, f"¡Suscripción VIP de {item.vip_days} días activada!"
+
+        elif item.item_type == ShopItemType.MEDIA_SET:
+            # Enviar contenido del media set
+            from bot.services.media_sets import MediaSetService
+            media_set_service = MediaSetService(self._session, self._bot)
+            return await media_set_service.send_set_to_user(user_id, item.reference_id)
+
+        else:
+            return False, f"Tipo de item no soportado: {item.item_type}"

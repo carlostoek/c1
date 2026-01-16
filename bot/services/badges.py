@@ -5,12 +5,10 @@ Maneja:
 - CRUD de badges
 - Otorgar badges a usuarios
 - Consultar badges de usuarios
-
-NOTE: Implementación básica para SPRINT 1.
-SPRINT 3 completará la funcionalidad completa.
 """
 import logging
 from typing import List, Tuple, Optional
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -128,12 +126,31 @@ class BadgeService:
 
         Returns:
             Tuple[bool, str]: (éxito, mensaje)
-
-        NOTE: Implementación completa en SPRINT 3
         """
-        # TODO: Implementar:
-        # - Verificar que badge existe
-        # - Verificar que no lo tiene
-        # - Crear UserBadge
-        # - Notificar usuario
-        return False, "Implementación pendiente (SPRINT 3)"
+        # Verificar que el badge existe y está activo
+        badge = await self.get_badge(badge_id)
+        if badge is None:
+            return False, f"Badge {badge_id} no encontrado"
+
+        if not badge.active:
+            return False, "Este badge no está activo"
+
+        # Verificar que no lo tiene
+        if await self.has_badge(user_id, badge_id):
+            return False, "Ya tienes este badge"
+
+        # Crear UserBadge
+        user_badge = UserBadge(
+            user_id=user_id,
+            badge_id=badge_id,
+            unlocked_at=datetime.utcnow()
+        )
+
+        self._session.add(user_badge)
+        await self._session.commit()
+
+        logger.info(
+            f"🏅 Badge otorgado: user {user_id} → {badge.emoji} {badge.name}"
+        )
+
+        return True, f"¡Desbloqueaste el badge {badge.emoji} {badge.name}!"
