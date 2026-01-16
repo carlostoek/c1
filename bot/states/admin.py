@@ -192,3 +192,38 @@ class PublishWithReactionsStates(StatesGroup):
 
     # Esperando confirmación de publicación
     waiting_for_confirmation = State()
+
+
+class BadgeManagementStates(StatesGroup):
+    """
+    Estados para gestión de badges.
+
+    Flujo:
+    1. Admin selecciona "Crear Badge"
+    2. Bot entra en waiting_for_name
+    3. Admin envía nombre
+    4. Bot entra en waiting_for_emoji
+    5. Admin envía emoji
+    6. Bot entra en waiting_for_description
+    7. Admin envía descripción
+    8. Bot muestra opciones de rareza
+    9. Admin selecciona rareza → Bot crea badge → sale del estado
+
+    Validación:
+    - Nombre: Máximo 100 caracteres
+    - Emoji: Máximo 10 caracteres
+    - Descripción: Máximo 500 caracteres
+    - Rareza: common/rare/epic/legendary (selección vía botones)
+    """
+
+    # Paso 1: Esperando nombre del badge
+    waiting_for_name = State()
+
+    # Paso 2: Esperando emoji del badge
+    waiting_for_emoji = State()
+
+    # Paso 3: Esperando descripción del badge
+    waiting_for_description = State()
+
+    # Paso 4: Esperando selección de rareza (vía callback)
+    waiting_for_rarity = State()
