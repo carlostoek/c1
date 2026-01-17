@@ -55,6 +55,10 @@ class UserService:
 
         Examples:
             >>> user = await service.get_or_create_user(message.from_user)
+
+        Note:
+            Este método NO hace commit a la base de datos. El caller debe
+            ejecutar session.commit() o delegar la transacción al middleware.
         """
         # Buscar usuario existente
         result = await self.session.execute(
@@ -140,6 +144,10 @@ class UserService:
 
         Examples:
             >>> await service.change_role(123456, UserRole.VIP, "Token activado")
+
+        Note:
+            Este método NO hace commit a la base de datos. El caller debe
+            ejecutar session.commit() o delegar la transacción al middleware.
         """
         user = await self.get_user(user_id)
 

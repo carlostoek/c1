@@ -87,6 +87,10 @@ class SubscriptionService:
         Raises:
             ValueError: Si duration_hours es inválido
             RuntimeError: Si no se puede generar token único después de 10 intentos
+
+        Note:
+            Este método NO hace commit a la base de datos. El caller debe
+            ejecutar session.commit() o delegar la transacción al middleware.
         """
         if duration_hours < 1:
             raise ValueError("duration_hours debe ser al menos 1")
@@ -201,6 +205,10 @@ class SubscriptionService:
                 - bool: True si éxito, False si error
                 - str: Mensaje descriptivo
                 - Optional[VIPSubscriber]: Suscriptor creado/actualizado
+
+        Note:
+            Este método NO hace commit a la base de datos. El caller debe
+            ejecutar session.commit() o delegar la transacción al middleware.
         """
         # Validar token
         is_valid, message, token = await self.validate_token(token_str)
@@ -329,6 +337,10 @@ class SubscriptionService:
 
         Raises:
             ValueError: Si el usuario ya es VIP o token inválido
+
+        Note:
+            Este método NO hace commit a la base de datos. El caller debe
+            ejecutar session.commit() o delegar la transacción al middleware.
         """
         # Verificar si usuario ya es VIP
         result = await self.session.execute(

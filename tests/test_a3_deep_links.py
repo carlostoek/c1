@@ -76,6 +76,9 @@ async def test_generate_token_with_plan(mock_bot):
             f"Duración: {token.duration_hours}h)"
         )
 
+        # Commit para persistir el token antes de refresh
+        await session.commit()
+
         # Paso 3: Verificar que el token está vinculado
         print("  3. Verificando vinculación token-plan...")
         await session.refresh(token)
@@ -301,11 +304,17 @@ async def test_extend_vip_via_deep_link(mock_bot):
             plan_id=plan.id
         )
 
+        # Commit para obtener token1.id
+        await session.commit()
+
         subscriber1 = await container.subscription.activate_vip_subscription(
             user_id=user.user_id,
             token_id=token1.id,
             duration_hours=plan_days * 24
         )
+
+        # Commit para persistir la primera suscripción
+        await session.commit()
 
         original_expiry = subscriber1.expiry_date
         print(
@@ -319,6 +328,9 @@ async def test_extend_vip_via_deep_link(mock_bot):
             duration_hours=plan_days * 24,
             plan_id=plan.id
         )
+
+        # Commit para obtener token2.id
+        await session.commit()
 
         subscriber2 = await container.subscription.activate_vip_subscription(
             user_id=user.user_id,
