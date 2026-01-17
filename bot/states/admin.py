@@ -227,3 +227,34 @@ class BadgeManagementStates(StatesGroup):
 
     # Paso 4: Esperando selección de rareza (vía callback)
     waiting_for_rarity = State()
+
+
+class LevelManagementStates(StatesGroup):
+    """
+    Estados para gestión de niveles.
+
+    Flujo:
+    1. Admin selecciona "Crear Nivel"
+    2. Bot entra en waiting_for_name
+    3. Admin envía nombre
+    4. Bot entra en waiting_for_min_points
+    5. Admin envía puntos mínimos
+    6. Bot entra en waiting_for_color
+    7. Admin envía color HEX o selecciona "usar por defecto"
+    8. Bot crea nivel → sale del estado
+
+    Validación:
+    - Nombre: Máximo 100 caracteres
+    - Puntos mínimos: Número entero >= 0, máximo 1,000,000
+    - Color: Formato HEX (#RRGGBB) o default (#00BCD4)
+    - Verifica que no exista otro nivel con mismos puntos mínimos
+    """
+
+    # Paso 1: Esperando nombre del nivel
+    waiting_for_name = State()
+
+    # Paso 2: Esperando puntos mínimos requeridos
+    waiting_for_min_points = State()
+
+    # Paso 3: Esperando color del nivel (HEX o default)
+    waiting_for_color = State()
