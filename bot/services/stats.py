@@ -167,6 +167,9 @@ class StatsService:
     # TTL del cache en segundos (5 minutos)
     CACHE_TTL = 300
 
+    # Cache compartido entre todas las instancias (class-level)
+    _global_cache: Dict[str, Tuple[any, datetime]] = {}
+
     def __init__(self, session: AsyncSession):
         """
         Inicializa el service.
@@ -175,7 +178,6 @@ class StatsService:
             session: Sesión de base de datos
         """
         self.session = session
-        self._cache: Dict[str, Tuple[any, datetime]] = {}
 
         logger.debug("✅ StatsService inicializado")
 
@@ -191,10 +193,10 @@ class StatsService:
         Returns:
             True si el cache es válido, False si expiró o no existe
         """
-        if key not in self._cache:
+        if key not in StatsService._global_cache:
             return False
 
-        _, cached_at = self._cache[key]
+        _, cached_at = StatsService._global_cache[key]
         age = (datetime.utcnow() - cached_at).total_seconds()
 
         return age < self.CACHE_TTL
@@ -212,7 +214,7 @@ class StatsService:
         if not self._is_cache_fresh(key):
             return None
 
-        value, _ = self._cache[key]
+        value, _ = StatsService._global_cache[key]
         logger.debug(f"📦 Cache hit: {key}")
         return value
 
@@ -224,12 +226,12 @@ class StatsService:
             key: Key del cache
             value: Valor a cachear
         """
-        self._cache[key] = (value, datetime.utcnow())
+        StatsService._global_cache[key] = (value, datetime.utcnow())
         logger.debug(f"💾 Cache set: {key}")
 
     def clear_cache(self) -> None:
         """Limpia todo el cache (útil para testing o forzar recálculo)."""
-        self._cache.clear()
+        StatsService._global_cache.clear()
         logger.info("🗑️ Cache limpiado")
 
     # ===== OVERALL STATS =====
