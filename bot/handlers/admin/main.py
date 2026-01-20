@@ -10,7 +10,11 @@ from aiogram.types import Message, CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.middlewares import AdminAuthMiddleware, DatabaseMiddleware
-from bot.utils.keyboards import admin_main_menu_keyboard, back_to_main_menu_keyboard
+from bot.utils.keyboards import (
+    admin_main_menu_keyboard,
+    back_to_main_menu_keyboard,
+    config_menu_keyboard
+)
 from bot.services.container import ServiceContainer
 
 logger = logging.getLogger(__name__)
@@ -124,32 +128,82 @@ async def callback_admin_main(callback: CallbackQuery, session: AsyncSession):
 @admin_router.callback_query(F.data == "admin:config")
 async def callback_admin_config(callback: CallbackQuery, session: AsyncSession):
     """
-    Handler para mostrar estado de configuración.
+    Handler para mostrar menú de configuración.
 
-    Muestra resumen detallado de la configuración actual del bot.
+    Muestra opciones para configurar reacciones y ver estado de config.
 
     Args:
         callback: Callback query
         session: Sesión de BD
     """
-    logger.debug(f"⚙️ Usuario {callback.from_user.id} abrió configuración")
+    logger.debug(f"⚙️ Usuario {callback.from_user.id} abrió menú de configuración")
 
-    # Crear container de services
-    container = ServiceContainer(session, callback.bot)
+    text = (
+        "⚙️ <b>Menú de Configuración</b>\n\n"
+        "Desde aquí puedes configurar las opciones avanzadas del bot.\n\n"
+        "Selecciona una opción:"
+    )
 
-    # Obtener resumen de configuración
-    summary = await container.config.get_config_summary()
-
-    # Editar mensaje con resumen
+    # Editar mensaje con menú de config
     try:
         await callback.message.edit_text(
-            text=summary,
-            reply_markup=back_to_main_menu_keyboard(),
+            text=text,
+            reply_markup=config_menu_keyboard(),
             parse_mode="HTML"
         )
     except Exception as e:
         if "message is not modified" not in str(e):
             logger.error(f"❌ Error editando mensaje de config: {e}")
+        else:
+            logger.debug("ℹ️ Mensaje sin cambios, ignorando")
+
+    await callback.answer()
+
+
+@admin_router.callback_query(F.data == "config:status")
+async def callback_config_status(callback: CallbackQuery, session: AsyncSession):
+    """
+    Muestra el estado completo de la configuración.
+
+    Incluye reacciones configuradas para VIP y Free.
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD
+    """
+    logger.debug(f"📊 Usuario {callback.from_user.id} consultando estado de config")
+
+    container = ServiceContainer(session, callback.bot)
+
+    # Obtener resumen de configuración (ya existe de T9)
+    summary = await container.config.get_config_summary()
+
+    # Obtener reacciones
+    vip_reactions = await container.config.get_vip_reactions()
+    free_reactions = await container.config.get_free_reactions()
+
+    # Agregar info de reacciones al resumen
+    if vip_reactions:
+        vip_text = " ".join(vip_reactions)
+        summary += f"\n\n<b>Reacciones VIP:</b> {vip_text}"
+    else:
+        summary += "\n\n<b>Reacciones VIP:</b> <i>No configuradas</i>"
+
+    if free_reactions:
+        free_text = " ".join(free_reactions)
+        summary += f"\n<b>Reacciones Free:</b> {free_text}"
+    else:
+        summary += "\n<b>Reacciones Free:</b> <i>No configuradas</i>"
+
+    try:
+        await callback.message.edit_text(
+            text=summary,
+            reply_markup=config_menu_keyboard(),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            logger.error(f"❌ Error editando mensaje de estado: {e}")
         else:
             logger.debug("ℹ️ Mensaje sin cambios, ignorando")
 

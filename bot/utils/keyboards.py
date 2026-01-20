@@ -124,3 +124,24 @@ def yes_no_keyboard(
             {"text": "❌ No", "callback_data": no_callback}
         ]
     ])
+
+
+def config_menu_keyboard() -> InlineKeyboardMarkup:
+    """
+    Keyboard del menú de configuración.
+
+    Opciones:
+    - Ver estado de configuración
+    - Configurar reacciones VIP
+    - Configurar reacciones Free
+    - Volver al menú principal
+
+    Returns:
+        InlineKeyboardMarkup con menú de configuración
+    """
+    return create_inline_keyboard([
+        [{"text": "📊 Ver Estado de Configuración", "callback_data": "config:status"}],
+        [{"text": "⚙️ Configurar Reacciones VIP", "callback_data": "config:reactions:vip"}],
+        [{"text": "⚙️ Configurar Reacciones Free", "callback_data": "config:reactions:free"}],
+        [{"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}],
+    ])
