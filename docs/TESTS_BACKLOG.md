@@ -4,6 +4,67 @@ Registro de tests pendientes por implementar para aumentar cobertura.
 
 ---
 
+## 🔄 PROCESO DE REVISIÓN INCREMENTAL EN CURSO
+
+### Contexto
+
+El proyecto tiene commits acumulados con problemas de lógica, duplicaciones y código muerto.
+Se está haciendo una revisión incremental antes de integrar a `main`.
+
+### Ramas
+
+| Rama | Descripción | Estado |
+|------|-------------|--------|
+| `main` | Rama estable, reseteada a estado limpio (≈T15-T16) | Base |
+| `1` | Batch actual: T18-T19 (StatsService + Handler) | ✅ Revisado |
+| `sologam` | Todos los commits (44 adelante de main) | Pendiente |
+
+### Flujo de trabajo
+
+```
+1. Seleccionar batch de commits (por feature/tarea)
+2. Crear rama o usar existente (ej: rama `1`)
+3. Revisar cada commit:
+   - Detectar bugs, duplicaciones, código muerto
+   - Verificar coherencia arquitectónica
+4. Corregir issues críticos
+5. Documentar tests pendientes en este archivo
+6. Push a rama
+7. (Cuando esté listo) Merge a main
+8. Repetir con siguiente batch
+```
+
+### Estado actual
+
+**Último batch revisado:** Rama `1` (T18-T19)
+- ✅ 4 commits originales revisados
+- ✅ 1 bug crítico corregido (tokens expirados hardcodeaba 24h)
+- ✅ 14 tests documentados como pendientes
+- ⏳ Pendiente: merge a main cuando se decida
+
+**Próximo batch:** Commits después de T19 en `sologam`
+- Revisar desde commit siguiente a `11688f7`
+- Incluye: T27 (Dashboard), T28 (Formatters), T29 (Tests E2E ONDA 2)
+
+### Issues conocidos pendientes (no críticos)
+
+| Issue | Archivo | Descripción |
+|-------|---------|-------------|
+| Duplicación formatters | `stats.py:22-45` | `format_currency` y `format_percentage` duplicados con `bot/utils/formatters.py` (T28). Resolver al integrar T28. |
+| Type hint `any` | `stats.py:178` | Usar `Any` (mayúscula) de typing |
+| SQLAlchemy `== False` | `stats.py:573,628` | Cambiar a `.is_(False)` |
+| Commit messages | varios | Quitar referencias a "Claude Code", "Qwen" |
+
+### Cómo retomar
+
+1. Leer esta sección para contexto
+2. Ver rama actual: `git branch`
+3. Ver commits pendientes vs main: `git log --oneline main..HEAD`
+4. Ver commits en sologam vs rama actual: `git log --oneline HEAD..sologam`
+5. Continuar con el flujo de trabajo descrito arriba
+
+---
+
 ## Rama `1` - T18/T19 (StatsService + Handler Stats)
 
 ### T18: StatsService (`bot/services/stats.py`)
