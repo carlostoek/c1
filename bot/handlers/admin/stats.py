@@ -345,58 +345,74 @@ def _format_vip_stats_message(stats) -> str:
     """
     Formatea mensaje de estadísticas VIP detalladas.
 
+    Incluye:
+    - Totales y tasa de retención
+    - Breakdown de expiración próxima
+    - Actividad reciente
+    - Top suscriptores con emojis contextuales
+
     Args:
         stats: VIPStats dataclass
 
     Returns:
         String HTML formateado para Telegram
     """
-    # Construir lista de top subscribers
-    top_text = ""
-    if stats.top_subscribers:
-        top_text = "\n┃ Top Suscriptores:\n"
-        for i, sub in enumerate(stats.top_subscribers[:5], 1):
-            days = sub["days_remaining"]
-            user_id = sub["user_id"]
-            top_text += f"┃   {i}. User {user_id}: {days} días\n"
-    else:
-        top_text = "\n┃ No hay suscriptores activos"
+    # Calcular tasa de retención
+    retention_rate = (stats.total_active / stats.total_all_time * 100) if stats.total_all_time > 0 else 0
 
     message = f"""
 📊 <b>Estadísticas VIP Detalladas</b>
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ <b>📊 ESTADO GENERAL</b>
+┃ <b>📈 TOTALES</b>
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ Activos: <b>{stats.total_active}</b>
 ┃ Expirados: {stats.total_expired}
 ┃ Total histórico: {stats.total_all_time}
+┃
+┃ Tasa retención: <b>{format_percentage(retention_rate)}</b>
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ <b>⏱️ PRÓXIMAS A EXPIRAR</b>
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ Hoy: {stats.expiring_today}
-┃ Esta semana: {stats.expiring_this_week}
+┃ Hoy: <b>{stats.expiring_today}</b>
+┃ Esta semana: <b>{stats.expiring_this_week}</b>
 ┃ Este mes: {stats.expiring_this_month}
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ <b>📈 ACTIVIDAD RECIENTE</b>
+┃ <b>📅 ACTIVIDAD RECIENTE</b>
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ Nuevos hoy: {stats.new_today}
 ┃ Nuevos esta semana: {stats.new_this_week}
 ┃ Nuevos este mes: {stats.new_this_month}
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ <b>⭐ TOP SUSCRIPTORES</b>
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{top_text}
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<i>Actualizado: {stats.calculated_at.strftime('%Y-%m-%d %H:%M')} UTC</i>
     """.strip()
+
+    # Agregar top subscribers si hay
+    if stats.top_subscribers:
+        message += "\n\n┏━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        message += "┃ <b>👥 TOP SUSCRIPTORES</b>\n"
+        message += "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+
+        for i, sub in enumerate(stats.top_subscribers[:5], 1):
+            days = sub["days_remaining"]
+            user_id = sub["user_id"]
+
+            # Emoji según días restantes
+            if days > 30:
+                emoji = "🟢"
+            elif days > 7:
+                emoji = "🟡"
+            else:
+                emoji = "🔴"
+
+            message += f"┃ {emoji} <code>{user_id}</code>: <b>{days}d</b>\n"
+
+        message += "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    message += f"\n\n<i>Actualizado: {stats.calculated_at.strftime('%Y-%m-%d %H:%M')} UTC</i>"
 
     return message
 
@@ -405,58 +421,78 @@ def _format_free_stats_message(stats) -> str:
     """
     Formatea mensaje de estadísticas Free detalladas.
 
+    Incluye:
+    - Totales y tasa de procesamiento
+    - Estado de cola y tiempo promedio
+    - Actividad reciente
+    - Próximas a procesar con emojis contextuales
+
     Args:
         stats: FreeStats dataclass
 
     Returns:
         String HTML formateado para Telegram
     """
-    # Construir lista de próximas a procesar
-    next_text = ""
-    if stats.next_to_process:
-        next_text = "\n┃ Próximas a procesar:\n"
-        for i, req in enumerate(stats.next_to_process[:5], 1):
-            minutes = req["minutes_remaining"]
-            user_id = req["user_id"]
-            next_text += f"┃   {i}. User {user_id}: {minutes:.1f} min\n"
-    else:
-        next_text = "\n┃ No hay solicitudes pendientes"
+    # Calcular tasa de procesamiento
+    processing_rate = (stats.total_processed / stats.total_all_time * 100) if stats.total_all_time > 0 else 0
 
     message = f"""
 📊 <b>Estadísticas Free Detalladas</b>
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ <b>📊 ESTADO GENERAL</b>
+┃ <b>📈 TOTALES</b>
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ Pendientes: <b>{stats.total_pending}</b>
 ┃ Procesadas: {stats.total_processed}
 ┃ Total histórico: {stats.total_all_time}
+┃
+┃ Tasa procesamiento: <b>{format_percentage(processing_rate)}</b>
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ <b>📋 ESTADO DE PROCESAMIENTO</b>
+┃ <b>⏱️ ESTADO DE COLA</b>
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ Listas para procesar: <b>{stats.ready_to_process}</b>
 ┃ Aún esperando: {stats.still_waiting}
-┃ Tiempo promedio espera: {stats.avg_wait_time_minutes:.1f} min
+┃
+┃ Tiempo promedio: <b>{stats.avg_wait_time_minutes:.1f} min</b>
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ <b>📈 ACTIVIDAD RECIENTE</b>
+┃ <b>📅 ACTIVIDAD RECIENTE</b>
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ Nuevas hoy: {stats.new_requests_today}
 ┃ Nuevas esta semana: {stats.new_requests_this_week}
 ┃ Nuevas este mes: {stats.new_requests_this_month}
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ <b>⏳ PRÓXIMAS A PROCESAR</b>
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{next_text}
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<i>Actualizado: {stats.calculated_at.strftime('%Y-%m-%d %H:%M')} UTC</i>
     """.strip()
+
+    # Agregar próximas a procesar si hay
+    if stats.next_to_process:
+        message += "\n\n┏━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        message += "┃ <b>🔜 PRÓXIMAS A PROCESAR</b>\n"
+        message += "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+
+        for i, req in enumerate(stats.next_to_process[:5], 1):
+            minutes = req["minutes_remaining"]
+            user_id = req["user_id"]
+
+            # Emoji según tiempo restante
+            if minutes <= 0:
+                emoji = "✅"
+                time_text = "Listo"
+            elif minutes < 2:
+                emoji = "🟡"
+                time_text = f"{minutes:.0f}m"
+            else:
+                emoji = "⏱️"
+                time_text = f"{minutes:.0f}m"
+
+            message += f"┃ {emoji} <code>{user_id}</code>: <b>{time_text}</b>\n"
+
+        message += "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    message += f"\n\n<i>Actualizado: {stats.calculated_at.strftime('%Y-%m-%d %H:%M')} UTC</i>"
 
     return message
 
@@ -464,6 +500,12 @@ def _format_free_stats_message(stats) -> str:
 def _format_token_stats_message(stats) -> str:
     """
     Formatea mensaje de estadísticas de Tokens detalladas.
+
+    Incluye:
+    - Totales y tasa de conversión
+    - Generados y usados por período
+    - Análisis contextual (estado de conversión)
+    - Warnings si hay problemas
 
     Args:
         stats: TokenStats dataclass
@@ -475,16 +517,18 @@ def _format_token_stats_message(stats) -> str:
 📊 <b>Estadísticas de Tokens Detalladas</b>
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ <b>📊 ESTADO GENERAL</b>
+┃ <b>📈 TOTALES</b>
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ Generados: {stats.total_generated}
 ┃ Usados: {stats.total_used}
 ┃ Expirados: {stats.total_expired}
 ┃ Disponibles: <b>{stats.total_available}</b>
+┃
+┃ Tasa conversión: <b>{format_percentage(stats.conversion_rate)}</b>
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ <b>📈 GENERADOS POR PERÍODO</b>
+┃ <b>🎟️ GENERADOS POR PERÍODO</b>
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ Hoy: {stats.generated_today}
 ┃ Esta semana: {stats.generated_this_week}
@@ -498,15 +542,34 @@ def _format_token_stats_message(stats) -> str:
 ┃ Esta semana: {stats.used_this_week}
 ┃ Este mes: {stats.used_this_month}
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ <b>📊 TASA DE CONVERSIÓN</b>
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ Conversión: <b>{format_percentage(stats.conversion_rate)}</b>
-┃ (Tokens usados / generados)
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<i>Actualizado: {stats.calculated_at.strftime('%Y-%m-%d %H:%M')} UTC</i>
     """.strip()
+
+    # Agregar análisis contextual
+    if stats.total_generated > 0:
+        message += "\n\n┏━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        message += "┃ <b>📊 ANÁLISIS</b>\n"
+        message += "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+
+        # Estado de conversión
+        if stats.conversion_rate >= 80:
+            message += "┃ 🟢 Conversión excelente\n"
+        elif stats.conversion_rate >= 50:
+            message += "┃ 🟡 Conversión moderada\n"
+        else:
+            message += "┃ 🔴 Conversión baja\n"
+
+        # Porcentaje de tokens sin usar
+        avail_pct = (stats.total_available / stats.total_generated * 100)
+        message += f"┃ Sin usar: <b>{format_percentage(avail_pct)}</b>\n"
+
+        # Warning si muchos tokens expirados
+        if stats.total_generated > 0:
+            expired_pct = (stats.total_expired / stats.total_generated * 100)
+            if expired_pct > 20:
+                message += f"┃ ⚠️ Expirados: {format_percentage(expired_pct)}\n"
+
+        message += "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    message += f"\n\n<i>Actualizado: {stats.calculated_at.strftime('%Y-%m-%d %H:%M')} UTC</i>"
 
     return message
