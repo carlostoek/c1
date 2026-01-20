@@ -132,8 +132,6 @@ def config_menu_keyboard() -> InlineKeyboardMarkup:
 
     Opciones:
     - Ver estado de configuración
-    - Configurar reacciones VIP
-    - Configurar reacciones Free
     - Volver al menú principal
 
     Returns:
@@ -141,7 +139,5 @@ def config_menu_keyboard() -> InlineKeyboardMarkup:
     """
     return create_inline_keyboard([
         [{"text": "📊 Ver Estado de Configuración", "callback_data": "config:status"}],
-        [{"text": "⚙️ Configurar Reacciones VIP", "callback_data": "config:reactions:vip"}],
-        [{"text": "⚙️ Configurar Reacciones Free", "callback_data": "config:reactions:free"}],
         [{"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}],
     ])

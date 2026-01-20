@@ -5,7 +5,6 @@ from bot.states.admin import (
     ChannelSetupStates,
     WaitTimeSetupStates,
     BroadcastStates,
-    ReactionSetupStates
 )
 from bot.states.user import (
     TokenRedemptionStates,
@@ -17,7 +16,6 @@ __all__ = [
     "ChannelSetupStates",
     "WaitTimeSetupStates",
     "BroadcastStates",
-    "ReactionSetupStates",
 
     # User states
     "TokenRedemptionStates",
