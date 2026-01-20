@@ -41,12 +41,12 @@ Se está haciendo una revisión incremental antes de integrar a `main`.
 - ✅ 1 bug crítico corregido (tokens expirados hardcodeaba 24h)
 - ✅ 14 tests documentados
 
-**Batch 2:** T20-T23 (Stats mejoradas + Broadcasting + Reacciones) ✅
+**Batch 2:** T20-T22 (Stats mejoradas + Broadcasting) ✅
 - ✅ Cherry-pick selectivo (T21 tenía 23k líneas basura, limpiado)
 - ✅ T20: Stats con análisis contextual
 - ✅ T21: FSM states para broadcasting (solo bot/states/)
 - ✅ T22: Handler broadcasting con preview
-- ✅ T23: Config reacciones automáticas
+- ❌ T23: Reacciones ELIMINADO (no funciona en canales Telegram)
 - ✅ Tests documentados
 
 **Próximo batch:** T24-T26 (Paginación)
@@ -101,7 +101,7 @@ Se está haciendo una revisión incremental antes de integrar a `main`.
 
 ---
 
-## Batch 2 - T20-T23 (Broadcasting y Reacciones)
+## Batch 2 - T20-T22 (Stats mejoradas + Broadcasting)
 
 ### T20: Stats Mejoradas (`bot/handlers/admin/stats.py`)
 
@@ -116,8 +116,7 @@ Se está haciendo una revisión incremental antes de integrar a `main`.
 
 | Test | Descripción | Prioridad | Estado |
 |------|-------------|-----------|--------|
-| `test_broadcast_states_exist` | BroadcastStates tiene 3 estados | 🟢 Baja | Pendiente |
-| `test_reaction_setup_states_exist` | ReactionSetupStates tiene 2 estados | 🟢 Baja | Pendiente |
+| `test_broadcast_states_exist` | BroadcastStates tiene 2 estados (waiting_for_content, waiting_for_confirmation) | 🟢 Baja | Pendiente |
 
 ### T22: Handler Broadcasting (`bot/handlers/admin/broadcast.py`)
 
@@ -130,16 +129,9 @@ Se está haciendo una revisión incremental antes de integrar a `main`.
 | `test_broadcast_confirm_sends_to_channel` | Confirmar envía al canal correcto | 🔴 Alta | Pendiente |
 | `test_broadcast_cancel_clears_state` | Cancelar limpia FSM state | 🟡 Media | Pendiente |
 
-### T23: Reacciones (`bot/handlers/admin/reactions.py`, `bot/utils/validators.py`)
+### ~~T23: Reacciones~~ ❌ ELIMINADO
 
-| Test | Descripción | Prioridad | Estado |
-|------|-------------|-----------|--------|
-| `test_validate_emoji_list_valid` | Lista válida de emojis aceptada | 🔴 Alta | Pendiente |
-| `test_validate_emoji_list_empty` | Lista vacía rechazada | 🔴 Alta | Pendiente |
-| `test_validate_emoji_list_too_many` | Más de 10 emojis rechazada | 🟡 Media | Pendiente |
-| `test_validate_emoji_list_duplicates` | Duplicados eliminados automáticamente | 🟡 Media | Pendiente |
-| `test_validate_emoji_list_non_emoji` | Caracteres no-emoji rechazados | 🔴 Alta | Pendiente |
-| `test_is_valid_channel_id` | Valida formato ID canal | 🟢 Baja | Pendiente |
+> **Razón:** Las reacciones en canales de Telegram no permiten identificar usuarios (solo en grupos). Funcionalidad eliminada por no ser útil y generar confusión.
 
 ---
 
@@ -174,7 +166,7 @@ Al hacer un fix o implementar una feature, agregar aquí:
 | T18 StatsService | 9 | 0 | 0% |
 | T19 Handler Stats | 5 | 0 | 0% |
 | T20 Stats Mejoradas | 4 | 0 | 0% |
-| T21 FSM Broadcasting | 2 | 0 | 0% |
+| T21 FSM Broadcasting | 1 | 0 | 0% |
 | T22 Handler Broadcast | 6 | 0 | 0% |
-| T23 Reacciones | 6 | 0 | 0% |
-| **Total rama 1** | **32** | **0** | **0%** |
+| ~~T23 Reacciones~~ | ~~6~~ | - | ❌ Eliminado |
+| **Total rama 1** | **25** | **0** | **0%** |
