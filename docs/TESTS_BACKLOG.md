@@ -36,15 +36,23 @@ Se está haciendo una revisión incremental antes de integrar a `main`.
 
 ### Estado actual
 
-**Último batch revisado:** Rama `1` (T18-T19)
+**Batch 1:** T18-T19 (StatsService + Handler) ✅
 - ✅ 4 commits originales revisados
 - ✅ 1 bug crítico corregido (tokens expirados hardcodeaba 24h)
-- ✅ 14 tests documentados como pendientes
-- ⏳ Pendiente: merge a main cuando se decida
+- ✅ 14 tests documentados
 
-**Próximo batch:** Commits después de T19 en `sologam`
-- Revisar desde commit siguiente a `11688f7`
-- Incluye: T27 (Dashboard), T28 (Formatters), T29 (Tests E2E ONDA 2)
+**Batch 2:** T20-T23 (Stats mejoradas + Broadcasting + Reacciones) ✅
+- ✅ Cherry-pick selectivo (T21 tenía 23k líneas basura, limpiado)
+- ✅ T20: Stats con análisis contextual
+- ✅ T21: FSM states para broadcasting (solo bot/states/)
+- ✅ T22: Handler broadcasting con preview
+- ✅ T23: Config reacciones automáticas
+- ✅ Tests documentados
+
+**Próximo batch:** T24-T26 (Paginación)
+- T24: Sistema paginación reutilizable
+- T25: Gestión paginada VIP
+- T26: Visualización cola Free
 
 ### Issues conocidos pendientes (no críticos)
 
@@ -93,6 +101,48 @@ Se está haciendo una revisión incremental antes de integrar a `main`.
 
 ---
 
+## Batch 2 - T20-T23 (Broadcasting y Reacciones)
+
+### T20: Stats Mejoradas (`bot/handlers/admin/stats.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_retention_rate_calculation` | Tasa retención = activos/total_all_time | 🟡 Media | Pendiente |
+| `test_retention_rate_zero_division` | Retorna 0 si total_all_time es 0 | 🟡 Media | Pendiente |
+| `test_top_subscribers_emoji_colors` | 🟢>30d, 🟡7-30d, 🔴<7d | 🟢 Baja | Pendiente |
+| `test_conversion_rate_analysis` | Análisis contextual 🟢>=80%, 🟡50-79%, 🔴<50% | 🟢 Baja | Pendiente |
+
+### T21: FSM Broadcasting (`bot/states/admin.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_broadcast_states_exist` | BroadcastStates tiene 3 estados | 🟢 Baja | Pendiente |
+| `test_reaction_setup_states_exist` | ReactionSetupStates tiene 2 estados | 🟢 Baja | Pendiente |
+
+### T22: Handler Broadcasting (`bot/handlers/admin/broadcast.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_broadcast_to_vip_requires_channel` | Error si canal VIP no configurado | 🔴 Alta | Pendiente |
+| `test_broadcast_content_text` | Procesa contenido texto correctamente | 🟡 Media | Pendiente |
+| `test_broadcast_content_photo` | Procesa foto con caption | 🟡 Media | Pendiente |
+| `test_broadcast_content_video` | Procesa video con caption | 🟡 Media | Pendiente |
+| `test_broadcast_confirm_sends_to_channel` | Confirmar envía al canal correcto | 🔴 Alta | Pendiente |
+| `test_broadcast_cancel_clears_state` | Cancelar limpia FSM state | 🟡 Media | Pendiente |
+
+### T23: Reacciones (`bot/handlers/admin/reactions.py`, `bot/utils/validators.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_validate_emoji_list_valid` | Lista válida de emojis aceptada | 🔴 Alta | Pendiente |
+| `test_validate_emoji_list_empty` | Lista vacía rechazada | 🔴 Alta | Pendiente |
+| `test_validate_emoji_list_too_many` | Más de 10 emojis rechazada | 🟡 Media | Pendiente |
+| `test_validate_emoji_list_duplicates` | Duplicados eliminados automáticamente | 🟡 Media | Pendiente |
+| `test_validate_emoji_list_non_emoji` | Caracteres no-emoji rechazados | 🔴 Alta | Pendiente |
+| `test_is_valid_channel_id` | Valida formato ID canal | 🟢 Baja | Pendiente |
+
+---
+
 ## Cómo agregar nuevos tests pendientes
 
 Al hacer un fix o implementar una feature, agregar aquí:
@@ -123,4 +173,8 @@ Al hacer un fix o implementar una feature, agregar aquí:
 |------|------------|---------------|-----------|
 | T18 StatsService | 9 | 0 | 0% |
 | T19 Handler Stats | 5 | 0 | 0% |
-| **Total rama 1** | **14** | **0** | **0%** |
+| T20 Stats Mejoradas | 4 | 0 | 0% |
+| T21 FSM Broadcasting | 2 | 0 | 0% |
+| T22 Handler Broadcast | 6 | 0 | 0% |
+| T23 Reacciones | 6 | 0 | 0% |
+| **Total rama 1** | **32** | **0** | **0%** |
