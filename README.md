@@ -344,6 +344,86 @@ Handler del comando /start que detecta el rol del usuario y proporciona flujos p
 - **FSM para validación de tokens:** Estados para manejo de entrada de tokens
 - **Validación de configuración:** Verificación de canales configurados antes de procesar
 
+### Stats Handler (T19)
+Handlers del panel de estadísticas que proporcionan métricas generales y detalladas sobre el sistema, incluyendo suscriptores VIP, solicitudes Free y tokens de invitación, con funcionalidades de caching y actualización manual:
+
+- **Dashboard general:** Visualización de métricas generales del sistema (VIP, Free, Tokens)
+- **Estadísticas VIP detalladas:** Métricas sobre suscriptores VIP (activos, expirados, próximos a expirar)
+- **Estadísticas Free detalladas:** Métricas sobre solicitudes Free (pendientes, procesadas, tiempos de espera)
+- **Estadísticas de tokens:** Métricas sobre tokens de invitación (generados, usados, expirados, tasa de conversión)
+- **Sistema de cache:** Implementación de cache con TTL de 5 minutos para optimizar performance
+- **Actualización manual:** Posibilidad de forzar recálculo de estadísticas ignorando el cache
+- **Formato visual:** Mensajes HTML formateados con iconos y estructura clara
+- **Proyecciones de ingresos:** Cálculo de ingresos proyectados mensuales y anuales basados en suscriptores activos
+
+**Ejemplo de uso del handler de estadísticas:**
+```python
+from aiogram import Router, F
+from aiogram.types import CallbackQuery
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from bot.services.container import ServiceContainer
+from bot.utils.keyboards import stats_menu_keyboard, back_to_main_menu_keyboard
+
+# Router para handlers de admin (ya incluye stats handlers)
+admin_router = Router(name="admin")
+
+@admin_router.callback_query(F.data == "admin:stats")
+async def callback_stats_general(callback: CallbackQuery, session: AsyncSession):
+    """
+    Muestra dashboard de estadísticas generales.
+
+    Incluye:
+    - Resumen VIP (activos, expirados, próximos a expirar)
+    - Resumen Free (pendientes, procesadas)
+    - Resumen Tokens (generados, usados, disponibles)
+    - Actividad reciente (hoy, semana, mes)
+    - Proyección de ingresos
+
+    Args:
+        callback: Callback query
+        session: Sesión de BD (inyectada por middleware)
+    """
+    logger.info(f"📊 Usuario {callback.from_user.id} abrió estadísticas generales")
+
+    # Mostrar "cargando..." temporalmente
+    await callback.answer("📊 Calculando estadísticas...", show_alert=False)
+
+    container = ServiceContainer(session, callback.bot)
+
+    try:
+        # Obtener estadísticas generales (con cache)
+        stats = await container.stats.get_overall_stats()
+
+        # Construir mensaje
+        text = _format_overall_stats_message(stats)
+
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=stats_menu_keyboard(),
+            parse_mode="HTML"
+        )
+
+        logger.debug(f"✅ Stats generales mostradas a user {callback.from_user.id}")
+
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo stats: {e}", exc_info=True)
+
+        await callback.message.edit_text(
+            "❌ <b>Error al Calcular Estadísticas</b>\n\n"
+            "Hubo un problema al obtener las métricas.\n"
+            "Intenta nuevamente en unos momentos.",
+            reply_markup=back_to_main_menu_keyboard(),
+            parse_mode="HTML"
+        )
+
+# Otros handlers para estadísticas detalladas:
+# - callback_stats_vip: Estadísticas VIP detalladas
+# - callback_stats_free: Estadísticas Free detalladas
+# - callback_stats_tokens: Estadísticas de tokens
+# - callback_stats_refresh: Actualización manual de estadísticas
+```
+
 ### Background Tasks (T15)
 Tareas programadas automáticas que realizan operaciones periódicas para mantener el sistema funcionando correctamente:
 
@@ -1316,6 +1396,7 @@ Este proyecto está en desarrollo iterativo. Consulta las tareas completadas:
 - [x] T13: Handlers VIP y Free - Submenú VIP (gestión del canal VIP con generación de tokens de invitación), Configuración del canal VIP (configuración del canal VIP por reenvío de mensajes), Generación de tokens de invitación (creación de tokens VIP con duración configurable), Submenú Free (gestión del canal Free con configuración de tiempo de espera), Configuración del canal Free (configuración del canal Free por reenvío de mensajes), Configuración de tiempo de espera (configuración de tiempo de espera para acceso Free)
 - [x] T14: Handlers User (/start, flujos) - Handler /start con detección de rol (admin/VIP/usuario), Flujo VIP (canje de tokens VIP con validación y generación de invite links), Flujo Free (solicitud de acceso Free con tiempo de espera y notificaciones automáticas), Middleware de base de datos (inyección de sesiones sin autenticación de admin), FSM para validación de tokens (estados para manejo de entrada de tokens), Validación de configuración (verificación de canales configurados antes de procesar)
 - [x] T15: Background Tasks - Tareas programadas que expulsan VIPs expirados del canal, procesan la cola Free para enviar invite links a usuarios que completaron tiempo de espera, limpian datos antiguos y usan APScheduler con configuración de intervalos mediante variables de entorno
+- [x] T19: Stats Handler - Panel de estadísticas que proporciona métricas generales y detalladas sobre el sistema (VIP, Free, Tokens), con sistema de cache y actualización manual
 - [ ] ONDA 1: MVP Funcional (T1-T17)
 - [ ] ONDA 2: Features Avanzadas (T18-T33)
 - [ ] ONDA 3: Optimización (T34-T44)

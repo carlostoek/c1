@@ -194,6 +194,85 @@ Nuevo tiempo: 15 minutos
 Las nuevas solicitudes esperarán 15 minutos antes de procesarse.
 ```
 
+## Estadísticas
+
+### `Estadísticas` - Panel de Estadísticas del Sistema
+
+**Descripción:** Accede al panel de estadísticas que proporciona métricas generales y detalladas sobre el sistema, incluyendo información sobre suscriptores VIP, solicitudes Free y tokens de invitación.
+
+**Permisos:** Solo administradores
+
+**Funcionalidades:**
+- Visualización de estadísticas generales del sistema
+- Estadísticas detalladas de suscriptores VIP
+- Estadísticas detalladas de solicitudes Free
+- Estadísticas detalladas de tokens de invitación
+- Proyecciones de ingresos
+- Actualización manual de estadísticas (force refresh)
+
+**Flujo de uso:**
+1. El administrador selecciona "📊 Estadísticas" en el menú principal
+2. El bot muestra el dashboard de estadísticas generales
+3. El administrador puede navegar entre diferentes vistas de estadísticas
+4. El bot actualiza automáticamente las estadísticas cada 5 minutos (cache)
+
+### `Ver Stats VIP Detalladas` - Estadísticas de suscriptores VIP
+
+**Descripción:** Muestra estadísticas detalladas sobre los suscriptores VIP, incluyendo activos, expirados, próximos a expirar y actividad reciente.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona "📊 Ver Stats VIP Detalladas" en el menú de estadísticas
+2. El bot calcula y muestra las métricas VIP detalladas
+3. El bot incluye información como:
+   - Total de suscriptores activos y expirados
+   - Suscriptores que expirarán próximamente (hoy, semana, mes)
+   - Nuevos suscriptores (hoy, semana, mes)
+   - Top suscriptores por días restantes
+
+### `Ver Stats Free Detalladas` - Estadísticas de solicitudes Free
+
+**Descripción:** Muestra estadísticas detalladas sobre las solicitudes de acceso Free, incluyendo pendientes, procesadas y tiempos de espera.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona "📊 Ver Stats Free Detalladas" en el menú de estadísticas
+2. El bot calcula y muestra las métricas Free detalladas
+3. El bot incluye información como:
+   - Total de solicitudes pendientes y procesadas
+   - Solicitudes listas para procesar y aún esperando
+   - Tiempo promedio de espera
+   - Solicitudes próximas a procesar
+   - Actividad reciente (hoy, semana, mes)
+
+### `Ver Stats de Tokens` - Estadísticas de tokens de invitación
+
+**Descripción:** Muestra estadísticas detalladas sobre los tokens de invitación VIP, incluyendo generados, usados, expirados y tasa de conversión.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona "🎟️ Ver Stats de Tokens" en el menú de estadísticas
+2. El bot calcula y muestra las métricas de tokens detalladas
+3. El bot incluye información como:
+   - Total de tokens generados, usados, expirados y disponibles
+   - Tokens generados y usados por período (hoy, semana, mes)
+   - Tasa de conversión (tokens usados vs generados)
+
+### `Actualizar Estadísticas` - Forzar recálculo de estadísticas
+
+**Descripción:** Fuerza el recálculo de todas las estadísticas, ignorando el cache actual.
+
+**Permisos:** Solo administradores
+
+**Flujo de uso:**
+1. El administrador selecciona "🔄 Actualizar Estadísticas" en el menú de estadísticas
+2. El bot recalcula todas las métricas desde la base de datos
+3. El bot muestra las estadísticas actualizadas inmediatamente
+4. El cache se actualiza con los nuevos valores
+
 ## Comandos de Usuario
 
 ### `/start` - Bienvenida y menú principal de usuario
