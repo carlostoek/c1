@@ -669,13 +669,23 @@ class StatsService:
         return result.scalar() or 0
 
     async def _count_expired_tokens(self) -> int:
-        """Cuenta tokens expirados (no usados pero expirados)."""
+        """Cuenta tokens expirados (no usados pero expirados).
+
+        Usa el campo duration_hours de cada token para calcular expiración.
+        """
+        # SQLite: julianday para aritmética de fechas
+        # Token expirado si: now > created_at + duration_hours
+        created_julian = func.julianday(InvitationToken.created_at)
+        hours_as_days = InvitationToken.duration_hours / 24.0
+        expiry_julian = created_julian + hours_as_days
+        now_julian = func.julianday('now')
+
         result = await self.session.execute(
             select(func.count(InvitationToken.id))
             .where(
                 and_(
                     InvitationToken.used == False,
-                    InvitationToken.created_at + timedelta(hours=24) < datetime.utcnow()
+                    now_julian > expiry_julian
                 )
             )
         )
