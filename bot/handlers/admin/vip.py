@@ -37,6 +37,7 @@ def vip_menu_keyboard(is_configured: bool) -> "InlineKeyboardMarkup":
         buttons.extend([
             [{"text": "🎟️ Generar Token de Invitación", "callback_data": "vip:generate_token"}],
             [{"text": "📤 Enviar Publicación", "callback_data": "vip:broadcast"}],
+            [{"text": "👥 Ver Suscriptores VIP", "callback_data": "vip:list_subscribers"}],
             [{"text": "🔧 Reconfigurar Canal", "callback_data": "vip:setup"}],
         ])
     else:
