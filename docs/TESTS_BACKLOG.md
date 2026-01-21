@@ -49,10 +49,13 @@ Se está haciendo una revisión incremental antes de integrar a `main`.
 - ❌ T23: Reacciones ELIMINADO (no funciona en canales Telegram)
 - ✅ Tests documentados
 
-**Próximo batch:** T24-T26 (Paginación)
-- T24: Sistema paginación reutilizable
-- T25: Gestión paginada VIP
-- T26: Visualización cola Free
+**Batch 3:** T24-T26 (Paginación) ✅
+- ✅ T24: Sistema paginación reutilizable
+- ✅ T25: Gestión paginada VIP (conflicto resuelto: sin reactions)
+- ✅ T26: Visualización cola Free
+- ✅ Tests documentados
+
+**Próximo batch:** T27-T29 (Dashboard + Formatters + Tests ONDA 2)
 
 ### Issues conocidos pendientes (no críticos)
 
@@ -135,6 +138,43 @@ Se está haciendo una revisión incremental antes de integrar a `main`.
 
 ---
 
+## Batch 3 - T24-T26 (Paginación)
+
+### T24: Sistema Paginación (`bot/utils/pagination.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_paginator_basic` | Paginación de lista con múltiples páginas | 🔴 Alta | Pendiente |
+| `test_paginator_empty_list` | Lista vacía retorna 1 página con 0 items | 🟡 Media | Pendiente |
+| `test_paginator_single_page` | Lista pequeña cabe en 1 página | 🟡 Media | Pendiente |
+| `test_page_indices` | start_index y end_index correctos | 🟡 Media | Pendiente |
+| `test_pagination_keyboard` | Botones Anterior/Siguiente según contexto | 🟡 Media | Pendiente |
+| `test_extract_page_from_callback` | Parsea correctamente callbacks | 🟢 Baja | Pendiente |
+
+### T25: Gestión VIP Paginada (`bot/handlers/admin/management.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_list_vip_subscribers_page1` | Muestra página 1 de suscriptores | 🔴 Alta | Pendiente |
+| `test_vip_filter_active` | Filtro activos funciona | 🔴 Alta | Pendiente |
+| `test_vip_filter_expired` | Filtro expirados funciona | 🟡 Media | Pendiente |
+| `test_vip_filter_expiring` | Filtro "por expirar" (7 días) | 🟡 Media | Pendiente |
+| `test_vip_subscriber_details` | Muestra detalles correctos | 🟡 Media | Pendiente |
+| `test_vip_kick_subscriber` | Expulsión manual funciona | 🔴 Alta | Pendiente |
+
+### T26: Cola Free Paginada (`bot/handlers/admin/management.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_view_free_queue` | Muestra cola inicial | 🔴 Alta | Pendiente |
+| `test_free_filter_pending` | Filtro pendientes funciona | 🔴 Alta | Pendiente |
+| `test_free_filter_ready` | Filtro "listas" (tiempo cumplido) | 🟡 Media | Pendiente |
+| `test_free_filter_processed` | Filtro procesadas funciona | 🟡 Media | Pendiente |
+| `test_free_time_calculation` | Cálculo correcto de tiempo restante | 🔴 Alta | Pendiente |
+| `test_free_emoji_by_time` | Emoji correcto según tiempo (⏳🟡🟢✅) | 🟢 Baja | Pendiente |
+
+---
+
 ## Cómo agregar nuevos tests pendientes
 
 Al hacer un fix o implementar una feature, agregar aquí:
@@ -169,4 +209,7 @@ Al hacer un fix o implementar una feature, agregar aquí:
 | T21 FSM Broadcasting | 1 | 0 | 0% |
 | T22 Handler Broadcast | 6 | 0 | 0% |
 | ~~T23 Reacciones~~ | ~~6~~ | - | ❌ Eliminado |
-| **Total rama 1** | **25** | **0** | **0%** |
+| T24 Paginación | 6 | 0 | 0% |
+| T25 Gestión VIP | 6 | 0 | 0% |
+| T26 Cola Free | 6 | 0 | 0% |
+| **Total rama 1** | **43** | **0** | **0%** |
