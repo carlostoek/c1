@@ -11,11 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.middlewares import AdminAuthMiddleware, DatabaseMiddleware
 from bot.services.container import ServiceContainer
+from bot.handlers.admin import content as admin_content
 
 logger = logging.getLogger(__name__)
 
 # Router para handlers de admin
 admin_router = Router(name="admin")
+
+# Include content management router
+admin_router.include_router(admin_content.content_router)
 
 # Aplicar middlewares (Database ya está global, solo AdminAuth para este router)
 admin_router.message.middleware(AdminAuthMiddleware())

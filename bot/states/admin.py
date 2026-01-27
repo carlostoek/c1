@@ -140,3 +140,62 @@ class PricingSetupStates(StatesGroup):
 
     # Paso 3: Esperando precio del plan
     waiting_for_price = State()
+
+
+class ContentPackageStates(StatesGroup):
+    """
+    Estados para creación de paquetes de contenido.
+
+    Flujo de creación:
+    1. Admin selecciona "Crear Paquete"
+    2. Bot entra en waiting_for_name
+    3. Admin envía nombre: "Colección Verano"
+    4. Bot entra en waiting_for_type
+    5. Admin selecciona tipo con botones: [VIP Premium] [VIP Content] [Free Content]
+    6. Bot entra en waiting_for_price
+    7. Admin envía precio o /skip: "9.99" o "/skip"
+    8. Bot entra en waiting_for_description
+    9. Admin envía descripción o /skip: "Contenido exclusivo..."
+    10. Bot crea paquete y sale del estado
+
+    Flujo de edición (inline prompt pattern):
+    1. Admin abre detalle de paquete existente
+    2. Admin selecciona campo a editar: [Editar nombre] [Editar precio] [Editar descripción]
+    3. Bot entra en waiting_for_edit
+    4. Admin envía nuevo valor o /skip para mantener actual
+    5. Bot actualiza campo y vuelve a vista detalle
+
+    Validación:
+    - Nombre: No vacío, máximo 200 caracteres
+    - Tipo: Debe seleccionar con botones (3 opciones), NO editable post-creación
+    - Precio: Opcional, si se envía debe ser número >= 0
+    - Descripción: Opcional, texto libre
+    - /skip: Permite omitir campos opcionales (creación) o mantener valor actual (edición)
+    - Cancelar: Vuelve al menú principal sin guardar
+
+    Estados:
+    - waiting_for_name: Esperando nombre del paquete (texto) - CREACIÓN
+    - waiting_for_type: Esperando tipo de paquete (botones inline) - CREACIÓN
+    - waiting_for_price: Esperando precio (número o /skip) - CREACIÓN
+    - waiting_for_description: Esperando descripción (texto o /skip) - CREACIÓN
+    - waiting_for_edit: Esperando nuevo valor de campo (inline prompt) - EDICIÓN
+    """
+
+    # ===== CREACIÓN (4-step wizard) =====
+
+    # Paso 1: Esperando nombre del paquete (required)
+    waiting_for_name = State()
+
+    # Paso 2: Esperando tipo de paquete via botones inline (required)
+    waiting_for_type = State()
+
+    # Paso 3: Esperando precio del paquete (optional, /skip to omit)
+    waiting_for_price = State()
+
+    # Paso 4: Esperando descripción del paquete (optional, /skip to omit)
+    waiting_for_description = State()
+
+    # ===== EDICIÓN (inline prompt pattern) =====
+
+    # Para editar campos de paquetes existentes (name, price, description)
+    waiting_for_edit = State()  # For inline prompt editing

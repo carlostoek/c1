@@ -101,13 +101,13 @@ Plans:
   4. Admin puede editar paquete existente (nombre, descripción, precio, categoría)
   5. Admin puede desactivar paquete (soft delete con is_active)
   6. Sistema de callbacks unificado para navegación (menu:main, menu:vip, menu:free)
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 07-01: MenuService centralizing navigation logic between menus
-- [ ] 07-02: Admin menu router with content management handlers
-- [ ] 07-03: Content package list with pagination
-- [ ] 07-04: Content package CRUD operations (create, edit, delete, toggle)
+- [ ] 07-01-PLAN.md — AdminContentMessages provider with Lucien's voice for content UI
+- [ ] 07-02-PLAN.md — Content navigation handlers (menu, list, detail, pagination)
+- [ ] 07-03-PLAN.md — ContentPackageStates FSM state group for creation wizard
+- [ ] 07-04-PLAN.md — Content CRUD operations (create wizard, edit prompts, toggle active/inactive)
 
 ### Phase 8: Interest Notification System
 **Goal**: Botón "Me interesa" crea registro de interés y envía notificación privada al admin con información del usuario y paquete.
@@ -198,7 +198,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11
 | 4. Advanced Voice Features | v1.0 | 4/4 | Complete | 2026-01-24 |
 | 5. Role Detection & Database Foundation | v1.1 | 5/5 | Complete | 2026-01-25 |
 | 6. VIP/Free User Menus | v1.1 | 4/4 | Complete | 2026-01-25 |
-| 7. Admin Menu with Content Management | v1.1 | 0/TBD | Not started | - |
+| 7. Admin Menu with Content Management | v1.1 | 0/4 | Not started | - |
 | 8. Interest Notification System | v1.1 | 0/TBD | Not started | - |
 | 9. User Management Features | v1.1 | 0/TBD | Not started | - |
 | 10. Free Channel Entry Flow | v1.1 | 0/TBD | Not started | - |

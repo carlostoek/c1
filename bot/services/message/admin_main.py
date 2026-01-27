@@ -223,6 +223,7 @@ class AdminMainMessages(BaseMessageProvider):
             Button text uses Lucien voice terminology:
             - "Círculo Exclusivo VIP" not "VIP Channel"
             - "Vestíbulo de Acceso" not "Free Channel"
+            - "Paquetes de Contenido" not "Content Packages"
             - "Calibración del Reino" not "Configuration"
             - "Planes de Suscripción" not "Pricing"
             - "Observaciones del Reino" not "Stats"
@@ -231,6 +232,7 @@ class AdminMainMessages(BaseMessageProvider):
             [{"text": "📊 Dashboard Completo", "callback_data": "admin:dashboard"}],
             [{"text": "👑 Círculo Exclusivo VIP", "callback_data": "admin:vip"}],
             [{"text": "📺 Vestíbulo de Acceso", "callback_data": "admin:free"}],
+            [{"text": "📦 Paquetes de Contenido", "callback_data": "admin:content"}],
             [{"text": "⚙️ Calibración del Reino", "callback_data": "admin:config"}],
             [{"text": "💰 Planes de Suscripción", "callback_data": "admin:pricing"}],
             [{"text": "📈 Observaciones del Reino", "callback_data": "admin:stats"}],

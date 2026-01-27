@@ -26,6 +26,7 @@ from .common import CommonMessages
 from .admin_main import AdminMainMessages
 from .admin_vip import AdminVIPMessages
 from .admin_free import AdminFreeMessages
+from .admin_content import AdminContentMessages
 from .user_start import UserStartMessages
 from .user_flows import UserFlowMessages
 from .user_menu import UserMenuMessages
@@ -38,6 +39,7 @@ __all__ = [
     "AdminMainMessages",
     "AdminVIPMessages",
     "AdminFreeMessages",
+    "AdminContentMessages",
     "UserMessages",
     "UserStartMessages",
     "UserFlowMessages",
@@ -49,7 +51,7 @@ class AdminMessages:
     """
     Admin messages namespace for organization.
 
-    Provides access to AdminMainMessages, AdminVIPMessages, AdminFreeMessages.
+    Provides access to AdminMainMessages, AdminVIPMessages, AdminFreeMessages, AdminContentMessages.
     Each submenu has its own provider organized by navigation flow.
 
     Architecture:
@@ -57,7 +59,8 @@ class AdminMessages:
             └─ admin: AdminMessages (this class)
                 ├─ main: AdminMainMessages (Phase 2 Plan 03) ✅
                 ├─ vip: AdminVIPMessages (Phase 2 Plan 01) ✅
-                └─ free: AdminFreeMessages (Phase 2 Plan 02) ✅
+                ├─ free: AdminFreeMessages (Phase 2 Plan 02) ✅
+                └─ content: AdminContentMessages (Phase 7 Plan 01) ✅
 
     Usage:
         container = ServiceContainer(session, bot)
@@ -70,6 +73,9 @@ class AdminMessages:
 
         # Access Free messages
         text, kb = container.message.admin.free.free_menu(is_configured=True)
+
+        # Access Content messages
+        text, kb = container.message.admin.content.content_menu()
 
     Stateless Design:
         All sub-providers are lazy-loaded and stateless.
@@ -85,6 +91,7 @@ class AdminMessages:
         self._main = None
         self._vip = None
         self._free = None
+        self._content = None
 
     @property
     def main(self):
@@ -148,6 +155,27 @@ class AdminMessages:
             from .admin_free import AdminFreeMessages
             self._free = AdminFreeMessages()
         return self._free
+
+    @property
+    def content(self):
+        """
+        Admin content management messages (Phase 7 Plan 01) ✅ COMPLETE.
+
+        Lazy-loaded: creates AdminContentMessages instance on first access.
+
+        Returns:
+            AdminContentMessages: Provider for content management messages
+
+        Examples:
+            >>> admin = AdminMessages()
+            >>> text, kb = admin.content.content_menu()
+            >>> '🎩' in text and 'paquete' in text.lower() or 'contenido' in text.lower()
+            True
+        """
+        if self._content is None:
+            from .admin_content import AdminContentMessages
+            self._content = AdminContentMessages()
+        return self._content
 
 
 class UserMessages:
@@ -272,14 +300,15 @@ class LucienVoiceService:
         ServiceContainer
             └─ LucienVoiceService (this class)
                 ├─ common: CommonMessages ✅
-                ├─ admin: AdminMessages ✅ PHASE 2 COMPLETE
+                ├─ admin: AdminMessages ✅ PHASE 2 COMPLETE, PHASE 7 IN PROGRESS
                 │   ├─ main: AdminMainMessages ✅
                 │   ├─ vip: AdminVIPMessages ✅
-                │   └─ free: AdminFreeMessages ✅
-                └─ user: UserMessages ✅ PHASE 3 COMPLETE, PHASE 6 IN PROGRESS
+                │   ├─ free: AdminFreeMessages ✅
+                │   └─ content: AdminContentMessages ✅ NEW (Plan 01)
+                └─ user: UserMessages ✅ PHASE 3 COMPLETE, PHASE 6 COMPLETE
                     ├─ start: UserStartMessages ✅ (Plan 01)
                     ├─ flows: UserFlowMessages ✅ (Plan 02)
-                    └─ menu: UserMenuMessages ✅ NEW (Plan 01)
+                    └─ menu: UserMenuMessages ✅ (Plan 01)
 
     Voice Consistency:
         All providers inherit from BaseMessageProvider which enforces Lucien's voice.
