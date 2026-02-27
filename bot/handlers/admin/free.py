@@ -35,6 +35,8 @@ def free_menu_keyboard(is_configured: bool) -> "InlineKeyboardMarkup":
     if is_configured:
         buttons.extend([
             [{"text": "⏱️ Configurar Tiempo de Espera", "callback_data": "free:set_wait_time"}],
+            [{"text": "📤 Enviar Publicación", "callback_data": "free:broadcast"}],
+            [{"text": "📋 Ver Cola de Solicitudes", "callback_data": "free:view_queue"}],
             [{"text": "🔧 Reconfigurar Canal", "callback_data": "free:setup"}],
         ])
     else:

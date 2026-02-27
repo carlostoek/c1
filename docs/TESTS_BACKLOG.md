@@ -36,15 +36,26 @@ Se está haciendo una revisión incremental antes de integrar a `main`.
 
 ### Estado actual
 
-**Último batch revisado:** Rama `1` (T18-T19)
+**Batch 1:** T18-T19 (StatsService + Handler) ✅
 - ✅ 4 commits originales revisados
 - ✅ 1 bug crítico corregido (tokens expirados hardcodeaba 24h)
-- ✅ 14 tests documentados como pendientes
-- ⏳ Pendiente: merge a main cuando se decida
+- ✅ 14 tests documentados
 
-**Próximo batch:** Commits después de T19 en `sologam`
-- Revisar desde commit siguiente a `11688f7`
-- Incluye: T27 (Dashboard), T28 (Formatters), T29 (Tests E2E ONDA 2)
+**Batch 2:** T20-T22 (Stats mejoradas + Broadcasting) ✅
+- ✅ Cherry-pick selectivo (T21 tenía 23k líneas basura, limpiado)
+- ✅ T20: Stats con análisis contextual
+- ✅ T21: FSM states para broadcasting (solo bot/states/)
+- ✅ T22: Handler broadcasting con preview
+- ❌ T23: Reacciones ELIMINADO (no funciona en canales Telegram)
+- ✅ Tests documentados
+
+**Batch 3:** T24-T26 (Paginación) ✅
+- ✅ T24: Sistema paginación reutilizable
+- ✅ T25: Gestión paginada VIP (conflicto resuelto: sin reactions)
+- ✅ T26: Visualización cola Free
+- ✅ Tests documentados
+
+**Próximo batch:** T27-T29 (Dashboard + Formatters + Tests ONDA 2)
 
 ### Issues conocidos pendientes (no críticos)
 
@@ -93,6 +104,77 @@ Se está haciendo una revisión incremental antes de integrar a `main`.
 
 ---
 
+## Batch 2 - T20-T22 (Stats mejoradas + Broadcasting)
+
+### T20: Stats Mejoradas (`bot/handlers/admin/stats.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_retention_rate_calculation` | Tasa retención = activos/total_all_time | 🟡 Media | Pendiente |
+| `test_retention_rate_zero_division` | Retorna 0 si total_all_time es 0 | 🟡 Media | Pendiente |
+| `test_top_subscribers_emoji_colors` | 🟢>30d, 🟡7-30d, 🔴<7d | 🟢 Baja | Pendiente |
+| `test_conversion_rate_analysis` | Análisis contextual 🟢>=80%, 🟡50-79%, 🔴<50% | 🟢 Baja | Pendiente |
+
+### T21: FSM Broadcasting (`bot/states/admin.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_broadcast_states_exist` | BroadcastStates tiene 2 estados (waiting_for_content, waiting_for_confirmation) | 🟢 Baja | Pendiente |
+
+### T22: Handler Broadcasting (`bot/handlers/admin/broadcast.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_broadcast_to_vip_requires_channel` | Error si canal VIP no configurado | 🔴 Alta | Pendiente |
+| `test_broadcast_content_text` | Procesa contenido texto correctamente | 🟡 Media | Pendiente |
+| `test_broadcast_content_photo` | Procesa foto con caption | 🟡 Media | Pendiente |
+| `test_broadcast_content_video` | Procesa video con caption | 🟡 Media | Pendiente |
+| `test_broadcast_confirm_sends_to_channel` | Confirmar envía al canal correcto | 🔴 Alta | Pendiente |
+| `test_broadcast_cancel_clears_state` | Cancelar limpia FSM state | 🟡 Media | Pendiente |
+
+### ~~T23: Reacciones~~ ❌ ELIMINADO
+
+> **Razón:** Las reacciones en canales de Telegram no permiten identificar usuarios (solo en grupos). Funcionalidad eliminada por no ser útil y generar confusión.
+
+---
+
+## Batch 3 - T24-T26 (Paginación)
+
+### T24: Sistema Paginación (`bot/utils/pagination.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_paginator_basic` | Paginación de lista con múltiples páginas | 🔴 Alta | Pendiente |
+| `test_paginator_empty_list` | Lista vacía retorna 1 página con 0 items | 🟡 Media | Pendiente |
+| `test_paginator_single_page` | Lista pequeña cabe en 1 página | 🟡 Media | Pendiente |
+| `test_page_indices` | start_index y end_index correctos | 🟡 Media | Pendiente |
+| `test_pagination_keyboard` | Botones Anterior/Siguiente según contexto | 🟡 Media | Pendiente |
+| `test_extract_page_from_callback` | Parsea correctamente callbacks | 🟢 Baja | Pendiente |
+
+### T25: Gestión VIP Paginada (`bot/handlers/admin/management.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_list_vip_subscribers_page1` | Muestra página 1 de suscriptores | 🔴 Alta | Pendiente |
+| `test_vip_filter_active` | Filtro activos funciona | 🔴 Alta | Pendiente |
+| `test_vip_filter_expired` | Filtro expirados funciona | 🟡 Media | Pendiente |
+| `test_vip_filter_expiring` | Filtro "por expirar" (7 días) | 🟡 Media | Pendiente |
+| `test_vip_subscriber_details` | Muestra detalles correctos | 🟡 Media | Pendiente |
+| `test_vip_kick_subscriber` | Expulsión manual funciona | 🔴 Alta | Pendiente |
+
+### T26: Cola Free Paginada (`bot/handlers/admin/management.py`)
+
+| Test | Descripción | Prioridad | Estado |
+|------|-------------|-----------|--------|
+| `test_view_free_queue` | Muestra cola inicial | 🔴 Alta | Pendiente |
+| `test_free_filter_pending` | Filtro pendientes funciona | 🔴 Alta | Pendiente |
+| `test_free_filter_ready` | Filtro "listas" (tiempo cumplido) | 🟡 Media | Pendiente |
+| `test_free_filter_processed` | Filtro procesadas funciona | 🟡 Media | Pendiente |
+| `test_free_time_calculation` | Cálculo correcto de tiempo restante | 🔴 Alta | Pendiente |
+| `test_free_emoji_by_time` | Emoji correcto según tiempo (⏳🟡🟢✅) | 🟢 Baja | Pendiente |
+
+---
+
 ## Cómo agregar nuevos tests pendientes
 
 Al hacer un fix o implementar una feature, agregar aquí:
@@ -123,4 +205,11 @@ Al hacer un fix o implementar una feature, agregar aquí:
 |------|------------|---------------|-----------|
 | T18 StatsService | 9 | 0 | 0% |
 | T19 Handler Stats | 5 | 0 | 0% |
-| **Total rama 1** | **14** | **0** | **0%** |
+| T20 Stats Mejoradas | 4 | 0 | 0% |
+| T21 FSM Broadcasting | 1 | 0 | 0% |
+| T22 Handler Broadcast | 6 | 0 | 0% |
+| ~~T23 Reacciones~~ | ~~6~~ | - | ❌ Eliminado |
+| T24 Paginación | 6 | 0 | 0% |
+| T25 Gestión VIP | 6 | 0 | 0% |
+| T26 Cola Free | 6 | 0 | 0% |
+| **Total rama 1** | **43** | **0** | **0%** |

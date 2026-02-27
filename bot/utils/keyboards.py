@@ -124,3 +124,20 @@ def yes_no_keyboard(
             {"text": "❌ No", "callback_data": no_callback}
         ]
     ])
+
+
+def config_menu_keyboard() -> InlineKeyboardMarkup:
+    """
+    Keyboard del menú de configuración.
+
+    Opciones:
+    - Ver estado de configuración
+    - Volver al menú principal
+
+    Returns:
+        InlineKeyboardMarkup con menú de configuración
+    """
+    return create_inline_keyboard([
+        [{"text": "📊 Ver Estado de Configuración", "callback_data": "config:status"}],
+        [{"text": "🔙 Volver al Menú Principal", "callback_data": "admin:main"}],
+    ])

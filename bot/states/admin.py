@@ -51,23 +51,25 @@ class WaitTimeSetupStates(StatesGroup):
 
 class BroadcastStates(StatesGroup):
     """
-    Estados para envío de publicaciones a canales.
+    Estados para envío de publicaciones a canales (BROADCASTING AVANZADO).
 
-    Flujo:
-    1. Admin selecciona "Enviar a Canal VIP"
-    2. Bot entra en estado waiting_for_content
-    3. Admin envía mensaje (texto, foto o video)
-    4. Bot pide confirmación (opcional)
-    5. Bot envía al canal y sale del estado
+    Flujo completo:
+    1. Admin selecciona canal destino (VIP, Free, o Ambos)
+    2. Bot entra en waiting_for_content
+    3. Admin envía contenido (texto, foto, o video)
+    4. Bot muestra preview y entra en waiting_for_confirmation
+    5. Admin confirma o cancela
+    6. Si confirma: Bot envía al canal(es) y sale del estado
+    7. Si cancela: Bot vuelve a waiting_for_content o sale
 
     Tipos de Contenido:
     - Soportar: texto, foto, video
     - Estado waiting_for_content acepta cualquiera
-    - Estado waiting_for_confirmation es opcional (puede omitirse)
+    - Estado waiting_for_confirmation maneja confirmación
     """
 
-    # Esperando contenido del mensaje a enviar
+    # Estado 1: Esperando contenido del mensaje a enviar
     waiting_for_content = State()
 
-    # Esperando confirmación de envío (opcional)
+    # Estado 2: Esperando confirmación de envío (después de preview)
     waiting_for_confirmation = State()
